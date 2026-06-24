@@ -1,0 +1,37 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build outputs
+dist
+build
+out
+.tmp
+
+# nx cache
+.nx/cache
+.nx/workspace-data
+
+# next.js
+.next
+
+# testing
+coverage
+
+# env
+.env
+.env.*
+!.env.example
+
+# misc
+.DS_Store
+*.log
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# claude code (local tooling)
+.claude/
+
+# msys/cygwin fork crash dumps
+*.stackdump
