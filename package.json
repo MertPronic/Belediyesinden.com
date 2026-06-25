@@ -39,6 +39,7 @@
     "nx": "^23.0.0",
     "prettier": "~3.6.2",
     "tslib": "^2.3.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.40.0",
     "webpack": "^5.101.3",
