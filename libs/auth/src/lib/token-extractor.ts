@@ -27,7 +27,8 @@ interface KeycloakTokenContent {
   family_name?: string;
   realm_access?: { roles?: string[] };
   tenant_id?: string;
-  // keycloak-connect grupları: groups?: string[]
+  /** Group-membership mapper'ın koyduğu tenant grupları (örn. ["tenant_talas"]). */
+  tenant_groups?: string[];
   groups?: string[];
 }
 
@@ -43,6 +44,9 @@ export function extractUser(req: unknown): AuthenticatedUser | null {
     return null;
   }
   const realmRoles = token.realm_access?.roles ?? [];
+  // tenant kimliği: tenant_<slug> grubundan türe (group-membership mapper); attribute fallback.
+  const groups = token.tenant_groups ?? token.groups ?? [];
+  const tenantGroup = groups.find((g) => g.startsWith('tenant_'));
   return {
     sub: token.sub,
     email: token.email ?? null,
@@ -50,6 +54,6 @@ export function extractUser(req: unknown): AuthenticatedUser | null {
     ad: token.given_name ?? null,
     soyad: token.family_name ?? null,
     roles: mapRealmRoles(realmRoles),
-    tenantId: token.tenant_id ?? null,
+    tenantId: tenantGroup ? tenantGroup.slice('tenant_'.length) : (token.tenant_id ?? null),
   };
 }
