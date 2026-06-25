@@ -44,7 +44,7 @@ services:
     image: quay.io/keycloak/keycloak:26.0
     container_name: bldys-keycloak
     restart: unless-stopped
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
@@ -57,6 +57,8 @@ services:
       KC_HOSTNAME: localhost
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     depends_on:
       postgres:
         condition: service_healthy

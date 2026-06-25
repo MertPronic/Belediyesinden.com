@@ -5,8 +5,9 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getData() {
-    return this.appService.getData();
+  /** Sağlık kontrolü — yük dengeleyici/izleme için. (globalPrefix nedeniyle /api/health) */
+  @Get('health')
+  getHealth() {
+    return this.appService.getHealth();
   }
 }

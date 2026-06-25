@@ -7,33 +7,34 @@ import { sharedMigrations } from './migrations/shared-migrations';
 export const sharedEntities = [Tenant, User, AuditLog];
 
 /**
- * TypeORM DataSource fabrikası.
- * Varsayılan olarak `shared` şemasına bağlanır (merkezi kayıtlar).
- * Tenant verisi için `libs/tenancy` (PR-4) istek bazında `search_path` ayarlar.
+ * `shared` şemasına bağlı DataSource seçenekleri (merkezi kayıtlar).
+ * NestJS `TypeOrmModule.forRoot` ve bağımsız DataSource'lar ortak bu seçenekleri kullanır.
  *
- * Not: `overrides` parametresi `Partial<PostgresConnectionOptions>` (union değil)
- * tipindedir; bu sayede spread edildiğinde diğer driver tipleriyle kirlenip
- * `password` gibi alanların tipi genişlemez.
- *
- * @param overrides  — örn. `{ schema: 'tenant_xxx' }` ile farklı şemaya bağlan.
+ * Tenant verisi için `libs/tenancy` (PR-4) istek bazında `search_path` ayarlar;
+ * `createDataSource({ schema: 'tenant_xxx' })` ile tenant schema'sına da bağlanılabilir.
  */
-export function createDataSource(
-  overrides: Partial<PostgresDataSourceOptions> = {},
-): DataSource {
-  return new DataSource({
-    type: 'postgres',
-    host: process.env['POSTGRES_HOST'] ?? 'localhost',
-    port: Number(process.env['POSTGRES_PORT'] ?? 5432),
-    username: process.env['POSTGRES_USER'] ?? 'belediyesinden',
-    password: process.env['POSTGRES_PASSWORD'] ?? 'belediyesinden_dev',
-    database: process.env['POSTGRES_DB'] ?? 'belediyesinden',
-    schema: 'shared',
-    entities: sharedEntities,
-    migrations: sharedMigrations,
-    synchronize: false, // üretimde asla true; şema migration ile yönetilir
-    logging: process.env['DB_LOGGING'] === 'true',
-    ...overrides,
-  });
+export const sharedDataSourceOptions: PostgresDataSourceOptions = {
+  type: 'postgres',
+  host: process.env['POSTGRES_HOST'] ?? 'localhost',
+  port: Number(process.env['POSTGRES_PORT'] ?? 5432),
+  username: process.env['POSTGRES_USER'] ?? 'belediyesinden',
+  password: process.env['POSTGRES_PASSWORD'] ?? 'belediyesinden_dev',
+  database: process.env['POSTGRES_DB'] ?? 'belediyesinden',
+  schema: 'shared',
+  entities: sharedEntities,
+  migrations: sharedMigrations,
+  synchronize: false, // üretimde asla true; şema migration ile yönetilir
+  logging: process.env['DB_LOGGING'] === 'true',
+};
+
+/**
+ * TypeORM DataSource fabrikası. Varsayılan `shared` schema;
+ * `overrides` ile farklı şemaya (örn. tenant) bağlanılır.
+ *
+ * @param overrides  — örn. `{ schema: 'tenant_talas', migrations: tenantMigrations }`.
+ */
+export function createDataSource(overrides: Partial<PostgresDataSourceOptions> = {}): DataSource {
+  return new DataSource({ ...sharedDataSourceOptions, ...overrides });
 }
 
 /** Varsayılan (shared schema) DataSource — CLI/migration ve bootstrap için. */
