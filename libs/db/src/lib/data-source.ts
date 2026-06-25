@@ -1,9 +1,10 @@
 import { DataSource } from 'typeorm';
 import type { PostgresDataSourceOptions } from 'typeorm/driver/postgres/PostgresDataSourceOptions';
-import { Tenant, User } from './entities';
+import { AuditLog, Tenant, User } from './entities';
+import { sharedMigrations } from './migrations/shared-migrations';
 
 /** `shared` şemasındaki tüm entity'ler (migration ve CLI için). */
-export const sharedEntities = [Tenant, User];
+export const sharedEntities = [Tenant, User, AuditLog];
 
 /**
  * TypeORM DataSource fabrikası.
@@ -28,7 +29,7 @@ export function createDataSource(
     database: process.env['POSTGRES_DB'] ?? 'belediyesinden',
     schema: 'shared',
     entities: sharedEntities,
-    migrations: [],
+    migrations: sharedMigrations,
     synchronize: false, // üretimde asla true; şema migration ile yönetilir
     logging: process.env['DB_LOGGING'] === 'true',
     ...overrides,

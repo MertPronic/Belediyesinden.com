@@ -1,1 +1,2 @@
-export * from './lib/audit';
+export * from './lib/audit-hash';
+export * from './lib/audit.service';
