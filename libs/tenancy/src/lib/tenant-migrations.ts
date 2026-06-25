@@ -119,10 +119,40 @@ class CreateVarlik1740000005000 extends TenantMigration {
   }
 }
 
+/** 0005 — ilan (ihale ilanı + durum makinesi + kural snapshot). */
+class CreateIlan1740000006000 extends TenantMigration {
+  name = 'CreateIlan1740000006000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS ilan (
+        id              UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        baslik          VARCHAR(300)  NOT NULL,
+        aciklama        TEXT,
+        varlik_id       UUID          NOT NULL REFERENCES varlik(id),
+        ihale_tipi      VARCHAR(20)   NOT NULL,
+        durum           VARCHAR(20)   NOT NULL DEFAULT 'TASLAK',
+        baslangic_fiyati NUMERIC(18,2) NOT NULL,
+        baslangic_tarihi TIMESTAMPTZ,
+        bitis_tarihi     TIMESTAMPTZ,
+        kurallar        JSONB         NOT NULL DEFAULT '{}'::jsonb,
+        created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
+        updated_at      TIMESTAMPTZ   NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_ilan_durum ON ilan (durum)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS ilan`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
   CreateDuyuru1740000003000,
   CreateIlanKurallari1740000004000,
   CreateVarlik1740000005000,
+  CreateIlan1740000006000,
 ];

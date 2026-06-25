@@ -14,6 +14,7 @@ import { DuyuruModule } from '../duyuru/duyuru.module';
 import { TenantThemeModule } from '../tenants/tenant-theme.module';
 import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
 import { VarlikModule } from '../varlik/varlik.module';
+import { IlanModule } from '../ilan/ilan.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { VarlikModule } from '../varlik/varlik.module';
     DuyuruModule, // demo tenant-scoped kaynak
     TenantThemeModule, // herkese açık tenant tema endpoint'i
     VarlikModule, // belediye varlık CRUD (tenant-scoped)
+    IlanModule, // ihale ilanı + durum makinesi (tenant-scoped)
   ],
   controllers: [AppController],
   providers: [
