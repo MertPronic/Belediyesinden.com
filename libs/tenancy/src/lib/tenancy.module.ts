@@ -1,19 +1,17 @@
 import { Module } from '@nestjs/common';
-import { TenancyInterceptor } from './tenancy.interceptor';
 
 /**
- * TenancyModule — tenant çözümleme + istek-bazlı izolasyon altyapısını sağlar.
+ * TenancyModule — tenant çözümleme + izolasyon servisleri için modül.
  *
- * `TenancyInterceptor`'a `DataSource` enjekte edilir; bu nedenle uygulamada
- * `TypeOrmModule.forRoot(...)` ile DataSource'un DI konteynerine kayıtlı olması gerekir.
+ * `TenancyInterceptor`, uygulamada global interceptor olarak KULLANILACAKSA
+ * `{ provide: APP_INTERCEPTOR, useClass: TenancyInterceptor }` ile uygulama modülünde
+ * kaydedilir — böylece DataSource enjeksiyonu uygulama modülü kapsamında çözülür
+ * (TenantGuard ile aynı pattern). Burada tekrar provider olarak bildirilmez: çift
+ * bildirim (burada + APP_INTERCEPTOR) NestJS'in interceptor'ı yanlış kapsamda
+ * örnekleyip DataSource'u bulamamasına yol açıyordu (DI hatası).
  *
- * Kullanım (api uygulamasında, ileriki PR):
- *   @Module({ imports: [TypeOrmModule.forRoot(...), TenancyModule], providers: [
- *     { provide: APP_INTERCEPTOR, useClass: TenancyInterceptor }
- *   ] })
+ * `TenancyInterceptor` sınıfı `index.ts` barrel'inden export edilir; uygulama onu
+ * import edip APP_INTERCEPTOR ile kaydeder.
  */
-@Module({
-  providers: [TenancyInterceptor],
-  exports: [TenancyInterceptor],
-})
+@Module({})
 export class TenancyModule {}

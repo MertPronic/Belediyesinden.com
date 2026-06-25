@@ -1,6 +1,6 @@
 import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common';
 import { from, lastValueFrom } from 'rxjs';
-import type { DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { extractTenantSlug, tenantSchema } from './tenant-resolver';
 import { tenantContext } from './tenancy.context';
 
