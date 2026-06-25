@@ -3,6 +3,7 @@ import type { QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
+import { OpenSearchService } from '../search/opensearch.service';
 import type { Ilan } from './ilan.entity';
 
 const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
@@ -12,6 +13,8 @@ const GUN_MS = 86_400_000;
 /** Tenant-scoped ilan servisi + durum makinesi. */
 @Injectable()
 export class IlanService {
+  constructor(private readonly os: OpenSearchService) {}
+
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
     if (!tenant) {
@@ -72,7 +75,20 @@ export class IlanService {
         'UPDATE ilan SET durum=$1, kurallar=$2, baslangic_tarihi=$3, bitis_tarihi=$4 WHERE id=$5 RETURNING *',
         [IlanDurumu.Yayinda, JSON.stringify(kurallar), baslangic, bitis, id],
       );
-      return rows[0];
+      const updated = rows[0];
+      // Yayındaki ilanı OpenSearch'a indeksle (aranabilir).
+      const tenant = getCurrentTenant();
+      if (tenant && updated) {
+        await this.os.indexIlan(tenant.slug, {
+          id: updated.id,
+          baslik: updated.baslik,
+          aciklama: updated.aciklama,
+          ihale_tipi: updated.ihale_tipi,
+          baslangic_fiyati: updated.baslangic_fiyati,
+          durum: updated.durum,
+        });
+      }
+      return updated;
     }
 
     const rows: Ilan[] = await this.qr().query(
