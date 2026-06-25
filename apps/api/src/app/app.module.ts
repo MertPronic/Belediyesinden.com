@@ -15,6 +15,7 @@ import { TenantThemeModule } from '../tenants/tenant-theme.module';
 import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
 import { VarlikModule } from '../varlik/varlik.module';
 import { IlanModule } from '../ilan/ilan.module';
+import { EvrakModule } from '../evrak/evrak.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { IlanModule } from '../ilan/ilan.module';
     TenantThemeModule, // herkese açık tenant tema endpoint'i
     VarlikModule, // belediye varlık CRUD (tenant-scoped)
     IlanModule, // ihale ilanı + durum makinesi (tenant-scoped)
+    EvrakModule, // şartname/evrak (MinIO + tenant-scoped)
   ],
   controllers: [AppController],
   providers: [

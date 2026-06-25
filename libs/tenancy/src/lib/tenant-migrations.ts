@@ -148,6 +148,31 @@ class CreateIlan1740000006000 extends TenantMigration {
   }
 }
 
+/** 0006 — evrak (şartname/ek, MinIO key + imza durumu placeholder). */
+class CreateEvrak1740000007000 extends TenantMigration {
+  name = 'CreateEvrak1740000007000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS evrak (
+        id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        ilan_id     UUID         NOT NULL REFERENCES ilan(id),
+        dosya_adi   VARCHAR(255) NOT NULL,
+        minio_key   VARCHAR(500) NOT NULL,
+        content_type VARCHAR(100),
+        boyut       BIGINT       NOT NULL DEFAULT 0,
+        imza_durumu VARCHAR(20)  NOT NULL DEFAULT 'IMZASIZ',
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_evrak_ilan ON evrak (ilan_id)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS evrak`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -155,4 +180,5 @@ export const tenantMigrations = [
   CreateIlanKurallari1740000004000,
   CreateVarlik1740000005000,
   CreateIlan1740000006000,
+  CreateEvrak1740000007000,
 ];
