@@ -75,5 +75,28 @@ class CreateDuyuru1740000003000 extends TenantMigration {
   }
 }
 
+/** 0003 — ilan_kurallari (parametrik kural motoru, İP6). */
+class CreateIlanKurallari1740000004000 extends TenantMigration {
+  name = 'CreateIlanKurallari1740000004000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS ilan_kurallari (
+        ihale_tipi  VARCHAR(30) PRIMARY KEY,
+        kurallar    JSONB       NOT NULL,
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS ilan_kurallari`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
-export const tenantMigrations = [InitTenant1740000000000, CreateDuyuru1740000003000];
+export const tenantMigrations = [
+  InitTenant1740000000000,
+  CreateDuyuru1740000003000,
+  CreateIlanKurallari1740000004000,
+];

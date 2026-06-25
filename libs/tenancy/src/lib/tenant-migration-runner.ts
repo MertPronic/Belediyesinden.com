@@ -2,6 +2,7 @@ import type { DataSource } from 'typeorm';
 import { createDataSource, Tenant } from '@belediyesinden/db';
 import { isValidSlug, tenantSchema } from './tenant-resolver';
 import { tenantMigrations } from './tenant-migrations';
+import { defaultIlanKurallari } from '@belediyesinden/rule-engine';
 
 /** Varsayılan tema: slug'tan türetilen renk + site adı (tenant'lar görsel olarak ayrışsın). */
 function defaultTema(ad: string, slug: string): Record<string, unknown> {
@@ -58,6 +59,14 @@ export async function provisionTenant(slug: string, ad: string, root?: DataSourc
       await tenantDs.runMigrations();
     } finally {
       await tenantDs.destroy();
+    }
+
+    // 3.5) ilan_kurallari default seed (kural motoru, İP6). Schema niteliği güvenli (slug validate).
+    for (const [tip, kurallar] of Object.entries(defaultIlanKurallari)) {
+      await ds.query(
+        `INSERT INTO ${schema}.ilan_kurallari (ihale_tipi, kurallar) VALUES ($1, $2) ON CONFLICT (ihale_tipi) DO NOTHING`,
+        [tip, JSON.stringify(kurallar)],
+      );
     }
 
     // 4) durumu AKTIF'e çevir + tema seed (null ise).
