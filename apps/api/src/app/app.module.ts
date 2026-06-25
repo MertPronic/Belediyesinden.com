@@ -10,6 +10,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TenantGuard } from './tenant.guard';
 import { DuyuruModule } from '../duyuru/duyuru.module';
+import { TenantThemeModule } from '../tenants/tenant-theme.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { DuyuruModule } from '../duyuru/duyuru.module';
     KeycloakAuthModule, // KeycloakAdminService + UserSyncService
     TenancyModule, // TenancyInterceptor (sağlayıcı)
     DuyuruModule, // demo tenant-scoped kaynak
+    TenantThemeModule, // herkese açık tenant tema endpoint'i
   ],
   controllers: [AppController],
   providers: [

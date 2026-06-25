@@ -3,6 +3,13 @@ import { createDataSource, Tenant } from '@belediyesinden/db';
 import { isValidSlug, tenantSchema } from './tenant-resolver';
 import { tenantMigrations } from './tenant-migrations';
 
+/** Varsayılan tema: slug'tan türetilen renk + site adı (tenant'lar görsel olarak ayrışsın). */
+function defaultTema(ad: string, slug: string): Record<string, unknown> {
+  const palette = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c', '#0891b2'];
+  const idx = slug.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0) % palette.length;
+  return { renk: palette[idx], siteName: ad };
+}
+
 /**
  * Yeni bir tenant (belediye) provision eder:
  *   1) `shared.tenants` kaydı oluşturur (durum = PROVISIONING).
@@ -36,7 +43,7 @@ export async function provisionTenant(slug: string, ad: string, root?: DataSourc
         ad,
         durum: 'PROVISIONING',
         keycloakRealm: null,
-        temaConfig: null,
+        temaConfig: defaultTema(ad, slug),
       });
       await repo.save(tenant);
     }
@@ -53,8 +60,11 @@ export async function provisionTenant(slug: string, ad: string, root?: DataSourc
       await tenantDs.destroy();
     }
 
-    // 4) durumu AKTIF'e çevir.
+    // 4) durumu AKTIF'e çevir + tema seed (null ise).
     tenant.durum = 'AKTIF';
+    if (!tenant.temaConfig) {
+      tenant.temaConfig = defaultTema(ad, slug);
+    }
     await repo.save(tenant);
     return tenant;
   } finally {
