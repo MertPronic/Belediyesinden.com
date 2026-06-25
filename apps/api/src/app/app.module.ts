@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthGuard, KeycloakConnectModule, RoleGuard, TokenValidation } from 'nest-keycloak-connect';
 import { sharedDataSourceOptions } from '@belediyesinden/db';
 import { KeycloakAuthModule } from '@belediyesinden/auth';
@@ -11,10 +12,24 @@ import { AppService } from './app.service';
 import { TenantGuard } from './tenant.guard';
 import { DuyuruModule } from '../duyuru/duyuru.module';
 import { TenantThemeModule } from '../tenants/tenant-theme.module';
+import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', 'apps/api/.env'] }),
+    // Per-tenant rate-limit (key=tenant slug, env-driven limit/ttl). İlk guard → taşkınları erken keser.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            limit: Number(config.get<string>('THROTTLE_LIMIT') ?? 60),
+            ttl: Number(config.get<string>('THROTTLE_TTL') ?? 60000),
+          },
+        ],
+      }),
+    }),
     // TypeORM: shared schema. migrationsRun=true → startup'ta shared tabloları kurar.
     TypeOrmModule.forRoot({
       ...sharedDataSourceOptions,
@@ -44,6 +59,7 @@ import { TenantThemeModule } from '../tenants/tenant-theme.module';
     AppService,
     TenantGuard,
     // Global guard sırası: auth → rol → tenant-uyum, sonra interceptor search_path kurar.
+    { provide: APP_GUARD, useClass: TenantThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RoleGuard },
     { provide: APP_GUARD, useClass: TenantGuard },

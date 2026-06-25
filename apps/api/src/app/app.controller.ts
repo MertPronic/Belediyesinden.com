@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Unprotected } from 'nest-keycloak-connect';
 import { AppService } from './app.service';
 
@@ -9,6 +10,7 @@ export class AppController {
   /** Sağlık kontrolü — auth'süz erişilebilir. (globalPrefix nedeniyle /api/health) */
   @Get('health')
   @Unprotected()
+  @SkipThrottle()
   getHealth() {
     return this.appService.getHealth();
   }
