@@ -35,6 +35,23 @@ export function extractTenantSlug(host: string, baseDomain = BASE_DOMAIN): strin
 }
 
 /**
+ * İstek header'larından tenant slug çözer.
+ * Önce `x-tenant-slug` (dev/test/proxy kolaylığı — yük dengeleyici tenant'ı header'da geçirebilir),
+ * sonra Host subdomain'i denenir.
+ */
+export function resolveTenantSlugFromHeaders(
+  headers: Record<string, string | string[] | undefined>,
+): string | null {
+  const xSlug = headers['x-tenant-slug'];
+  if (typeof xSlug === 'string' && isValidSlug(xSlug)) {
+    return xSlug;
+  }
+  const hostHeader = headers['host'];
+  const host = (Array.isArray(hostHeader) ? (hostHeader[0] ?? '') : hostHeader) ?? '';
+  return extractTenantSlug(host);
+}
+
+/**
  * Tenant slug'ından güvenli PostgreSQL schema adı üretir.
  * Örn. `talas` → `tenant_talas`. Valid slug garantili (tırnaksız identifier olarak geçerli).
  */

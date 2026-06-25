@@ -38,8 +38,13 @@ interface KeycloakTokenContent {
  * Doğrulanmamış/public isteklerde `null` döner.
  */
 export function extractUser(req: unknown): AuthenticatedUser | null {
-  const kauth = (req as { kauth?: { grant?: { access_token?: { content?: KeycloakTokenContent } } } }).kauth;
-  const token = kauth?.grant?.access_token?.content;
+  // nest-keycloak-connect kullanıcıyı req.user'a (token içeriği) koyar; keycloak-connect
+  // doğrudan req.kauth.grant kullanır — ikisini de dene.
+  const r = req as {
+    user?: KeycloakTokenContent;
+    kauth?: { grant?: { access_token?: { content?: KeycloakTokenContent } } };
+  };
+  const token = r.user ?? r.kauth?.grant?.access_token?.content;
   if (!token?.sub) {
     return null;
   }

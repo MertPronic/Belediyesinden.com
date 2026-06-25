@@ -53,5 +53,27 @@ class InitTenant1740000000000 extends TenantMigration {
   }
 }
 
+/** 0002 — duyuru (demo tenant-scoped kaynak). İzolasyon testi için. */
+class CreateDuyuru1740000003000 extends TenantMigration {
+  name = 'CreateDuyuru1740000003000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS duyuru (
+        id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        baslik     VARCHAR(200) NOT NULL,
+        icerik     TEXT,
+        aktif      BOOLEAN      NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )
+    `);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS duyuru`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
-export const tenantMigrations = [InitTenant1740000000000];
+export const tenantMigrations = [InitTenant1740000000000, CreateDuyuru1740000003000];

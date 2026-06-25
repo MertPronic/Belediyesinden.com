@@ -8,7 +8,7 @@ import {
 import { DataSource } from 'typeorm';
 import { Tenant } from '@belediyesinden/db';
 import { extractUser } from '@belediyesinden/auth';
-import { extractTenantSlug } from '@belediyesinden/tenancy';
+import { resolveTenantSlugFromHeaders } from '@belediyesinden/tenancy';
 
 type HttpRequest = {
   headers: Record<string, string | string[] | undefined>;
@@ -32,10 +32,7 @@ export class TenantGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<HttpRequest>();
-    const hostHeader = req.headers['host'];
-    const host = (Array.isArray(hostHeader) ? (hostHeader[0] ?? '') : hostHeader) ?? '';
-
-    const slug = extractTenantSlug(host);
+    const slug = resolveTenantSlugFromHeaders(req.headers);
     if (!slug) {
       return true; // merkezi portal — tenant kısıtı yok
     }

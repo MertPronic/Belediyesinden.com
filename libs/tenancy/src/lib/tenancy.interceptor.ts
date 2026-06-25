@@ -1,7 +1,7 @@
 import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common';
 import { from, lastValueFrom } from 'rxjs';
 import { DataSource } from 'typeorm';
-import { extractTenantSlug, tenantSchema } from './tenant-resolver';
+import { resolveTenantSlugFromHeaders, tenantSchema } from './tenant-resolver';
 import { tenantContext } from './tenancy.context';
 
 /**
@@ -30,10 +30,7 @@ export class TenancyInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest<{
       headers: Record<string, string | string[] | undefined>;
     }>();
-    const hostHeader = req.headers['host'];
-    const host = (Array.isArray(hostHeader) ? (hostHeader[0] ?? '') : hostHeader) ?? '';
-
-    const slug = extractTenantSlug(host);
+    const slug = resolveTenantSlugFromHeaders(req.headers);
     if (!slug) {
       // Merkezi portal — tenant izolasyonu yok.
       return lastValueFrom(next.handle());
