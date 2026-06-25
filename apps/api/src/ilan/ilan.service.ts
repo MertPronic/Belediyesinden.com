@@ -3,6 +3,7 @@ import type { QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
+import { rawQuery } from '@belediyesinden/db';
 import { OpenSearchService } from '../search/opensearch.service';
 import type { Ilan } from './ilan.entity';
 
@@ -24,11 +25,11 @@ export class IlanService {
   }
 
   list(): Promise<Ilan[]> {
-    return this.qr().query('SELECT * FROM ilan ORDER BY created_at DESC');
+    return rawQuery<Ilan>(this.qr(), 'SELECT * FROM ilan ORDER BY created_at DESC');
   }
 
   async get(id: string): Promise<Ilan | null> {
-    const rows: Ilan[] = await this.qr().query('SELECT * FROM ilan WHERE id = $1', [id]);
+    const rows = await rawQuery<Ilan>(this.qr(), 'SELECT * FROM ilan WHERE id = $1', [id]);
     return rows[0] ?? null;
   }
 
@@ -42,7 +43,8 @@ export class IlanService {
     if (!GECERLI_TIP.has(data.ihaleTipi)) {
       throw new BadRequestException('Geçersiz ihale tipi');
     }
-    const rows: Ilan[] = await this.qr().query(
+    const rows = await rawQuery<Ilan>(
+      this.qr(),
       `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, durum, baslangic_fiyati)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [data.baslik, data.aciklama ?? null, data.varlikId, data.ihaleTipi, IlanDurumu.Taslak, data.baslangicFiyati],
@@ -52,8 +54,8 @@ export class IlanService {
 
   /**
    * Durum makinesi.
-   *  TASLAK → YAYINDA: kural motorundan kuralları çekip snapshot'lar + başlangıç/bitiş tarihlerini kurar.
-   *  Her durum → IPTAL: izinli. CANLI_ARTIRMA / SONUCLANDI: stub (Faz 4 doldurur).
+   *  TASLAK → YAYINDA: kural motorundan kuralları çekip snapshot'lar + başlangıç/bitiş tarihleri.
+   *  Her durum → IPTAL. CANLI_ARTIRMA / SONUCLANDI: stub (Faz 4).
    */
   async changeDurum(id: string, hedef: string): Promise<Ilan> {
     if (!GECERLI_DURUM.has(hedef)) {
@@ -71,12 +73,12 @@ export class IlanService {
       const kurallar = await getIlanKurallari(this.qr(), ilan.ihale_tipi as IhaleTipi);
       const baslangic = new Date();
       const bitis = new Date(baslangic.getTime() + kurallar.ihaleSuresiGun * GUN_MS);
-      const rows: Ilan[] = await this.qr().query(
+      const rows = await rawQuery<Ilan>(
+        this.qr(),
         'UPDATE ilan SET durum=$1, kurallar=$2, baslangic_tarihi=$3, bitis_tarihi=$4 WHERE id=$5 RETURNING *',
         [IlanDurumu.Yayinda, JSON.stringify(kurallar), baslangic, bitis, id],
       );
       const updated = rows[0];
-      // Yayındaki ilanı OpenSearch'a indeksle (aranabilir).
       const tenant = getCurrentTenant();
       if (tenant && updated) {
         await this.os.indexIlan(tenant.slug, {
@@ -91,7 +93,8 @@ export class IlanService {
       return updated;
     }
 
-    const rows: Ilan[] = await this.qr().query(
+    const rows = await rawQuery<Ilan>(
+      this.qr(),
       'UPDATE ilan SET durum=$1 WHERE id=$2 RETURNING *',
       [hedef, id],
     );

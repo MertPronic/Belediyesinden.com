@@ -1,5 +1,6 @@
 import type { QueryRunner } from 'typeorm';
 import { IhaleTipi } from '@belediyesinden/shared';
+import { rawQuery } from '@belediyesinden/db';
 
 /**
  * Bir ilan tipi için geçerli kurallar (tenant bazında özelleştirilebilir).
@@ -25,16 +26,11 @@ export const defaultIlanKurallari: Record<IhaleTipi, IlanKurallari> = {
 };
 
 /**
- * Aktif tenant'ın `ilan_kurallari` tablosundan (queryRunner search_path'i içinde)
- * belirli bir tipin kurallarını çeker. Yoksa/eksikse varsayılanla birleştirir.
- *
- * @param qr  Aktif tenant'ın QueryRunner'ı (getCurrentTenant().queryRunner).
- * @param tip İhale tipi.
+ * Aktif tenant'ın `ilan_kurallari` tablosundan belirli bir tipin kurallarını çeker.
+ * Yoksa/eksikse varsayılanla birleştirir.
  */
 export async function getIlanKurallari(qr: QueryRunner, tip: IhaleTipi): Promise<IlanKurallari> {
-  const rows = (await qr.query('SELECT kurallar FROM ilan_kurallari WHERE ihale_tipi = $1', [tip])) as Array<{
-    kurallar?: object;
-  }>;
+  const rows = await rawQuery<{ kurallar?: object }>(qr, 'SELECT kurallar FROM ilan_kurallari WHERE ihale_tipi = $1', [tip]);
   const stored = rows[0]?.kurallar;
   return { ...defaultIlanKurallari[tip], ...(stored ?? {}) } as IlanKurallari;
 }
