@@ -14,8 +14,22 @@ export class OpenSearchService implements OnModuleInit {
     try {
       const exists = await this.client.indices.exists({ index: INDEX });
       if (!exists.body) {
-        await this.client.indices.create({ index: INDEX });
-        this.logger.log(`OpenSearch indeks oluşturuldu: ${INDEX}`);
+        await this.client.indices.create({
+          index: INDEX,
+          body: {
+            mappings: {
+              properties: {
+                tenant_slug: { type: 'keyword' },
+                ihale_tipi: { type: 'keyword' },
+                durum: { type: 'keyword' },
+                baslik: { type: 'text', analyzer: 'standard' },
+                aciklama: { type: 'text', analyzer: 'standard' },
+                baslangic_fiyati: { type: 'double' },
+              },
+            },
+          },
+        });
+        this.logger.log(`OpenSearch indeks oluşturuldu (explicit mapping): ${INDEX}`);
       }
     } catch (e) {
       this.logger.warn('OpenSearch init atlandı: ' + (e instanceof Error ? e.message : e));
