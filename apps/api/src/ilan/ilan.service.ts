@@ -217,4 +217,37 @@ export class IlanService {
       ilan: rows[0],
     };
   }
+
+  /** İlan favorisini aç/kapat (toggle). { favori: boolean } döner. */
+  async toggleFavori(ilanId: string, kullaniciId: string): Promise<{ favori: boolean }> {
+    const mevcut = await rawQuery<{ id: string }>(
+      this.qr(),
+      'SELECT id FROM ilan_favoriler WHERE ilan_id = $1 AND kullanici_id = $2',
+      [ilanId, kullaniciId],
+    );
+    if (mevcut[0]) {
+      await rawQuery(this.qr(), 'DELETE FROM ilan_favoriler WHERE ilan_id = $1 AND kullanici_id = $2', [
+        ilanId,
+        kullaniciId,
+      ]);
+      return { favori: false };
+    }
+    await rawQuery(
+      this.qr(),
+      'INSERT INTO ilan_favoriler (ilan_id, kullanici_id) VALUES ($1, $2)',
+      [ilanId, kullaniciId],
+    );
+    return { favori: true };
+  }
+
+  /** Kullanıcının favori ilanları (ilan detayı join'li). */
+  async listFavoriler(kullaniciId: string): Promise<Ilan[]> {
+    return rawQuery<Ilan>(
+      this.qr(),
+      `SELECT i.* FROM ilan i
+       JOIN ilan_favoriler f ON f.ilan_id = i.id
+       WHERE f.kullanici_id = $1 ORDER BY f.created_at DESC`,
+      [kullaniciId],
+    );
+  }
 }

@@ -26,6 +26,19 @@ export class BasvuruService {
     return rawQuery<Basvuru>(this.qr(), 'SELECT * FROM basvuru WHERE ilan_id = $1 ORDER BY created_at DESC', [ilanId]);
   }
 
+  /** Kullanıcının kendi başvuruları (ilan başlığı join'li). */
+  async listMy(kullaniciId: string): Promise<
+    Array<{ id: string; ilan_id: string; ilan_baslik: string; durum: string; gereken_teminat: string | null; created_at: Date }>
+  > {
+    return rawQuery(
+      this.qr(),
+      `SELECT b.id, b.ilan_id, i.baslik AS ilan_baslik, b.durum, b.gereken_teminat, b.created_at
+       FROM basvuru b JOIN ilan i ON i.id = b.ilan_id
+       WHERE b.kullanici_id = $1 ORDER BY b.created_at DESC`,
+      [kullaniciId],
+    );
+  }
+
   /**
    * İlan'a başvuru oluştur. KVKK aydınlatma + açık rıza onayı zorunlu.
    * Gereken teminat = ilan başlangıç fiyatı × kural.teminatOrani (ilan tipine göre).

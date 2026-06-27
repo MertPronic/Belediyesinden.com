@@ -33,4 +33,12 @@ export class TeklifController {
   list(@Param('ilanId') ilanId: string) {
     return this.service.list(ilanId);
   }
+
+  /** Kullanıcının kendi teklifleri (vatandaş). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Get('my')
+  listMy(@CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new Error('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.listMy(user.sub);
+  }
 }

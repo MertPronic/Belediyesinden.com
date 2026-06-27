@@ -39,6 +39,19 @@ export class TeklifService {
     );
   }
 
+  /** Kullanıcının kendi teklifleri (ilan başlığı join'li). */
+  async listMy(kullaniciId: string): Promise<
+    Array<{ id: string; ilan_id: string; ilan_baslik: string; tutar: string; kabul_edildi: boolean; created_at: Date }>
+  > {
+    return rawQuery(
+      this.qr(),
+      `SELECT t.id, t.ilan_id, i.baslik AS ilan_baslik, t.tutar, t.kabul_edildi, t.created_at
+       FROM teklif t JOIN ilan i ON i.id = t.ilan_id
+       WHERE t.kullanici_id = $1 ORDER BY t.created_at DESC`,
+      [kullaniciId],
+    );
+  }
+
   async submit(ilanId: string, kullaniciId: string, tutar: number): Promise<Teklif> {
     const qr = this.qr();
 

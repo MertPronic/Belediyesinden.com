@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { IsEnum, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { IlanService } from './ilan.service';
-import { Roller, Unprotected } from '@belediyesinden/auth';
+import { CurrentUser, Roller, Unprotected, type AuthenticatedUser } from '@belediyesinden/auth';
 import { IhaleTipi, KullaniciRolu } from '@belediyesinden/shared';
 
 class CreateIlanDto {
@@ -49,6 +49,14 @@ export class IlanController {
     return this.service.list();
   }
 
+  /** Kullanıcının favori ilanları (vatandaş). :id'den ÖNCE tanımlı. */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Get('favoriler/my')
+  favorilerim(@CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new NotFoundException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.listFavoriler(user.sub);
+  }
+
   /** İlan detayı (public). */
   @Unprotected()
   @Get(':id')
@@ -58,6 +66,14 @@ export class IlanController {
       throw new NotFoundException('İlan bulunamadı');
     }
     return ilan;
+  }
+
+  /** İlanı favorile/çıkar (toggle, vatandaş). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Post(':id/favori')
+  toggleFavori(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new NotFoundException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.toggleFavori(id, user.sub);
   }
 
   /** İlan oluştur (TenantAdmin). */

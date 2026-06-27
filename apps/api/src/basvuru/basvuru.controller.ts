@@ -41,6 +41,14 @@ export class BasvuruController {
     return this.service.list(ilanId);
   }
 
+  /** Kullanıcının kendi başvuruları (vatandaş). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Get('my')
+  listMy(@CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.listMy(user.sub);
+  }
+
   /** Başvuruyu geri çek (vatandaş, kendi başvurusu, onaylanMAMış). */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Post(':id/withdraw')

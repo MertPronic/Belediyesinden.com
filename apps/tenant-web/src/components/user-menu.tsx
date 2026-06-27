@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { LogOut, Shield } from 'lucide-react';
+import { LogOut, Shield, User } from 'lucide-react';
 import { useAuth, login, logout } from '../lib/use-auth';
 import { Avatar, Button } from '@belediyesinden/ui';
 
@@ -22,6 +22,13 @@ export function UserMenu() {
 
   return (
     <div className="flex items-center gap-3">
+      <Link
+        href="/profil"
+        className="hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex"
+      >
+        <User className="h-4 w-4" />
+        Hesabım
+      </Link>
       {isAdmin && (
         <Link
           href="/admin"

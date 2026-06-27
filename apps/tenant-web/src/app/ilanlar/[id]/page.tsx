@@ -10,7 +10,6 @@ import {
   FileText,
   Gavel,
   Hash,
-  Heart,
   Home,
   Info,
   Layers,
@@ -23,6 +22,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { serverApiFetch } from '../../../lib/api';
+import { FavoriButton } from '../../../components/favori-button';
 import {
   Alert,
   Badge,
@@ -313,7 +313,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" leftIcon={<Heart />}>Favori</Button>
+                <FavoriButton ilanId={id} />
                 <Button variant="outline" className="flex-1" leftIcon={<Share2 />}>Paylaş</Button>
               </div>
 

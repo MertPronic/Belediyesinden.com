@@ -267,6 +267,29 @@ class AddIlanKazanan1740000011000 extends TenantMigration {
   }
 }
 
+/**
+ * 0011 — ilan_favoriler (vatandaş ilan favorileme). Kullanıcı+ilan unique.
+ */
+class CreateIlanFavoriler1740000012000 extends TenantMigration {
+  name = 'CreateIlanFavoriler1740000012000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS ilan_favoriler (
+        id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        kullanici_id VARCHAR(100) NOT NULL,
+        ilan_id     UUID         NOT NULL REFERENCES ilan(id),
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        CONSTRAINT ux_favoriler_kullanici_ilan UNIQUE (kullanici_id, ilan_id)
+      )
+    `);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS ilan_favoriler`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -279,4 +302,5 @@ export const tenantMigrations = [
   CreateTeminat1740000009000,
   CreateTeklif1740000010000,
   AddIlanKazanan1740000011000,
+  CreateIlanFavoriler1740000012000,
 ];
