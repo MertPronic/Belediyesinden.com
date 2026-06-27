@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
-import { CurrentUser, type AuthenticatedUser } from '@belediyesinden/auth';
+import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
+import { KullaniciRolu } from '@belediyesinden/shared';
 import { TeminatService } from './teminat.service';
 
 interface MulterFile {
@@ -20,6 +21,7 @@ export class TeminatController {
   constructor(private readonly service: TeminatService) {}
 
   /** E-dekont yükle → teminat kaydı (BEKLEMEDE). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Post('basvuru/:basvuruId')
   @UseInterceptors(FileInterceptor('file'))
   upload(
@@ -42,18 +44,21 @@ export class TeminatController {
   }
 
   /** Encümen: teminat onayla (bloke). */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/onayla')
   approve(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser | null) {
     return this.service.approve(id, user?.sub ?? 'unknown');
   }
 
   /** Encümen: teminat reddet. */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/reddet')
   reject(@Param('id') id: string) {
     return this.service.reject(id);
   }
 
   /** Teminat iade et (BLOKE → IADE). */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/iade')
   iade(@Param('id') id: string) {
     return this.service.iade(id);

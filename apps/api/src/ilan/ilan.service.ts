@@ -7,6 +7,7 @@ import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
 import { rawQuery } from '@belediyesinden/db';
 import { OpenSearchService } from '../search/opensearch.service';
+import { TeminatIadeService } from '../teminat/teminat-iade.service';
 import type { Ilan } from './ilan.entity';
 
 const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
@@ -19,6 +20,7 @@ export class IlanService {
   constructor(
     private readonly os: OpenSearchService,
     @InjectDataSource() private readonly ds: DataSource,
+    private readonly iadeService: TeminatIadeService,
   ) {}
 
   private qr(): QueryRunner {
@@ -142,6 +144,9 @@ export class IlanService {
       'UPDATE ilan SET durum = $1 WHERE id = $2 RETURNING *',
       [IlanDurumu.Sonuclandi, id],
     );
+    // BullMQ gecikmeli iade planla (fire-and-forget).
+    this.iadeService.planlaIadeForIlan(id).catch(() => {});
+
     return {
       winnerId: winner?.kullanici_id ?? null,
       kazananTutar: winner ? Number(winner.tutar) : null,
