@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
@@ -90,6 +91,29 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Hash; label: strin
       <span className="text-right text-sm font-medium text-gray-900">{value}</span>
     </div>
   );
+}
+
+/** Dinamik SEO metadata (title/description/OG) — ilan verisinden. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const slug = await getTenantSlug();
+  if (!slug) return {};
+  try {
+    const ilan = await serverApiFetch<Ilan>(`/ilan/${id}`, slug);
+    if (!ilan) return {};
+    const desc = ilan.aciklama ?? `${ilan.baslik} — belediye ihale ilanı`;
+    return {
+      title: ilan.baslik,
+      description: desc,
+      openGraph: { title: ilan.baslik, description: desc, type: 'website' },
+    };
+  } catch {
+    return {};
+  }
 }
 
 export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -246,6 +270,28 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-6">
+      {/* JSON-LD: Product/Offer (SEO structured data) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: ilan.baslik,
+            description: ilan.aciklama ?? ilan.baslik,
+            offers: {
+              '@type': 'Offer',
+              price: fiyat,
+              priceCurrency: 'TRY',
+              availability:
+                ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA'
+                  ? 'https://schema.org/InStock'
+                  : 'https://schema.org/OutOfStock',
+            },
+          }),
+        }}
+      />
+
       {/* Breadcrumb */}
       <nav className="flex flex-wrap items-center gap-1 text-sm text-gray-400">
         <Link href="/" className="inline-flex items-center gap-1 hover:text-gray-700">
