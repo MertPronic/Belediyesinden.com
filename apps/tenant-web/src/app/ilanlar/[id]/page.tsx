@@ -59,21 +59,22 @@ async function getTenantSlug(): Promise<string> {
   return first && !['localhost', 'www', 'belediyesinden'].includes(first) ? first : '';
 }
 
-export default async function IlanDetayPage({ params }: { params: { id: string } }) {
+export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const slug = await getTenantSlug();
   if (!slug) notFound();
 
   let ilan: Ilan | null = null;
   let evraklar: Evrak[] = [];
   try {
-    ilan = await serverApiFetch<Ilan>(`/ilan/${params.id}`, slug);
+    ilan = await serverApiFetch<Ilan>(`/ilan/${id}`, slug);
   } catch {
     notFound();
   }
   if (!ilan || !PUBLIC_DURUMLAR.includes(ilan.durum)) notFound();
 
   try {
-    evraklar = await serverApiFetch<Evrak[]>(`/evrak/ilan/${params.id}`, slug);
+    evraklar = await serverApiFetch<Evrak[]>(`/evrak/ilan/${id}`, slug);
   } catch {
     evraklar = [];
   }

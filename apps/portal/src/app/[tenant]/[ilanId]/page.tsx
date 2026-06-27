@@ -18,9 +18,9 @@ const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
 export default async function PortalIlanDetayPage({
   params,
 }: {
-  params: { tenant: string; ilanId: string };
+  params: Promise<{ tenant: string; ilanId: string }>;
 }) {
-  const { tenant, ilanId } = params;
+  const { tenant, ilanId } = await params;
 
   let ilan: Ilan | null = null;
   try {

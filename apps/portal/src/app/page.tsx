@@ -40,10 +40,11 @@ const TIPLER = [
 export default async function PortalHomePage({
   searchParams,
 }: {
-  searchParams: { q?: string; tip?: string };
+  searchParams: Promise<{ q?: string; tip?: string }>;
 }) {
-  const ilanlar = await fetchTumIlanlar(searchParams['q'], searchParams['tip']);
-  const aktifFiltre = !!(searchParams['q'] || searchParams['tip']);
+  const sp = await searchParams;
+  const ilanlar = await fetchTumIlanlar(sp['q'], sp['tip']);
+  const aktifFiltre = !!(sp['q'] || sp['tip']);
 
   return (
     <div className="space-y-10">
@@ -76,7 +77,7 @@ export default async function PortalHomePage({
                 type="text"
                 name="q"
                 placeholder="İlan ara..."
-                defaultValue={searchParams['q'] ?? ''}
+                defaultValue={sp['q'] ?? ''}
                 icon={<Search />}
               />
             </Field>
@@ -84,7 +85,7 @@ export default async function PortalHomePage({
               <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                 İhale Tipi
               </label>
-              <Select name="tip" defaultValue={searchParams['tip'] ?? ''}>
+              <Select name="tip" defaultValue={sp['tip'] ?? ''}>
                 {TIPLER.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}

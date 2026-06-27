@@ -48,11 +48,12 @@ async function fetchIlanlar(slug: string, query?: string, tip?: string): Promise
 export default async function IlanlarPage({
   searchParams,
 }: {
-  searchParams: { q?: string; tip?: string };
+  searchParams: Promise<{ q?: string; tip?: string }>;
 }) {
+  const sp = await searchParams;
   const slug = await getTenantSlug();
-  const ilanlar = await fetchIlanlar(slug, searchParams['q'], searchParams['tip']);
-  const aktifFiltre = !!(searchParams['q'] || searchParams['tip']);
+  const ilanlar = await fetchIlanlar(slug, sp['q'], sp['tip']);
+  const aktifFiltre = !!(sp['q'] || sp['tip']);
 
   return (
     <div className="space-y-6">
@@ -73,7 +74,7 @@ export default async function IlanlarPage({
                 type="text"
                 name="q"
                 placeholder="İlan başlığı veya açıklama..."
-                defaultValue={searchParams['q'] ?? ''}
+                defaultValue={sp['q'] ?? ''}
                 icon={<Search />}
               />
             </Field>
@@ -81,7 +82,7 @@ export default async function IlanlarPage({
               <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                 İhale Tipi
               </label>
-              <Select name="tip" defaultValue={searchParams['tip'] ?? ''}>
+              <Select name="tip" defaultValue={sp['tip'] ?? ''}>
                 {TIPLER.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
