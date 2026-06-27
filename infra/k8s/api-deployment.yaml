@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: belediyesinden-api
+  labels:
+    app: belediyesinden-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: belediyesinden-api
+  template:
+    metadata:
+      labels:
+        app: belediyesinden-api
+    spec:
+      containers:
+        - name: api
+          image: registry.gitlab.example.com/belediyesinden/api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: KEYCLOAK_URL
+              value: http://keycloak:8080
+            - name: OPENSEARCH_NODE
+              value: http://opensearch:9200
+            - name: MINIO_ENDPOINT
+              value: minio
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: belediyesinden-api
+spec:
+  selector:
+    app: belediyesinden-api
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP

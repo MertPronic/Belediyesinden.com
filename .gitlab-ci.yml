@@ -1,12 +1,13 @@
-# Belediyesinden · GitLab CI iskeleti
+# Belediyesinden · GitLab CI
 # nx affected: sadece değişen projeler (ve bağımlılıkları) lint/test/build edilir.
-# Docker image build ve deploy aşamaları ilerleyen fazlarda eklenir (Faz 6).
+# Docker image build (api) main branch push'larında.
 
 image: node:24
 
 stages:
   - install
   - verify
+  - docker
 
 variables:
   GIT_DEPTH: "0" # nx affected için tam git geçmişi
@@ -29,8 +30,21 @@ verify:
   stage: verify
   needs: [install]
   script:
-    # origin/main'e göre etkilenen projeler; MR dışında (main push) tüm geçmişe kıyasla.
     - pnpm nx affected -t lint test build --base=origin/main
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
+
+docker:api:
+  stage: docker
+  needs: [verify]
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -f apps/api/Dockerfile -t $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA .
+    - docker push $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - apps/api/**/*
