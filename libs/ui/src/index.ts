@@ -14,3 +14,4 @@ export * from './lib/separator';
 export * from './lib/skeleton';
 export * from './lib/avatar';
 export * from './lib/ilan-karti';
+export * from './lib/tabs';

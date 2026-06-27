@@ -10,11 +10,13 @@ import {
   FileText,
   Gavel,
   Hash,
+  Heart,
   Home,
   Info,
   Layers,
   Lock,
   Minus,
+  Share2,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
@@ -28,6 +30,8 @@ import {
   CardHeader,
   CardTitle,
   DurumBadge,
+  EmptyState,
+  Tabs,
 } from '@belediyesinden/ui';
 
 interface Ilan {
@@ -41,7 +45,6 @@ interface Ilan {
   bitis_tarihi: string | null;
   kurallar: { minArtirmaAdimi?: number } | null;
 }
-
 interface Evrak {
   id: string;
   dosya_adi: string;
@@ -93,7 +96,6 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
     notFound();
   }
   if (!ilan || !PUBLIC_DURUMLAR.includes(ilan.durum)) notFound();
-
   try {
     evraklar = await serverApiFetch<Evrak[]>(`/evrak/ilan/${id}`, slug);
   } catch {
@@ -107,6 +109,82 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
   const minAdim = Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0;
   const fiyat = Number(ilan.baslangic_fiyati);
+
+  const tabs = [
+    {
+      value: 'bilgi',
+      label: 'İlan Bilgileri',
+      content: (
+        <Card>
+          <CardContent className="grid gap-x-8 sm:grid-cols-2">
+            <InfoRow icon={Hash} label="İlan No" value={<span className="font-mono text-xs">{ilan.id.slice(0, 8)}</span>} />
+            <InfoRow icon={TipIcon} label="İhale Tipi" value={tip.label} />
+            <InfoRow icon={Info} label="Durum" value={<DurumBadge durum={ilan.durum} dot={false} />} />
+            <InfoRow icon={TrendingUp} label="Min. Artırma" value={`${minAdim.toLocaleString('tr-TR')} ₺`} />
+            {baslangic && (
+              <InfoRow icon={CalendarDays} label="Başlangıç" value={baslangic.toLocaleDateString('tr-TR')} />
+            )}
+            {bitis && (
+              <InfoRow icon={CalendarClock} label="Bitiş" value={bitis.toLocaleDateString('tr-TR')} />
+            )}
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      value: 'aciklama',
+      label: 'Açıklama',
+      content: (
+        <Card>
+          <CardContent>
+            {ilan.aciklama ? (
+              <p className="whitespace-pre-wrap leading-relaxed text-gray-700">{ilan.aciklama}</p>
+            ) : (
+              <p className="text-sm text-gray-400">Bu ilan için açıklama girilmemiş.</p>
+            )}
+          </CardContent>
+        </Card>
+      ),
+    },
+    {
+      value: 'evrak',
+      label: `Şartname (${evraklar.length})`,
+      content:
+        evraklar.length > 0 ? (
+          <Card>
+            <CardContent className="divide-y divide-gray-100 p-0">
+              {evraklar.map((ev) => {
+                const boyut = ev.boyut ? `${(ev.boyut / 1024).toFixed(0)} KB` : null;
+                return (
+                  <div key={ev.id} className="flex items-center justify-between gap-3 px-6 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                        <FileText className="h-4 w-4 text-gray-500" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900">{ev.dosya_adi}</p>
+                        {boyut && <p className="text-xs text-gray-400">{boyut}</p>}
+                      </div>
+                    </div>
+                    <a
+                      href={`${API_URL}/evrak/${ev.id}`}
+                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      İndir
+                    </a>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <EmptyState icon={<FileText />} title="Şartname yok" description="Bu ilana ait evrak bulunmuyor." />
+          </Card>
+        ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -123,17 +201,15 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
       </nav>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Sol: ana içerik */}
+        {/* Sol */}
         <div className="min-w-0 space-y-6">
-          {/* Banner (galeri yerine — ihale tipi ikonu + tenant rengi gradient) */}
+          {/* Banner */}
           <div
             className="relative aspect-[16/8] overflow-hidden rounded-xl"
-            style={{
-              background: `linear-gradient(135deg, var(--renk), color-mix(in srgb, var(--renk) 55%, #0f172a))`,
-            }}
+            style={{ background: `linear-gradient(135deg, var(--renk), color-mix(in srgb, var(--renk) 55%, #0f172a))` }}
           >
             <TipIcon className="absolute -right-6 -bottom-6 h-56 w-56 text-white/10" strokeWidth={1.2} />
-            <div className="absolute left-5 top-5 flex items-center gap-2">
+            <div className="absolute left-5 top-5">
               <Badge className="border-0 bg-white/20 text-white backdrop-blur" icon={<TipIcon className="h-3 w-3" />}>
                 {tip.label}
               </Badge>
@@ -142,98 +218,24 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
               <DurumBadge durum={ilan.durum} />
             </div>
             <div className="absolute bottom-5 left-5 right-5">
-              <h1 className="text-2xl font-bold leading-tight text-white drop-shadow-sm sm:text-3xl">
-                {ilan.baslik}
-              </h1>
+              <h1 className="text-2xl font-bold leading-tight text-white drop-shadow-sm sm:text-3xl">{ilan.baslik}</h1>
             </div>
           </div>
 
-          {/* İlan Bilgileri tablosu */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Layers className="h-4 w-4 text-gray-400" />
-                İlan Bilgileri
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-x-8 sm:grid-cols-2">
-              <InfoRow icon={Hash} label="İlan No" value={<span className="font-mono text-xs">{ilan.id.slice(0, 8)}</span>} />
-              <InfoRow icon={TipIcon} label="İhale Tipi" value={tip.label} />
-              <InfoRow icon={Info} label="Durum" value={<DurumBadge durum={ilan.durum} dot={false} />} />
-              <InfoRow icon={TrendingUp} label="Min. Artırma" value={`${minAdim.toLocaleString('tr-TR')} ₺`} />
-              {baslangic && (
-                <InfoRow icon={CalendarDays} label="Başlangıç" value={baslangic.toLocaleDateString('tr-TR')} />
-              )}
-              {bitis && (
-                <InfoRow icon={CalendarClock} label="Bitiş" value={bitis.toLocaleDateString('tr-TR')} />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Açıklama */}
-          {ilan.aciklama && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Açıklama</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap leading-relaxed text-gray-700">{ilan.aciklama}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Şartname / Evrak */}
-          {evraklar.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  Şartname / Ekler
-                  <span className="text-sm font-normal text-gray-400">({evraklar.length})</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="divide-y divide-gray-100 p-0">
-                {evraklar.map((ev) => {
-                  const boyut = ev.boyut ? `${(ev.boyut / 1024).toFixed(0)} KB` : null;
-                  return (
-                    <div key={ev.id} className="flex items-center justify-between gap-3 px-6 py-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                          <FileText className="h-4 w-4 text-gray-500" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-gray-900">{ev.dosya_adi}</p>
-                          {boyut && <p className="text-xs text-gray-400">{boyut}</p>}
-                        </div>
-                      </div>
-                      <a
-                        href={`${API_URL}/evrak/${ev.id}`}
-                        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        İndir
-                      </a>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+          {/* Tabs */}
+          <Tabs items={tabs} />
         </div>
 
-        {/* Sağ: sticky teklif paneli */}
+        {/* Sağ sticky panel */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <Card variant="elevated" className="overflow-hidden">
-            {/* Fiyat başlığı */}
             <div className="accent-soft-bg px-5 py-4">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Başlangıç Fiyatı</p>
               <p className="mt-0.5 text-3xl font-bold tracking-tight text-gray-900">
                 {fiyat.toLocaleString('tr-TR')} <span className="text-xl">₺</span>
               </p>
             </div>
-
             <CardContent className="space-y-4 p-5">
-              {/* Hızlı bilgiler */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-gray-500">
@@ -251,7 +253,6 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                 )}
               </div>
 
-              {/* CTA */}
               {canBid ? (
                 <Link
                   href={`/teklif/${ilan.id}`}
@@ -268,13 +269,40 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                 </Alert>
               )}
 
-              <Button variant="outline" className="w-full" leftIcon={<Wallet />}>
-                Katılım Koşulları
-              </Button>
+              {/* Favori / Paylaş (sahibinden tarzı aksiyon satırı) */}
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" leftIcon={<Heart />}>
+                  Favori
+                </Button>
+                <Button variant="outline" className="flex-1" leftIcon={<Share2 />}>
+                  Paylaş
+                </Button>
+              </div>
 
               <p className="text-center text-xs text-gray-400">
-                Teklif vermek için giriş yapmanız ve teminat yatırmanız gerekir.
+                Teklif için giriş + teminat gerekir.
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Katılım bilgisi */}
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Layers className="h-4 w-4 text-gray-400" />
+                Katılım Koşulları
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Keycloak ile giriş yapmak</li>
+                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> KVKK onayı ile başvuru</li>
+                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Teminat e-dekontu yükleme</li>
+                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Encümen teminat onayı</li>
+              </ul>
+              <Button variant="ghost" className="mt-3 w-full justify-start px-0 text-gray-600" leftIcon={<Wallet />}>
+                Detaylı bilgi
+              </Button>
             </CardContent>
           </Card>
         </aside>
