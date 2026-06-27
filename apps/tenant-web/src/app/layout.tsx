@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { Landmark } from 'lucide-react';
 import { serverApiFetch } from '../lib/api';
 import { Footer } from '@belediyesinden/ui';
-import { UserMenu } from '../components/user-menu';
+import { HeaderNav } from '../components/header-nav';
 
 export const metadata: Metadata = {
   title: 'Belediyesinden',
@@ -51,7 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         }
       >
         <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
+          <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
             <a href="/" className="flex items-center gap-2.5">
               <span
                 className="flex h-9 w-9 items-center justify-center rounded-lg shadow-sm"
@@ -61,21 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </span>
               <span className="text-base font-bold tracking-tight text-gray-900">{siteName}</span>
             </a>
-            <nav className="flex items-center gap-1 text-sm font-medium sm:gap-2">
-              <a
-                href="/"
-                className="rounded-md px-3 py-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-              >
-                Ana Sayfa
-              </a>
-              <a
-                href="/ilanlar"
-                className="rounded-md px-3 py-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-              >
-                İlanlar
-              </a>
-              <UserMenu />
-            </nav>
+            <HeaderNav />
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
