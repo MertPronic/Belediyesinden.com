@@ -6,6 +6,7 @@ const CLIENT_ID = process.env['NEXT_PUBLIC_KEYCLOAK_CLIENT_ID'] ?? 'tenant-web';
 const URL = process.env['NEXT_PUBLIC_KEYCLOAK_URL'] ?? 'http://localhost:8080';
 
 let kc: Keycloak | null = null;
+let initPromise: Promise<Keycloak> | null = null;
 
 /** Singleton Keycloak instance (client-side PKCE flow). */
 export function getKeycloak(): Keycloak {
@@ -15,24 +16,55 @@ export function getKeycloak(): Keycloak {
   return kc;
 }
 
-/** Auth state hook (client component). */
+/**
+ * Keycloak adapter'ı tek seferde başlat (check-sso). Aynı promise paylaşılır
+ * (React StrictMode çift-mount ve birden çok component güvenli).
+ */
+export function initKeycloak(): Promise<Keycloak> {
+  if (!initPromise) {
+    initPromise = getKeycloak().init({
+      onLoad: 'check-sso',
+      pkceMethod: 'S256',
+      checkLoginIframe: false,
+    }).then(() => getKeycloak());
+  }
+  return initPromise;
+}
+
+/** Kimliği doğrulanmamışsa login'e yönlendir. */
 export async function ensureAuth(): Promise<Keycloak> {
-  const k = getKeycloak();
-  await k.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false });
+  const k = await initKeycloak();
   if (!k.authenticated) {
-    await k.login();
+    await k.login({ redirectUri: window.location.href });
   }
   return k;
 }
 
-/** Token (Bearer) for API calls. */
-export function getToken(): string | undefined {
-  const k = getKeycloak();
-  return k.token;
+/** Token gerekirse yenile (5dk eşiği ile). */
+export async function getToken(): Promise<string | undefined> {
+  const k = await initKeycloak();
+  if (k.authenticated) {
+    await k.updateToken(30);
+    return k.token;
+  }
+  return undefined;
 }
 
-/** Logout. */
+/** Çıkış. */
 export async function logout(): Promise<void> {
   const k = getKeycloak();
   await k.logout({ redirectUri: window.location.origin });
+}
+
+/** JWT'den çözülen kullanıcı bilgisi (sub, roller, tenant_id). */
+export function getUserInfo() {
+  const k = getKeycloak();
+  const t = k.tokenParsed;
+  if (!t) return null;
+  return {
+    sub: t['sub'] as string,
+    ad: (t['preferred_username'] as string) ?? (t['name'] as string) ?? t['sub'],
+    roller: ((t['realm_access']?.roles as string[]) ?? []) as string[],
+    tenantId: (t['tenant_id'] as string) ?? null,
+  };
 }

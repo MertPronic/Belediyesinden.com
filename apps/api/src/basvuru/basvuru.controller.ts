@@ -31,6 +31,7 @@ export class BasvuruController {
   }
 
   /** Bir ilan'ın başvurularını listele (encümen/admin). */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Get('ilan/:ilanId')
   list(@Param('ilanId') ilanId: string) {
     return this.service.list(ilanId);

@@ -14,23 +14,28 @@ function getTenantSlug(): string {
   return process.env['NEXT_PUBLIC_TENANT_SLUG'] ?? 'talas';
 }
 
-/** Authenticated API fetch (Bearer + x-tenant-slug). */
+/** Authenticated API fetch (Bearer + x-tenant-slug). Token gerekirse yenilenir. */
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = getToken();
+  const token = await getToken();
   const headers: Record<string, string> = {
-    'content-type': 'application/json',
     'x-tenant-slug': getTenantSlug(),
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...(options.headers as Record<string, string>),
   };
+  // FormData (multipart) için content-type'ı tarayıcı setsin (boundary için).
+  if (!(options.body instanceof FormData)) {
+    headers['content-type'] = 'application/json';
+  }
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
-    throw new Error(`API ${path}: ${res.status}`);
+    const msg = await res.text().catch(() => '');
+    throw new Error(`API ${path}: ${res.status}${msg ? ` — ${msg}` : ''}`);
   }
-  return res.json() as Promise<T>;
+  const ct = res.headers.get('content-type') ?? '';
+  return (ct.includes('application/json') ? res.json() : null) as Promise<T>;
 }
 
 /** Server-side API fetch (no auth — public endpoints only). */
