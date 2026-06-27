@@ -1,92 +1,94 @@
 import { headers } from 'next/headers';
+import Link from 'next/link';
+import { serverApiFetch } from '../lib/api';
+import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
 
-const API_URL = process.env['API_URL'] ?? 'http://localhost:3000';
-
-interface TenantTheme {
-  slug: string;
-  ad: string;
-  tema: { renk?: string; siteName?: string } | null;
+interface Ilan {
+  id: string;
+  baslik: string;
+  ihale_tipi: string;
+  durum: string;
+  baslangic_fiyati: string;
+  bitis_tarihi: string | null;
 }
 
-/** İstekten tenant slug çözer: önce x-tenant-slug, sonra host subdomain'i. */
-async function resolveSlug(): Promise<string | null> {
+async function getTenantSlug(): Promise<string> {
   const h = await headers();
   const xSlug = h.get('x-tenant-slug');
-  if (xSlug) {
-    return xSlug;
-  }
-  const hostname = (h.get('host') ?? '').split(':')[0].toLowerCase();
-  if (['localhost', '', 'www'].includes(hostname)) {
-    return null;
-  }
-  const first = hostname.split('.')[0];
-  if (first && !['belediyesinden', 'www'].includes(first)) {
-    return first;
-  }
-  return null;
+  if (xSlug) return xSlug;
+  const host = h.get('host') ?? '';
+  const first = host.split(':')[0].split('.')[0]?.toLowerCase();
+  return first && !['localhost', 'www', 'belediyesinden'].includes(first) ? first : '';
 }
 
-async function getTenantTheme(): Promise<TenantTheme> {
-  const slug = await resolveSlug();
-  if (!slug) {
-    return { slug: '', ad: 'Belediyesinden', tema: { renk: '#2563eb', siteName: 'Belediyesinden' } };
-  }
-  try {
-    const r = await fetch(`${API_URL}/api/tenants/current`, {
-      headers: { 'x-tenant-slug': slug },
-      cache: 'no-store',
-    });
-    if (!r.ok) {
-      throw new Error(`theme fetch ${r.status}`);
+export default async function HomePage() {
+  const slug = await getTenantSlug();
+  let ilanlar: Ilan[] = [];
+
+  if (slug) {
+    try {
+      ilanlar = await serverApiFetch<Ilan[]>('/search/ilan', slug);
+    } catch {
+      ilanlar = [];
     }
-    return (await r.json()) as TenantTheme;
-  } catch {
-    return { slug, ad: slug, tema: { renk: '#64748b', siteName: slug } };
   }
-}
 
-/**
- * Belediye (tenant) ana sayfası — subdomain'e göre dinamik marka.
- * Server-side tenant temasını fetch eder; renk + site adı uygular.
- */
-export default async function Home() {
-  const theme = await getTenantTheme();
-  const renk = theme.tema?.renk ?? '#2563eb';
-  const siteName = theme.tema?.siteName ?? theme.ad;
+  const yayinda = ilanlar.filter((i) => i.durum === 'YAYINDA' || i.durum === 'CANLI_ARTIRMA').slice(0, 6);
 
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        background: `linear-gradient(135deg, ${renk} 0%, #ffffff 60%)`,
-        color: '#0f172a',
-        fontFamily: 'system-ui, sans-serif',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        style={{
-          background: 'white',
-          padding: '2.5rem 3rem',
-          borderRadius: '1rem',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{ width: 56, height: 56, borderRadius: '0.75rem', background: renk, margin: '0 auto 1rem' }}
-        />
-        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>{siteName}</h1>
-        <p style={{ margin: '0.5rem 0 0', color: '#64748b' }}>
-          Belediyesinden · tenant: <code>{theme.slug || 'merkezi'}</code>
+    <div className="space-y-8">
+      <section className="rounded-2xl p-8 text-white" style={{ background: 'var(--renk)' }}>
+        <h1 className="text-3xl font-bold">Belediye İlan ve Açık Artırma Portalı</h1>
+        <p className="mt-2 max-w-2xl text-white/90">
+          Belediyemizin satış, kiralama ve işletme hakkı devri ilanlarını görüntüleyin, elektronik
+          açık artırmalara katılın.
         </p>
-        <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
-          Dinamik tema — renk: <code>{renk}</code>
-        </p>
-      </div>
-    </main>
+        <Link
+          href="/ilanlar"
+          className="mt-4 inline-block rounded-lg bg-white px-5 py-2.5 text-sm font-semibold"
+          style={{ color: 'var(--renk)' }}
+        >
+          İlanları Görüntüle →
+        </Link>
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Yayındaki İlanlar</h2>
+          <Link href="/ilanlar" className="text-sm text-gray-600 hover:text-gray-900">
+            Tümü →
+          </Link>
+        </div>
+
+        {yayinda.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-gray-500">
+              {slug ? 'Şu anda yayında ilan bulunmuyor.' : 'Tenant bulunamadı.'}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {yayinda.map((ilan) => (
+              <Link key={ilan.id} href={`/ilanlar/${ilan.id}`}>
+                <Card className="h-full transition-shadow hover:shadow-md">
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base">{ilan.baslik}</CardTitle>
+                      <DurumBadge durum={ilan.durum} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">{ilan.ihale_tipi}</p>
+                    <p className="mt-2 text-lg font-bold" style={{ color: 'var(--renk)' }}>
+                      {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
