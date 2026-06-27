@@ -35,9 +35,15 @@ export class OpenSearchService implements OnModuleInit {
     });
   }
 
-  /** Tenant-filtreli arama (sadece o tenant'un ilanları). */
+  /**
+   * Arama. tenantSlug='central' (veya boş) ise tüm tenant'lar (merkezi portal);
+   * aksi halde sadece o tenant'un ilanları. Her doküman tenant_slug taşır.
+   */
   async searchIlan(tenantSlug: string, query: string, tip?: string): Promise<unknown[]> {
-    const must: Record<string, unknown>[] = [{ term: { tenant_slug: tenantSlug } }];
+    const must: Record<string, unknown>[] = [];
+    if (tenantSlug && tenantSlug !== 'central') {
+      must.push({ term: { tenant_slug: tenantSlug } });
+    }
     if (query) {
       must.push({ multi_match: { query, fields: ['baslik', 'aciklama'] } });
     }
