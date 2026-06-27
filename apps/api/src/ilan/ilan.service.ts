@@ -114,4 +114,38 @@ export class IlanService {
     );
     return rows[0];
   }
+
+  /**
+   * İhaleyi sonuçlandır: en yüksek teklifi bul → ilan SONUCLANDI.
+   * @Roller(TenantAdmin, Encumen) tarafından çağrılır.
+   */
+  async sonuclandir(id: string): Promise<{
+    winnerId: string | null;
+    kazananTutar: number | null;
+    ilan: Ilan;
+  }> {
+    const ilan = await this.get(id);
+    if (!ilan) {
+      throw new NotFoundException('İlan bulunamadı');
+    }
+    if (ilan.durum !== IlanDurumu.Yayinda) {
+      throw new BadRequestException('Sadece yayındaki ilanlar sonuçlandırılabilir');
+    }
+    const maxRows = await rawQuery<{ kullanici_id: string; tutar: string }>(
+      this.qr(),
+      'SELECT kullanici_id, tutar FROM teklif WHERE ilan_id = $1 AND kabul_edildi = true ORDER BY tutar DESC LIMIT 1',
+      [id],
+    );
+    const winner = maxRows[0];
+    const rows = await rawQuery<Ilan>(
+      this.qr(),
+      'UPDATE ilan SET durum = $1 WHERE id = $2 RETURNING *',
+      [IlanDurumu.Sonuclandi, id],
+    );
+    return {
+      winnerId: winner?.kullanici_id ?? null,
+      kazananTutar: winner ? Number(winner.tutar) : null,
+      ilan: rows[0],
+    };
+  }
 }

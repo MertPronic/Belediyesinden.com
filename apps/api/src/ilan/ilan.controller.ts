@@ -1,5 +1,7 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
 import { IlanService } from './ilan.service';
+import { Roller } from '@belediyesinden/auth';
+import { KullaniciRolu } from '@belediyesinden/shared';
 
 class CreateIlanDto {
   baslik!: string;
@@ -47,5 +49,12 @@ export class IlanController {
   @Post(':id/durum')
   changeDurum(@Param('id') id: string, @Body() dto: ChangeDurumDto) {
     return this.service.changeDurum(id, dto.durum);
+  }
+
+  /** İhaleyi sonuçlandır (en yüksek teklif → kazanan). */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
+  @Post(':id/sonuclandir')
+  sonuclandir(@Param('id') id: string) {
+    return this.service.sonuclandir(id);
   }
 }
