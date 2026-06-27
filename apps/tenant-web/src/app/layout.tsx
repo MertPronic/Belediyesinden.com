@@ -2,6 +2,7 @@ import './global.css';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { serverApiFetch } from '../lib/api';
+import { UserMenu } from '../components/user-menu';
 
 export const metadata: Metadata = {
   title: 'Belediyesinden',
@@ -59,9 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="flex items-center gap-4 text-sm">
               <a href="/" className="text-gray-600 hover:text-gray-900">Ana Sayfa</a>
               <a href="/ilanlar" className="text-gray-600 hover:text-gray-900">İlanlar</a>
-              <a href="/login" className="rounded-lg px-3 py-1.5 text-white" style={{ background: renk }}>
-                Giriş
-              </a>
+              <UserMenu />
             </nav>
           </div>
         </header>
