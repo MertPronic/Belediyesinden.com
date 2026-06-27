@@ -1,6 +1,7 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { WsAdapter } from '@nestjs/platform-ws';
+import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app/app.module';
 import { AllExceptionsFilter } from './app/all-exceptions.filter';
@@ -32,15 +33,16 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // pino structured logger (LoggerModule ile).
-  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
+  app.useLogger(logger);
 
   // WebSocket (ws) adapter — gerçek zamanlı teklif yayını (JWT doğrulamalı).
   app.useWebSocketAdapter(new WsAdapter(app));
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
-  Logger.log(`🔌 WebSocket: ws://localhost:${port}/ws`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
+  logger.log(`🔌 WebSocket: ws://localhost:${port}/ws`);
 }
 
 bootstrap();
