@@ -2,9 +2,17 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react';
 import { RequireAuth } from '../../../components/require-auth';
 import { apiFetch } from '../../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@belediyesinden/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@belediyesinden/ui';
 
 function TeminatFormu({ basvuruId }: { basvuruId: string }) {
   const router = useRouter();
@@ -34,65 +42,54 @@ function TeminatFormu({ basvuruId }: { basvuruId: string }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href="/ilanlar" className="text-sm text-gray-500 hover:text-gray-800">
-        ← İlanlara dön
+      <Link
+        href="/ilanlar"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        İlanlara dön
       </Link>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Teminat E-Dekontu</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Teminat E-Dekontu</CardTitle>
         </CardHeader>
         <CardContent>
           {done ? (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
-              <p className="font-semibold text-green-700">E-dekontunuz alındı.</p>
-              <p className="mt-1 text-sm text-green-600">
-                Teminatınız belediye encümeni tarafından incelenecektir. Onaylandığında teklif
-                verebilirsiniz.
-              </p>
-              <button
-                type="button"
-                onClick={() => router.push('/ilanlar')}
-                className="mt-4 rounded-lg px-5 py-2 text-white"
-                style={{ background: 'var(--renk)' }}
-              >
-                İlanlara Dön
-              </button>
-            </div>
+            <Alert variant="success" icon={<CheckCircle2 />} title="E-dekontunuz alındı">
+              Teminatınız belediye encümeni tarafından incelenecektir. Onaylandığında teklif
+              verebilirsiniz.
+              <div className="mt-3">
+                <Button onClick={() => router.push('/ilanlar')}>İlanlara Dön</Button>
+              </div>
+            </Alert>
           ) : (
             <form onSubmit={submit} className="space-y-4">
               <p className="text-sm text-gray-600">
                 Başvuru kaydınız oluşturuldu. İhaleye katılabilmek için teminat dekontunu yükleyin.
               </p>
-
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                   E-Dekont Dosyası
                 </label>
                 <input
                   type="file"
                   accept=".pdf,image/*"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:px-4 file:py-2 file:text-white"
-                  style={{ accentColor: 'var(--renk)' }}
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
                 />
                 {file && (
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-gray-500">
                     {file.name} ({(file.size / 1024).toFixed(0)} KB)
                   </p>
                 )}
               </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <Alert variant="error">{error}</Alert>}
 
-              <button
-                type="submit"
-                disabled={uploading}
-                className="w-full rounded-lg px-5 py-2.5 text-white disabled:opacity-50"
-                style={{ background: 'var(--renk)' }}
-              >
-                {uploading ? 'Yükleniyor...' : 'E-Dekontu Yükle'}
-              </button>
+              <Button type="submit" loading={uploading} leftIcon={<Upload />} className="w-full">
+                E-Dekontu Yükle
+              </Button>
             </form>
           )}
         </CardContent>

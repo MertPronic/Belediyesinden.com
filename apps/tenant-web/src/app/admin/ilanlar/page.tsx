@@ -1,8 +1,22 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Ban, CheckCircle2, Plus } from 'lucide-react';
 import { apiFetch } from '../../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DurumBadge,
+  EmptyState,
+  Field,
+  FieldLabel,
+  Input,
+  Select,
+} from '@belediyesinden/ui';
 
 interface Ilan {
   id: string;
@@ -77,6 +91,7 @@ export default function AdminIlanlarPage() {
   }
 
   async function durumDegistir(id: string, durum: string) {
+    setError(null);
     try {
       await apiFetch(`/ilan/${id}/durum`, { method: 'POST', body: JSON.stringify({ durum }) });
       await yukle();
@@ -87,74 +102,56 @@ export default function AdminIlanlarPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">İlanlar</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">İlanlar</h1>
+        <p className="mt-1 text-sm text-gray-500">İhale ilanlarını oluşturun ve yönetin</p>
+      </div>
+
+      {error && <Alert variant="error">{error}</Alert>}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Yeni İlan (Taslak)</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Yeni İlan (Taslak)</CardTitle>
         </CardHeader>
         <CardContent>
           {varliklar.length === 0 ? (
-            <p className="text-sm text-amber-700">
-              Önce <Link href="/admin/varliklar" className="underline">bir varlık</Link> oluşturmalısınız.
-            </p>
+            <Alert variant="warning">
+              Önce <Link href="/admin/varliklar" className="font-semibold underline">bir varlık</Link> oluşturmalısınız.
+            </Alert>
           ) : (
-            <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm text-gray-600">Başlık</label>
-                <input
-                  value={baslik}
-                  onChange={(e) => setBaslik(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm text-gray-600">Varlık</label>
-                <select
-                  value={varlikId}
-                  onChange={(e) => setVarlikId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                >
+            <form onSubmit={submit} className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+              <Field className="sm:col-span-2">
+                <FieldLabel required>Başlık</FieldLabel>
+                <Input value={baslik} onChange={(e) => setBaslik(e.target.value)} placeholder="İlan başlığı" />
+              </Field>
+              <Field>
+                <FieldLabel>Varlık</FieldLabel>
+                <Select value={varlikId} onChange={(e) => setVarlikId(e.target.value)}>
                   {varliklar.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.ad} ({v.tip})
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm text-gray-600">İhale Tipi</label>
-                <select
-                  value={ihaleTipi}
-                  onChange={(e) => setIhaleTipi(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                >
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>İhale Tipi</FieldLabel>
+                <Select value={ihaleTipi} onChange={(e) => setIhaleTipi(e.target.value)}>
                   {IHALE_TIP.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm text-gray-600">Başlangıç Fiyatı (₺)</label>
-                <input
-                  type="number"
-                  value={fiyat}
-                  onChange={(e) => setFiyat(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
-              {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
-              <div className="sm:col-span-2">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="rounded-lg px-5 py-2 text-white disabled:opacity-50"
-                  style={{ background: 'var(--renk)' }}
-                >
-                  {submitting ? 'Oluşturuluyor...' : 'İlan Oluştur'}
-                </button>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel required>Başlangıç Fiyatı (₺)</FieldLabel>
+                <Input type="number" value={fiyat} onChange={(e) => setFiyat(e.target.value)} />
+              </Field>
+              <div className="mt-3 sm:col-span-2">
+                <Button type="submit" loading={submitting} leftIcon={<Plus />}>
+                  İlan Oluştur
+                </Button>
               </div>
             </form>
           )}
@@ -162,62 +159,65 @@ export default function AdminIlanlarPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>İlan Listesi ({ilanlar.length})</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">İlan Listesi ({ilanlar.length})</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {ilanlar.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">İlan yok.</p>
+            <EmptyState title="İlan yok" description="Yukarıdaki formdan ilk ilanı oluşturun." />
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-gray-500">
-                  <th className="py-2">Başlık</th>
-                  <th>Durum</th>
-                  <th className="text-right">Fiyat</th>
-                  <th className="text-right">İşlem</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ilanlar.map((ilan) => (
-                  <tr key={ilan.id} className="border-b align-middle">
-                    <td className="py-2">
-                      <Link href={`/admin/ilanlar/${ilan.id}`} className="font-medium hover:underline">
-                        {ilan.baslik}
-                      </Link>
-                      <span className="ml-2 text-xs text-gray-400">{ilan.ihale_tipi}</span>
-                    </td>
-                    <td>
-                      <DurumBadge durum={ilan.durum} />
-                    </td>
-                    <td className="text-right">
-                      {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
-                    </td>
-                    <td className="text-right">
-                      {ilan.durum === 'TASLAK' && (
-                        <button
-                          type="button"
-                          onClick={() => durumDegistir(ilan.id, 'YAYINDA')}
-                          className="rounded px-2 py-1 text-xs text-white"
-                          style={{ background: 'var(--renk)' }}
-                        >
-                          Yayınla
-                        </button>
-                      )}
-                      {(ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA') && (
-                        <button
-                          type="button"
-                          onClick={() => durumDegistir(ilan.id, 'IPTAL')}
-                          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600"
-                        >
-                          İptal Et
-                        </button>
-                      )}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="h-11 px-4">Başlık</th>
+                    <th className="px-4">Durum</th>
+                    <th className="px-4 text-right">Fiyat</th>
+                    <th className="px-4 text-right">İşlem</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ilanlar.map((ilan) => (
+                    <tr key={ilan.id} className="border-b border-gray-100 align-middle hover:bg-gray-50/60">
+                      <td className="px-4 py-3">
+                        <Link href={`/admin/ilanlar/${ilan.id}`} className="font-medium text-gray-900 hover:underline">
+                          {ilan.baslik}
+                        </Link>
+                        <span className="ml-2 text-xs text-gray-400">{ilan.ihale_tipi}</span>
+                      </td>
+                      <td className="px-4">
+                        <DurumBadge durum={ilan.durum} />
+                      </td>
+                      <td className="px-4 text-right tabular-nums">
+                        {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+                      </td>
+                      <td className="px-4 text-right">
+                        {ilan.durum === 'TASLAK' && (
+                          <Button
+                            size="sm"
+                            leftIcon={<CheckCircle2 />}
+                            onClick={() => durumDegistir(ilan.id, 'YAYINDA')}
+                          >
+                            Yayınla
+                          </Button>
+                        )}
+                        {(ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Ban />}
+                            className="text-red-600"
+                            onClick={() => durumDegistir(ilan.id, 'IPTAL')}
+                          >
+                            İptal
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

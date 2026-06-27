@@ -1,48 +1,41 @@
 'use client';
 import Link from 'next/link';
+import { LogOut, Shield } from 'lucide-react';
 import { useAuth, login, logout } from '../lib/use-auth';
+import { Avatar, Button } from '@belediyesinden/ui';
 
 const ADMIN_ROLLER = ['tenant_admin', 'encumen', 'superadmin'];
 
-/** Header'daki auth-aware menü: login durumu + rol bazlı admin linkleri + çıkış. */
+/** Header'daki auth-aware menü: login durumu + rol bazlı admin linki + çıkış. */
 export function UserMenu() {
   const { ready, authenticated, user } = useAuth();
 
   if (!ready) {
-    return <span className="text-sm text-gray-400">…</span>;
+    return <span className="h-7 w-12 animate-pulse rounded bg-gray-100" />;
   }
 
   if (!authenticated) {
-    return (
-      <button
-        type="button"
-        onClick={login}
-        className="rounded-lg px-3 py-1.5 text-white"
-        style={{ background: 'var(--renk)' }}
-      >
-        Giriş
-      </button>
-    );
+    return <Button size="sm" onClick={login}>Giriş</Button>;
   }
 
   const isAdmin = user?.roller?.some((r) => ADMIN_ROLLER.includes(r));
 
   return (
-    <div className="flex items-center gap-4 text-sm">
+    <div className="flex items-center gap-3">
       {isAdmin && (
-        <Link href="/admin" className="text-gray-600 hover:text-gray-900">
+        <Link
+          href="/admin"
+          className="hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex"
+        >
+          <Shield className="h-4 w-4" style={{ color: 'var(--renk)' }} />
           Yönetim
         </Link>
       )}
       <div className="flex items-center gap-2">
-        <span className="hidden text-gray-600 sm:inline">{user?.ad}</span>
-        <button
-          type="button"
-          onClick={() => logout()}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50"
-        >
-          Çıkış
-        </button>
+        <Avatar fallback={user?.ad ?? 'K'} size="sm" />
+        <Button size="sm" variant="ghost" leftIcon={<LogOut />} onClick={() => logout()}>
+          <span className="hidden sm:inline">Çıkış</span>
+        </Button>
       </div>
     </div>
   );

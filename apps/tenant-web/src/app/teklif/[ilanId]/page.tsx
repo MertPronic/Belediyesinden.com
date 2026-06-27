@@ -2,9 +2,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, Clock, Gavel, Minus, TrendingUp, Trophy } from 'lucide-react';
 import { RequireAuth } from '../../../components/require-auth';
 import { apiFetch } from '../../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DurumBadge,
+  EmptyState,
+  Input,
+} from '@belediyesinden/ui';
 
 const WS_URL = process.env['NEXT_PUBLIC_WS_URL'] ?? 'ws://localhost:3000/ws';
 
@@ -17,7 +28,6 @@ interface Ilan {
   bitis_tarihi: string | null;
   kurallar: { minArtirmaAdimi?: number } | null;
 }
-
 interface Teklif {
   id: string;
   kullanici_id: string;
@@ -44,6 +54,31 @@ function useCountdown(bitis: string | null) {
   return `${d > 0 ? d + 'g ' : ''}${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function StatCell({
+  icon: Icon,
+  label,
+  value,
+  highlight,
+}: {
+  icon: typeof TrendingUp;
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-3 text-center">
+      <Icon className="mx-auto mb-1 h-4 w-4 text-gray-400" />
+      <p className="text-xs text-gray-500">{label}</p>
+      <p
+        className={`mt-0.5 text-lg font-bold ${highlight ? '' : 'text-gray-900'}`}
+        style={highlight ? { color: 'var(--renk)' } : undefined}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 function TeklifEkrani({ ilanId }: { ilanId: string }) {
   const [ilan, setIlan] = useState<Ilan | null>(null);
   const [teklifler, setTeklifler] = useState<Teklif[]>([]);
@@ -57,17 +92,14 @@ function TeklifEkrani({ ilanId }: { ilanId: string }) {
 
   const minAdim = Number(ilan?.kurallar?.minArtirmaAdimi ?? 0) || 0;
 
-  // İlan + ilk teklifler.
   useEffect(() => {
     apiFetch<Ilan>(`/ilan/${ilanId}`).then(setIlan).catch(() => setError('İlan yüklenemedi.'));
     apiFetch<Teklif[]>(`/teklif/ilan/${ilanId}`).then(setTeklifler).catch(() => {});
   }, [ilanId]);
 
-  // WebSocket: canlı teklif akışı (yeniden bağlanma ile).
   useEffect(() => {
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-
     const connect = () => {
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
@@ -93,7 +125,6 @@ function TeklifEkrani({ ilanId }: { ilanId: string }) {
       };
     };
     connect();
-
     return () => {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -143,13 +174,17 @@ function TeklifEkrani({ ilanId }: { ilanId: string }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link href={`/ilanlar/${ilanId}`} className="text-sm text-gray-500 hover:text-gray-800">
-        ← İlana dön
+      <Link
+        href={`/ilanlar/${ilanId}`}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        İlana dön
       </Link>
 
       {ilan && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-2xl">{ilan.baslik}</CardTitle>
@@ -158,108 +193,93 @@ function TeklifEkrani({ ilanId }: { ilanId: string }) {
               <DurumBadge durum={ilan.durum} />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="rounded-lg bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">En Yüksek Teklif</p>
-                <p className="text-xl font-bold" style={{ color: 'var(--renk)' }}>
-                  {fmt(enYuksek)} ₺
-                </p>
-              </div>
-              <div className="rounded-lg bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Min. Artırma</p>
-                <p className="text-xl font-bold">{fmt(minAdim)} ₺</p>
-              </div>
-              <div className="rounded-lg bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Kalan Süre</p>
-                <p className="text-xl font-bold">{kalanSure ?? '—'}</p>
-              </div>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <StatCell icon={TrendingUp} label="En Yüksek Teklif" value={`${fmt(enYuksek)} ₺`} highlight />
+              <StatCell icon={Minus} label="Min. Artırma" value={`${fmt(minAdim)} ₺`} />
+              <StatCell icon={Clock} label="Kalan Süre" value={kalanSure ?? '—'} />
             </div>
 
-            <p className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-400'}`}
               />
               {connected ? 'Canlı bağlantı aktif' : 'Bağlanıyor...'}
-            </p>
+            </div>
           </CardContent>
         </Card>
       )}
 
       {canBid ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Teklif Ver</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Gavel className="h-4 w-4" style={{ color: 'var(--renk)' }} />
+              Teklif Ver
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-              <div className="flex-1">
-                <label className="mb-1 block text-sm text-gray-600">
+            <form onSubmit={submit} className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
                   Teklifiniz (min {fmt(minTeklif)} ₺)
                 </label>
-                <input
+                <Input
                   type="number"
                   inputMode="numeric"
                   value={bid}
                   onChange={(e) => setBid(e.target.value)}
                   placeholder={String(minTeklif)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => setBid(String(minTeklif))}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              >
-                Min. teklif
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg px-6 py-2 text-white disabled:opacity-50"
-                style={{ background: 'var(--renk)' }}
-              >
-                {submitting ? 'Gönderiliyor...' : 'Teklif Ver'}
-              </button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setBid(String(minTeklif))}>
+                  Min. teklif
+                </Button>
+                <Button type="submit" loading={submitting} leftIcon={<Gavel />} className="flex-1">
+                  Teklif Ver
+                </Button>
+              </div>
+              {error && <Alert variant="error">{error}</Alert>}
+              {flash && <Alert variant="success">{flash}</Alert>}
             </form>
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-            {flash && <p className="mt-3 text-sm text-green-600">{flash}</p>}
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="py-6 text-center text-gray-600">
-            Bu ihale şu anda teklif almıyor ({ilan?.durum}).
-          </CardContent>
-        </Card>
+        <Alert variant="info">Bu ihale şu anda teklif almıyor ({ilan?.durum}).</Alert>
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Teklif Geçmişi ({teklifler.length})</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Trophy className="h-4 w-4 text-gray-400" />
+            Teklif Geçmişi ({teklifler.length})
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {teklifler.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">Henüz teklif yok.</p>
+            <EmptyState icon={<Gavel />} title="Henüz teklif yok" description="İlk teklifi veren siz olun." />
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-gray-500">
-                  <th className="py-2">Sıra</th>
-                  <th>Tutar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teklifler.map((t, i) => (
-                  <tr key={t.id} className="border-b">
-                    <td className="py-2">{i + 1}</td>
-                    <td className={i === 0 ? 'font-bold' : ''} style={i === 0 ? { color: 'var(--renk)' } : undefined}>
-                      {fmt(Number(t.tutar))} ₺
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="h-11 px-4">Sıra</th>
+                    <th className="px-4">Tutar</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {teklifler.map((t, i) => (
+                    <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50/60">
+                      <td className="h-12 px-4 text-gray-500">{i + 1}</td>
+                      <td className="px-4 font-semibold" style={i === 0 ? { color: 'var(--renk)' } : undefined}>
+                        {fmt(Number(t.tutar))} ₺ {i === 0 && <span className="ml-1 text-xs text-gray-400">(önde)</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

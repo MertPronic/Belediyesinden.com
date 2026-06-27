@@ -2,8 +2,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, Ban, CheckCircle2, FileText, Trophy, Upload } from 'lucide-react';
 import { apiFetch, downloadFile } from '../../../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DurumBadge,
+} from '@belediyesinden/ui';
 
 interface Ilan {
   id: string;
@@ -52,7 +61,7 @@ export default function AdminIlanDetayPage() {
     try {
       await apiFetch(`/ilan/${params.id}/durum`, { method: 'POST', body: JSON.stringify({ durum }) });
       await yukle();
-      setMsg(`Durum güncellendi.`);
+      setMsg('Durum güncellendi.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'İşlem başarısız.');
     } finally {
@@ -102,12 +111,16 @@ export default function AdminIlanDetayPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/ilanlar" className="text-sm text-gray-500 hover:text-gray-800">
-        ← İlanlara dön
+      <Link
+        href="/admin/ilanlar"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        İlanlara dön
       </Link>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="text-2xl">{ilan.baslik}</CardTitle>
@@ -119,49 +132,42 @@ export default function AdminIlanDetayPage() {
         <CardContent>
           {ilan.aciklama && <p className="mb-4 text-gray-700">{ilan.aciklama}</p>}
           <p className="text-sm">
-            Başlangıç: <strong>{Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺</strong>
+            Başlangıç: <strong className="text-gray-900">{Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺</strong>
           </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Durum Yönetimi</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Durum Yönetimi</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {msg && <p className="text-sm text-green-600">{msg}</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {msg && <Alert variant="success">{msg}</Alert>}
+          {error && <Alert variant="error">{error}</Alert>}
           <div className="flex flex-wrap gap-2">
             {ilan.durum === 'TASLAK' && (
-              <button
-                type="button"
-                disabled={busy}
+              <Button
+                loading={busy}
+                leftIcon={<CheckCircle2 />}
                 onClick={() => durumDegistir('YAYINDA')}
-                className="rounded-lg px-4 py-2 text-sm text-white disabled:opacity-50"
-                style={{ background: 'var(--renk)' }}
               >
                 Yayınla
-              </button>
+              </Button>
             )}
             {(ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA') && (
               <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={sonuclandir}
-                  className="rounded-lg px-4 py-2 text-sm text-white disabled:opacity-50"
-                  style={{ background: 'var(--renk)' }}
-                >
+                <Button loading={busy} leftIcon={<Trophy />} onClick={sonuclandir}>
                   Sonuçlandır
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
+                </Button>
+                <Button
+                  variant="outline"
+                  loading={busy}
+                  leftIcon={<Ban />}
+                  className="text-red-600"
                   onClick={() => durumDegistir('IPTAL')}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 disabled:opacity-50"
                 >
                   İptal Et
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -169,8 +175,8 @@ export default function AdminIlanDetayPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Şartname / Evrak</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Şartname / Evrak</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={evrakYukle} className="space-y-3">
@@ -178,42 +184,34 @@ export default function AdminIlanDetayPage() {
               type="file"
               accept=".pdf,image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:px-4 file:py-2 file:text-white"
-              style={{ accentColor: 'var(--renk)' }}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
             />
-            <button
-              type="submit"
-              disabled={uploading}
-              className="rounded-lg px-5 py-2 text-sm text-white disabled:opacity-50"
-              style={{ background: 'var(--renk)' }}
-            >
-              {uploading ? 'Yükleniyor...' : 'Evrak Yükle'}
-            </button>
+            <Button type="submit" variant="outline" loading={uploading} leftIcon={<Upload />}>
+              Evrak Yükle
+            </Button>
           </form>
 
           {evraklar.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-medium text-gray-600">
-                Yüklü Evraklar ({evraklar.length})
-              </p>
-              <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-                {evraklar.map((ev) => (
-                  <li key={ev.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <span className="truncate text-gray-700">{ev.dosya_adi}</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        downloadFile(`/evrak/${ev.id}`, ev.dosya_adi).catch((e) =>
-                          setError(e instanceof Error ? e.message : 'İndirme başarısız.'),
-                        )
-                      }
-                      className="ml-3 shrink-0 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
-                    >
-                      İndir
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
+              {evraklar.map((ev) => (
+                <div key={ev.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 text-gray-700">
+                    <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                    <span className="truncate">{ev.dosya_adi}</span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      downloadFile(`/evrak/${ev.id}`, ev.dosya_adi).catch((e) =>
+                        setError(e instanceof Error ? e.message : 'İndirme başarısız.'),
+                      )
+                    }
+                  >
+                    İndir
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

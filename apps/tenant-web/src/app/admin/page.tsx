@@ -1,8 +1,32 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import {
+  Box,
+  CheckCircle2,
+  FileText,
+  Gavel,
+  TrendingUp,
+  Users,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react';
 import { apiFetch } from '../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DurumBadge,
+  EmptyState,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@belediyesinden/ui';
 
 interface RaporOzet {
   ilanlar: Record<string, number>;
@@ -12,7 +36,6 @@ interface RaporOzet {
   katilimciSayisi: number;
   gelir: number;
 }
-
 interface Ilan {
   id: string;
   baslik: string;
@@ -28,27 +51,47 @@ const ILAN_DURUM_LABEL: Record<string, string> = {
   IPTAL: 'İptal',
 };
 
-function Stat({
+function StatCard({
+  icon: Icon,
   label,
   value,
   suffix,
-  renk,
 }: {
+  icon: LucideIcon;
   label: string;
   value: string | number;
   suffix?: string;
-  renk?: boolean;
 }) {
   return (
     <Card>
-      <CardContent className="py-5">
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="mt-1 text-2xl font-bold" style={renk ? { color: 'var(--renk)' } : undefined}>
-          {value}
-          {suffix ? <span className="ml-1 text-sm font-normal text-gray-400">{suffix}</span> : null}
-        </p>
+      <CardContent className="flex items-center gap-3 p-5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg accent-soft-bg">
+          <Icon className="h-5 w-5" style={{ color: 'var(--renk)' }} />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-2xl font-bold leading-tight tracking-tight text-gray-900">
+            {value}
+            {suffix && <span className="ml-1 text-sm font-normal text-gray-400">{suffix}</span>}
+          </p>
+          <p className="text-xs text-gray-500">{label}</p>
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function BarRow({ label, count, max }: { label: string; count: number; max: number }) {
+  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-gray-600">{label}</span>
+        <span className="font-semibold text-gray-900">{count}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--renk)' }} />
+      </div>
+    </div>
   );
 }
 
@@ -69,43 +112,50 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) {
-    return <p className="py-8 text-center text-gray-500">Yükleniyor...</p>;
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
+      </div>
+    );
   }
 
   const ilanToplam = ozet ? Object.values(ozet.ilanlar).reduce((a, b) => a + b, 0) : 0;
   const yayinda = (ozet?.ilanlar['YAYINDA'] ?? 0) + (ozet?.ilanlar['CANLI_ARTIRMA'] ?? 0);
+  const varlikToplam = ozet ? Object.values(ozet.varliklar).reduce((a, b) => a + b, 0) : 0;
+  const maxDurum = ozet ? Math.max(1, ...Object.values(ozet.ilanlar)) : 1;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Genel Bakış</h1>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Toplam İlan" value={ilanToplam} renk />
-        <Stat label="Yayında" value={yayinda} />
-        <Stat label="Teklif" value={ozet?.teklifSayisi ?? 0} />
-        <Stat label="Katılımcı" value={ozet?.katilimciSayisi ?? 0} />
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Genel Bakış</h1>
+        <p className="mt-1 text-sm text-gray-500">Belediye ihale performans özeti</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Stat label="Tahmini Gelir (sonuçlanan)" value={(ozet?.gelir ?? 0).toLocaleString('tr-TR')} suffix="₺" renk />
-        <Stat label="Toplam Varlık" value={ozet ? Object.values(ozet.varliklar).reduce((a, b) => a + b, 0) : 0} />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard icon={FileText} label="Toplam İlan" value={ilanToplam} />
+        <StatCard icon={TrendingUp} label="Yayında" value={yayinda} />
+        <StatCard icon={Gavel} label="Teklif" value={ozet?.teklifSayisi ?? 0} />
+        <StatCard icon={Users} label="Katılımcı" value={ozet?.katilimciSayisi ?? 0} />
+        <StatCard icon={Wallet} label="Gelir" value={(ozet?.gelir ?? 0).toLocaleString('tr-TR')} suffix="₺" />
+        <StatCard icon={Box} label="Varlık" value={varlikToplam} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>İlan Durum Dağılımı</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">İlan Durum Dağılımı</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {ozet && Object.keys(ozet.ilanlar).length > 0 ? (
-              <ul className="space-y-2 text-sm">
-                {Object.entries(ozet.ilanlar).map(([durum, n]) => (
-                  <li key={durum} className="flex items-center justify-between">
-                    <DurumBadge durum={durum} />
-                    <span className="font-semibold">{n}</span>
-                  </li>
-                ))}
-              </ul>
+              Object.entries(ozet.ilanlar).map(([durum, n]) => (
+                <BarRow key={durum} label={ILAN_DURUM_LABEL[durum] ?? durum} count={n} max={maxDurum} />
+              ))
             ) : (
               <p className="text-sm text-gray-500">Veri yok.</p>
             )}
@@ -113,19 +163,17 @@ export default function AdminDashboard() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Başvuru Durumu</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Başvuru Durumu</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {ozet && Object.keys(ozet.basvurular).length > 0 ? (
-              <ul className="space-y-2 text-sm">
-                {Object.entries(ozet.basvurular).map(([durum, n]) => (
-                  <li key={durum} className="flex items-center justify-between">
-                    <span className="text-gray-600">{ILAN_DURUM_LABEL[durum] ?? durum}</span>
-                    <span className="font-semibold">{n}</span>
-                  </li>
-                ))}
-              </ul>
+              Object.entries(ozet.basvurular).map(([durum, n]) => {
+                const m = Math.max(1, ...Object.values(ozet.basvurular));
+                return (
+                  <BarRow key={durum} label={ILAN_DURUM_LABEL[durum] ?? durum} count={n} max={m} />
+                );
+              })
             ) : (
               <p className="text-sm text-gray-500">Başvuru yok.</p>
             )}
@@ -134,39 +182,39 @@ export default function AdminDashboard() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Son İlanlar</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Son İlanlar</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {ilanlar.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">Henüz ilan yok.</p>
+            <EmptyState icon={<FileText />} title="Henüz ilan yok" />
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-gray-500">
-                  <th className="py-2">Başlık</th>
-                  <th>Durum</th>
-                  <th className="text-right">Başlangıç</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Başlık</TableHead>
+                  <TableHead>Durum</TableHead>
+                  <TableHead className="text-right">Başlangıç</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {ilanlar.slice(0, 8).map((ilan) => (
-                  <tr key={ilan.id} className="border-b">
-                    <td className="py-2">
+                  <TableRow key={ilan.id}>
+                    <TableCell className="font-medium text-gray-900">
                       <Link href={`/admin/ilanlar/${ilan.id}`} className="hover:underline">
                         {ilan.baslik}
                       </Link>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <DurumBadge durum={ilan.durum} />
-                    </td>
-                    <td className="text-right">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
                       {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

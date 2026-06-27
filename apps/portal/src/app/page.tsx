@@ -1,22 +1,22 @@
 import Link from 'next/link';
+import { ArrowRight, Building2, Inbox, Search, ShieldCheck } from 'lucide-react';
 import { portalFetch } from '../lib/api';
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@belediyesinden/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  EmptyState,
+  Field,
+  Input,
+  Select,
+  IlanKarti,
+  type IlanKartiData,
+} from '@belediyesinden/ui';
 
-interface PortalIlan {
-  id: string;
+interface PortalIlan extends IlanKartiData {
   tenant_slug: string;
-  baslik: string;
-  ihale_tipi: string;
-  baslangic_fiyati: string;
-  bitis_tarihi: string | null;
 }
-
-const TIP_LABEL: Record<string, string> = {
-  ACAIK_ARTIRMA: 'Açık Artırma',
-  ACIK_ARTIRMA: 'Açık Artırma',
-  ACIK_TEKLIF: 'Açık Teklif',
-  KAPALI_TEKLIF: 'Kapalı Teklif',
-};
 
 async function fetchTumIlanlar(query?: string, tip?: string): Promise<PortalIlan[]> {
   try {
@@ -24,7 +24,6 @@ async function fetchTumIlanlar(query?: string, tip?: string): Promise<PortalIlan
     if (query) params.set('q', query);
     if (tip) params.set('tip', tip);
     const qs = params.toString();
-    // tenantSlug yok → 'central' modu (tüm tenant'lar)
     return await portalFetch<PortalIlan[]>(qs ? `/search/ilan?${qs}` : '/search/ilan');
   } catch {
     return [];
@@ -44,72 +43,99 @@ export default async function PortalHomePage({
   searchParams: { q?: string; tip?: string };
 }) {
   const ilanlar = await fetchTumIlanlar(searchParams['q'], searchParams['tip']);
+  const aktifFiltre = !!(searchParams['q'] || searchParams['tip']);
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-2xl p-8 text-white" style={{ background: 'var(--renk)' }}>
-        <h1 className="text-3xl font-bold">Belediye İlanları Tek Çatı Altında</h1>
-        <p className="mt-2 max-w-2xl text-white/90">
-          Tüm belediyelerin satış, kiralama ve açık artırma ilanlarını arayın, katılın.
-        </p>
+    <div className="space-y-10">
+      {/* Hero */}
+      <section className="hero-accent overflow-hidden rounded-2xl border border-gray-100">
+        <div className="px-6 py-12 sm:px-10 sm:py-16">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/70 px-3 py-1 text-xs font-medium text-gray-600 backdrop-blur">
+            <ShieldCheck className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
+            Tüm Belediyeler Tek Çatı Altında
+          </span>
+          <h1 className="mt-4 max-w-2xl text-4xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-5xl">
+            Belediye İlanları Tek Portalda
+          </h1>
+          <p className="mt-3 max-w-xl text-base text-gray-600 sm:text-lg">
+            Türkiye genelindeki belediyelerin satış, kiralama ve açık artırma ilanlarını
+            arayın, kendi belediyenizin portalına yönlendirilin.
+          </p>
+        </div>
       </section>
 
-      <form className="flex flex-wrap gap-2">
-        <input
-          type="text"
-          name="q"
-          placeholder="İlan ara..."
-          defaultValue={searchParams['q'] ?? ''}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        />
-        <select
-          name="tip"
-          defaultValue={searchParams['tip'] ?? ''}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        >
-          {TIPLER.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="rounded-lg px-5 py-2 text-sm text-white"
-          style={{ background: 'var(--renk)' }}
-        >
-          Ara
-        </button>
-      </form>
+      {/* Filtre */}
+      <Card>
+        <CardContent className="p-4">
+          <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <Field className="mb-0 flex-1">
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                Ara
+              </label>
+              <Input
+                type="text"
+                name="q"
+                placeholder="İlan ara..."
+                defaultValue={searchParams['q'] ?? ''}
+                icon={<Search />}
+              />
+            </Field>
+            <Field className="mb-0 sm:w-56">
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                İhale Tipi
+              </label>
+              <Select name="tip" defaultValue={searchParams['tip'] ?? ''}>
+                {TIPLER.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Button type="submit" leftIcon={<Search />} className="sm:h-10">
+              Ara
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
+      {/* Sonuçlar */}
       {ilanlar.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-500">
-            {searchParams['q'] || searchParams['tip']
-              ? 'Arama kriterlerine uygun ilan bulunamadı.'
-              : 'Henüz yayında ilan yok.'}
-          </CardContent>
+          <EmptyState
+            icon={<Inbox />}
+            title={aktifFiltre ? 'İlan bulunamadı' : 'Henüz ilan yok'}
+            description={
+              aktifFiltre
+                ? 'Arama kriterlerinize uygun ilan bulunamadı.'
+                : 'Şu anda yayında ilan bulunmuyor.'
+            }
+            action={
+              aktifFiltre ? (
+                <Link href="/" className="text-sm font-medium" style={{ color: 'var(--renk)' }}>
+                  Filtreleri temizle
+                </Link>
+              ) : undefined
+            }
+          />
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ilanlar.map((ilan) => (
-            <Link key={`${ilan.tenant_slug}:${ilan.id}`} href={`/${ilan.tenant_slug}/${ilan.id}`}>
-              <Card className="h-full transition-shadow hover:shadow-md">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{ilan.baslik}</CardTitle>
-                    <Badge variant="info">{ilan.tenant_slug}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">{TIP_LABEL[ilan.ihale_tipi] ?? ilan.ihale_tipi}</p>
-                  <p className="mt-2 text-lg font-bold" style={{ color: 'var(--renk)' }}>
-                    {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">{ilanlar.length} ilan bulundu</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ilanlar.map((ilan) => (
+              <IlanKarti
+                key={`${ilan.tenant_slug}:${ilan.id}`}
+                ilan={ilan}
+                href={`/${ilan.tenant_slug}/${ilan.id}`}
+                extra={
+                  <Badge variant="default" icon={<Building2 />}>
+                    {ilan.tenant_slug}
+                  </Badge>
+                }
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

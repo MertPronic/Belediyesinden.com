@@ -2,9 +2,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { RequireAuth } from '../../../components/require-auth';
 import { apiFetch } from '../../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@belediyesinden/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@belediyesinden/ui';
 
 interface Ilan {
   id: string;
@@ -49,14 +57,18 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href={`/ilanlar/${ilanId}`} className="text-sm text-gray-500 hover:text-gray-800">
-        ← İlana dön
+      <Link
+        href={`/ilanlar/${ilanId}`}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        İlana dön
       </Link>
 
       {ilan && (
         <Card>
-          <CardHeader>
-            <CardTitle>{ilan.baslik}</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{ilan.baslik}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
@@ -67,16 +79,19 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Başvuru</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4" style={{ color: 'var(--renk)' }} />
+            Başvuru
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-              <h3 className="mb-2 font-semibold">KVKK Aydınlatma Metni</h3>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+              <h3 className="mb-2 font-semibold text-gray-900">KVKK Aydınlatma Metni</h3>
               <p>
                 İşbu ihaleye başvurmanız halinde, 6698 sayılı Kişisel Verilerin Korunması Kanunu
-                kapsamında kimlik ve iletişim bilgileriniz, başvuru ve teminat işlemlerinin
+                kapsamında kimlik ve iletişim bilgileriniz; başvuru ve teminat işlemlerinin
                 yürütülmesi ile ihale sürecinin denetimi amacıyla işlenecektir. Verileriniz mevzuat
                 gereklerine uygun olarak saklanacak ve ilgili süre sonunda imha edilecektir.
               </p>
@@ -87,10 +102,13 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
                 type="checkbox"
                 checked={kvkk}
                 onChange={(e) => setKvkk(e.target.checked)}
-                className="mt-1 h-4 w-4"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
                 style={{ accentColor: 'var(--renk)' }}
               />
-              <span>KVKK aydınlatma metnini okudum, anladım ve onaylıyorum. <strong>(Zorunlu)</strong></span>
+              <span className="text-gray-700">
+                KVKK aydınlatma metnini okudum, anladım ve onaylıyorum.{' '}
+                <strong className="text-gray-900">(Zorunlu)</strong>
+              </span>
             </label>
 
             <label className="flex items-start gap-3 text-sm">
@@ -98,25 +116,20 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
                 type="checkbox"
                 checked={riza}
                 onChange={(e) => setRiza(e.target.checked)}
-                className="mt-1 h-4 w-4"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
                 style={{ accentColor: 'var(--renk)' }}
               />
-              <span>
-                Kişisel verilerimin ilan süreci dışında pazarlama/bilgilendirme amacıyla
-                işlenmesine açık rıza veriyorum. (İsteğe bağlı)
+              <span className="text-gray-700">
+                Kişisel verilerimin ilan süreci dışında bilgilendirme amacıyla işlenmesine açık rıza
+                veriyorum. (İsteğe bağlı)
               </span>
             </label>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <Alert variant="error">{error}</Alert>}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg px-5 py-2.5 text-white disabled:opacity-50"
-              style={{ background: 'var(--renk)' }}
-            >
-              {submitting ? 'Gönderiliyor...' : 'Başvur ve Teminata Devam Et'}
-            </button>
+            <Button type="submit" loading={submitting} className="w-full">
+              Başvur ve Teminata Devam Et
+            </Button>
           </form>
         </CardContent>
       </Card>

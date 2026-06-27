@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { LogIn } from 'lucide-react';
+import { Alert } from '@belediyesinden/ui';
 import { ensureAuth, getKeycloak } from '../../lib/keycloak';
 
 export default function LoginPage() {
@@ -16,25 +18,34 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-      {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
-          <p className="font-semibold text-red-700">Giriş Hatası</p>
-          <p className="mt-1 text-sm text-red-600">{error}</p>
-          <button
-            type="button"
-            onClick={() => getKeycloak().login()}
-            className="mt-3 rounded-lg px-4 py-2 text-white"
-            style={{ background: 'var(--renk)' }}
-          >
-            Tekrar Dene
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-[var(--renk)]" />
-          <p className="text-gray-600">Keycloak'a yönlendiriliyor...</p>
-        </>
+    <div className="mx-auto flex min-h-[55vh] max-w-md flex-col items-center justify-center gap-5">
+      <div className="text-center">
+        <span
+          className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl shadow-sm"
+          style={{ background: 'var(--renk)' }}
+        >
+          <LogIn className="h-6 w-6 text-white" />
+        </span>
+        <h1 className="mt-4 text-xl font-bold text-gray-900">Giriş yapılıyor</h1>
+        <p className="mt-1 text-sm text-gray-500">Keycloak güvenli kimlik doğrulamasına yönlendiriliyorsunuz.</p>
+      </div>
+
+      <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-gray-200 border-t-[var(--renk)]" />
+
+      {error && (
+        <Alert variant="error" title="Giriş Hatası">
+          {error}
+        </Alert>
+      )}
+      {error && (
+        <button
+          type="button"
+          onClick={() => getKeycloak().login()}
+          className="rounded-lg px-5 py-2 text-sm font-semibold text-white"
+          style={{ background: 'var(--renk)' }}
+        >
+          Tekrar Dene
+        </button>
       )}
     </div>
   );

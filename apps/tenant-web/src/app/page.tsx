@@ -1,16 +1,10 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import { ArrowRight, CheckCircle2, FileText, Gavel, ShieldCheck, TrendingUp } from 'lucide-react';
 import { serverApiFetch } from '../lib/api';
-import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
+import { Card, CardContent, EmptyState, IlanKarti, type IlanKartiData } from '@belediyesinden/ui';
 
-interface Ilan {
-  id: string;
-  baslik: string;
-  ihale_tipi: string;
-  durum: string;
-  baslangic_fiyati: string;
-  bitis_tarihi: string | null;
-}
+interface Ilan extends IlanKartiData {}
 
 async function getTenantSlug(): Promise<string> {
   const h = await headers();
@@ -19,6 +13,30 @@ async function getTenantSlug(): Promise<string> {
   const host = h.get('host') ?? '';
   const first = host.split(':')[0].split('.')[0]?.toLowerCase();
   return first && !['localhost', 'www', 'belediyesinden'].includes(first) ? first : '';
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof FileText;
+  label: string;
+  value: number;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg accent-soft-bg">
+          <Icon className="h-5 w-5" style={{ color: 'var(--renk)' }} />
+        </span>
+        <div>
+          <p className="text-xl font-bold leading-tight text-gray-900">{value}</p>
+          <p className="text-xs text-gray-500">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default async function HomePage() {
@@ -33,58 +51,85 @@ export default async function HomePage() {
     }
   }
 
-  const yayinda = ilanlar.filter((i) => i.durum === 'YAYINDA' || i.durum === 'CANLI_ARTIRMA').slice(0, 6);
+  const yayinda = ilanlar.filter((i) => i.durum === 'YAYINDA' || i.durum === 'CANLI_ARTIRMA');
+  const canliArtirma = ilanlar.filter((i) => i.durum === 'CANLI_ARTIRMA').length;
+  const sonuclandi = ilanlar.filter((i) => i.durum === 'SONUCLANDI').length;
+  const onizleme = yayinda.slice(0, 6);
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-2xl p-8 text-white" style={{ background: 'var(--renk)' }}>
-        <h1 className="text-3xl font-bold">Belediye İlan ve Açık Artırma Portalı</h1>
-        <p className="mt-2 max-w-2xl text-white/90">
-          Belediyemizin satış, kiralama ve işletme hakkı devri ilanlarını görüntüleyin, elektronik
-          açık artırmalara katılın.
-        </p>
-        <Link
-          href="/ilanlar"
-          className="mt-4 inline-block rounded-lg bg-white px-5 py-2.5 text-sm font-semibold"
-          style={{ color: 'var(--renk)' }}
-        >
-          İlanları Görüntüle →
-        </Link>
+    <div className="space-y-10">
+      {/* Hero */}
+      <section className="hero-accent overflow-hidden rounded-2xl border border-gray-100">
+        <div className="px-6 py-12 sm:px-10 sm:py-16">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/70 px-3 py-1 text-xs font-medium text-gray-600 backdrop-blur">
+            <ShieldCheck className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
+            Resmî İlan Portalı
+          </span>
+          <h1 className="mt-4 max-w-2xl text-4xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-5xl">
+            Belediye İlan ve Açık Artırma Portalı
+          </h1>
+          <p className="mt-3 max-w-xl text-base text-gray-600 sm:text-lg">
+            Belediyemizin satış, kiralama ve işletme hakkı devri ilanlarını görüntüleyin;
+            elektronik açık artırmalara güvenle katılın.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/ilanlar"
+              className="inline-flex h-11 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+              style={{ background: 'var(--renk)' }}
+            >
+              İlanları Görüntüle
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/ilanlar"
+              className="inline-flex h-11 items-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Nasıl Katılırım?
+            </Link>
+          </div>
+        </div>
       </section>
 
+      {/* İstatistik şeridi */}
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard icon={FileText} label="Toplam İlan" value={ilanlar.length} />
+        <StatCard icon={TrendingUp} label="Yayında" value={yayinda.length} />
+        <StatCard icon={Gavel} label="Canlı Artırma" value={canliArtirma} />
+        <StatCard icon={CheckCircle2} label="Sonuçlanan" value={sonuclandi} />
+      </section>
+
+      {/* Yayındaki ilanlar */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Yayındaki İlanlar</h2>
-          <Link href="/ilanlar" className="text-sm text-gray-600 hover:text-gray-900">
-            Tümü →
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-gray-900">Yayındaki İlanlar</h2>
+            <p className="mt-0.5 text-sm text-gray-500">Güncel ihale ve satış ilanları</p>
+          </div>
+          <Link
+            href="/ilanlar"
+            className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Tümü <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        {yayinda.length === 0 ? (
+        {onizleme.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-gray-500">
-              {slug ? 'Şu anda yayında ilan bulunmuyor.' : 'Tenant bulunamadı.'}
-            </CardContent>
+            <EmptyState
+              icon={<FileText />}
+              title="Yayında ilan bulunmuyor"
+              description={
+                slug
+                  ? 'Şu anda aktif ihale ilanı yok. Daha sonra tekrar kontrol edin.'
+                  : 'Tenant bulunamadı.'
+              }
+            />
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {yayinda.map((ilan) => (
-              <Link key={ilan.id} href={`/ilanlar/${ilan.id}`}>
-                <Card className="h-full transition-shadow hover:shadow-md">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base">{ilan.baslik}</CardTitle>
-                      <DurumBadge durum={ilan.durum} />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">{ilan.ihale_tipi}</p>
-                    <p className="mt-2 text-lg font-bold" style={{ color: 'var(--renk)' }}>
-                      {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
-                    </p>
-                  </CardContent>
-                </Card>
-              </Link>
+            {onizleme.map((ilan) => (
+              <IlanKarti key={ilan.id} ilan={ilan} href={`/ilanlar/${ilan.id}`} />
             ))}
           </div>
         )}
