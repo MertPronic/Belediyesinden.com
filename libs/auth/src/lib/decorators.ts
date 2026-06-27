@@ -1,8 +1,18 @@
-import { type ExecutionContext, createParamDecorator } from '@nestjs/common';
+import { type ExecutionContext, SetMetadata, createParamDecorator } from '@nestjs/common';
+import { KullaniciRolu } from '@belediyesinden/shared';
 import { extractUser, type AuthenticatedUser } from './token-extractor';
 
-// nest-keycloak-connect'in rol/koruma decorator'lerini yeniden dışa aktar:
-export { Roles, Unprotected } from 'nest-keycloak-connect';
+// nest-keycloak-connect'in koruma decorator'ünü yeniden dışa aktar:
+export { Unprotected } from 'nest-keycloak-connect';
+
+/** Rol gereksinimi metadata anahtarı. */
+export const ROLLER_KEY = 'roller';
+
+/**
+ * Endpoint'e rol gereksinimi koyar. SUPERADMIN her zaman geçer.
+ * Kullanım: `@Roller(KullaniciRolu.TenantAdmin)` veya `@Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)`
+ */
+export const Roller = (...roles: KullaniciRolu[]) => SetMetadata(ROLLER_KEY, roles);
 
 /**
  * Doğrulanmış kullanıcıyı (AuthenticatedUser) parametre olarak enjekte eder.

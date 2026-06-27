@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { CurrentUser, type AuthenticatedUser } from '@belediyesinden/auth';
+import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
+import { KullaniciRolu } from '@belediyesinden/shared';
 import { BasvuruService } from './basvuru.service';
 
 class CreateBasvuruDto {
@@ -16,6 +17,7 @@ export class BasvuruController {
   constructor(private readonly service: BasvuruService) {}
 
   /** Bir ilan'a başvur (kullanıcı JWT'sinden sub). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Post('ilan/:ilanId')
   create(
     @Param('ilanId') ilanId: string,

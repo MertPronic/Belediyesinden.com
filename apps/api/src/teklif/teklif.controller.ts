@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { CurrentUser, type AuthenticatedUser } from '@belediyesinden/auth';
+import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
+import { KullaniciRolu } from '@belediyesinden/shared';
 import { TeklifService } from './teklif.service';
 
 class SubmitTeklifDto {
@@ -12,6 +13,7 @@ export class TeklifController {
   constructor(private readonly service: TeklifService) {}
 
   /** Teklif ver (server-authoritative: teklifDogrula + anti-snipping). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Post('ilan/:ilanId')
   submit(
     @Param('ilanId') ilanId: string,
