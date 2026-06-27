@@ -1,6 +1,6 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
 import { IlanService } from './ilan.service';
-import { Roller } from '@belediyesinden/auth';
+import { Roller, Unprotected } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
 
 class CreateIlanDto {
@@ -20,11 +20,15 @@ class ChangeDurumDto {
 export class IlanController {
   constructor(private readonly service: IlanService) {}
 
+  /** İlanları listele (public — vatandaş ilanları auth'suz görüntüler). */
+  @Unprotected()
   @Get()
   list() {
     return this.service.list();
   }
 
+  /** İlan detayı (public). */
+  @Unprotected()
   @Get(':id')
   async get(@Param('id') id: string) {
     const ilan = await this.service.get(id);
@@ -34,6 +38,8 @@ export class IlanController {
     return ilan;
   }
 
+  /** İlan oluştur (TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
   @Post()
   create(@Body() dto: CreateIlanDto) {
     return this.service.create({
@@ -46,6 +52,7 @@ export class IlanController {
   }
 
   /** Durum geçişi: { durum: 'YAYINDA' | 'IPTAL' | ... } */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/durum')
   changeDurum(@Param('id') id: string, @Body() dto: ChangeDurumDto) {
     return this.service.changeDurum(id, dto.durum);

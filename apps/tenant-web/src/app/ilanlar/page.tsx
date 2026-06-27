@@ -26,29 +26,39 @@ async function getTenantSlug(): Promise<string> {
   return first && !['localhost', 'www', 'belediyesinden'].includes(first) ? first : '';
 }
 
-async function fetchIlanlar(slug: string, query?: string): Promise<Ilan[]> {
+async function fetchIlanlar(slug: string, query?: string, tip?: string): Promise<Ilan[]> {
   if (!slug) return [];
   try {
-    const path = query ? `/search/ilan?q=${encodeURIComponent(query)}` : '/search/ilan';
-    return await serverApiFetch<Ilan[]>(path, slug);
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (tip) params.set('tip', tip);
+    const qs = params.toString();
+    return await serverApiFetch<Ilan[]>(qs ? `/search/ilan?${qs}` : '/search/ilan', slug);
   } catch {
     return [];
   }
 }
 
+const TIPLER = [
+  { value: '', label: 'Tüm Tipler' },
+  { value: 'ACIK_ARTIRMA', label: 'Açık Artırma' },
+  { value: 'ACIK_TEKLIF', label: 'Açık Teklif' },
+  { value: 'KAPALI_TEKLIF', label: 'Kapalı Teklif' },
+];
+
 export default async function IlanlarPage({
   searchParams,
 }: {
-  searchParams: { q?: string };
+  searchParams: { q?: string; tip?: string };
 }) {
   const slug = await getTenantSlug();
-  const ilanlar = await fetchIlanlar(slug, searchParams['q']);
+  const ilanlar = await fetchIlanlar(slug, searchParams['q'], searchParams['tip']);
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">İlanlar</h1>
-        <form className="flex gap-2">
+        <form className="flex flex-wrap gap-2">
           <input
             type="text"
             name="q"
@@ -56,6 +66,17 @@ export default async function IlanlarPage({
             defaultValue={searchParams['q'] ?? ''}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
           />
+          <select
+            name="tip"
+            defaultValue={searchParams['tip'] ?? ''}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+          >
+            {TIPLER.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             className="rounded-lg px-4 py-1.5 text-sm text-white"
@@ -85,7 +106,7 @@ export default async function IlanlarPage({
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-6 text-sm text-gray-600">
-                    <span>Tip: <strong>{ilan.ihale_tipi}</strong></span>
+                    <span>Tip: <strong>{TIPLER.find((t) => t.value === ilan.ihale_tipi)?.label ?? ilan.ihale_tipi}</strong></span>
                     <span>Başlangıç: <strong>{Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺</strong></span>
                     {ilan.bitis_tarihi && (
                       <span>Bitiş: <strong>{new Date(ilan.bitis_tarihi).toLocaleDateString('tr-TR')}</strong></span>
