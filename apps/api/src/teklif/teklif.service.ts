@@ -5,6 +5,7 @@ import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
 import { rawQuery } from '@belediyesinden/db';
 import { sureUzat, sureUzatmaGerekirMi, teklifDogrula } from '@belediyesinden/auction-core';
+import { AuctionGateway } from '../auction/auction-gateway';
 import type { Ilan } from '../ilan/ilan.entity';
 import type { Teklif } from './teklif.entity';
 
@@ -15,6 +16,8 @@ import type { Teklif } from './teklif.entity';
  */
 @Injectable()
 export class TeklifService {
+  constructor(private readonly gateway: AuctionGateway) {}
+
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
     if (!tenant) {
@@ -73,6 +76,14 @@ export class TeklifService {
       'INSERT INTO teklif (ilan_id, kullanici_id, tutar, kabul_edildi) VALUES ($1, $2, $3, true) RETURNING *',
       [ilanId, kullaniciId, tutar],
     );
+    const teklif = rows[0];
+
+    // Gerçek zamanlı yayın (ws).
+    this.gateway.broadcastTeklif(ilanId, {
+      id: teklif.id,
+      kullanici_id: teklif.kullanici_id,
+      tutar: teklif.tutar,
+    });
 
     // Anti-snipping: bitişe yakınsa süreyi uzat.
     if (sureUzatmaGerekirMi(bitis, kurallar.sureUzatmaDakika)) {
@@ -80,6 +91,6 @@ export class TeklifService {
       await qr.query('UPDATE ilan SET bitis_tarihi = $1 WHERE id = $2', [yeniBitis, ilanId]);
     }
 
-    return rows[0];
+    return teklif;
   }
 }
