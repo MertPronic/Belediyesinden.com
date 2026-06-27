@@ -52,3 +52,12 @@ export enum TeminatDurumu {
   IadeEdildi = 'IADE_EDILDI',
   Reddedildi = 'REDDEDILDI',
 }
+
+/** Başvuru yaşam döngüsü durumları (ilan'a katılım). */
+export enum BasvuruDurumu {
+  Basladi = 'BASLADI',
+  TeminatBekleniyor = 'TEMINAT_BEKLENIYOR',
+  Onaylandi = 'ONAYLANDI',
+  Reddedildi = 'REDDEDILDI',
+  IadeEdildi = 'IADE_EDILDI',
+}

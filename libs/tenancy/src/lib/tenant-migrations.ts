@@ -173,6 +173,32 @@ class CreateEvrak1740000007000 extends TenantMigration {
   }
 }
 
+/** 0007 — basvuru (ilan'a katılım + KVKK onay + gereken teminat). */
+class CreateBasvuru1740000008000 extends TenantMigration {
+  name = 'CreateBasvuru1740000008000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS basvuru (
+        id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        ilan_id         UUID         NOT NULL REFERENCES ilan(id),
+        kullanici_id    VARCHAR(100) NOT NULL,
+        durum           VARCHAR(20)  NOT NULL DEFAULT 'BASLADI',
+        kvkk_onay       BOOLEAN      NOT NULL DEFAULT false,
+        acik_riza       BOOLEAN      NOT NULL DEFAULT false,
+        gereken_teminat NUMERIC(18,2),
+        created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE UNIQUE INDEX ux_basvuru_ilan_kullanici ON basvuru (ilan_id, kullanici_id)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS basvuru`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -181,4 +207,5 @@ export const tenantMigrations = [
   CreateVarlik1740000005000,
   CreateIlan1740000006000,
   CreateEvrak1740000007000,
+  CreateBasvuru1740000008000,
 ];

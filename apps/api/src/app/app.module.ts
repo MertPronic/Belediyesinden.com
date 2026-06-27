@@ -16,6 +16,7 @@ import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
 import { VarlikModule } from '../varlik/varlik.module';
 import { IlanModule } from '../ilan/ilan.module';
 import { EvrakModule } from '../evrak/evrak.module';
+import { BasvuruModule } from '../basvuru/basvuru.module';
 import { SearchModule } from '../search/search.module';
 
 @Module({
@@ -61,6 +62,7 @@ import { SearchModule } from '../search/search.module';
     IlanModule, // ihale ilanı + durum makinesi (tenant-scoped)
     EvrakModule, // şartname/evrak (MinIO + tenant-scoped)
     SearchModule, // OpenSearch ilan arama (global)
+    BasvuruModule, // başvuru + KVKK (tenant-scoped)
   ],
   controllers: [AppController],
   providers: [
