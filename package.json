@@ -6,9 +6,10 @@
   "scripts": {
     "build": "nx affected -t build",
     "lint": "nx affected -t lint",
-    "test": "nx affected -t test",
+    "test": "vitest run libs/",
     "serve:api": "nx serve api",
-    "build:docker": "nx run-many -t build -p api tenant-web portal"
+    "build:docker": "nx run-many -t build -p api tenant-web portal",
+    "test:watch": "vitest libs/"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",
@@ -47,6 +48,7 @@
     "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.40.0",
+    "vitest": "^4.1.9",
     "webpack": "^5.101.3",
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
