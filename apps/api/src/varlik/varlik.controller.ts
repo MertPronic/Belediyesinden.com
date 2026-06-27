@@ -8,7 +8,8 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { VarlikTipi } from '@belediyesinden/shared';
+import { KullaniciRolu, VarlikTipi } from '@belediyesinden/shared';
+import { Roller } from '@belediyesinden/auth';
 import { VarlikService } from './varlik.service';
 
 class CreateVarlikDto {
@@ -39,6 +40,7 @@ export class VarlikController {
     return v;
   }
 
+  @Roller(KullaniciRolu.TenantAdmin)
   @Post()
   create(@Body() dto: CreateVarlikDto) {
     if (!GECERLI_TIP.has(dto.tip)) {

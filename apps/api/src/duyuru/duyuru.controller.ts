@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Roller } from '@belediyesinden/auth';
+import { KullaniciRolu } from '@belediyesinden/shared';
 import { DuyuruService } from './duyuru.service';
 
 class CreateDuyuruDto {
@@ -12,6 +14,7 @@ class CreateDuyuruDto {
  * (Rol enforcement — TENANT_ADMIN — ileride özel bir RolesGuard ile eklenecek;
  * nest-keycloak-connect RoleGuard rol çıkarımında sorun çıkarıyor.)
  */
+@Roller(KullaniciRolu.TenantAdmin)
 @Controller('duyuru')
 export class DuyuruController {
   constructor(private readonly service: DuyuruService) {}

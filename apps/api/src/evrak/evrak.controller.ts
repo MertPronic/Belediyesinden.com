@@ -11,6 +11,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import type { Response } from 'express';
 import { EvrakService } from './evrak.service';
+import { Roller } from '@belediyesinden/auth';
+import { KullaniciRolu } from '@belediyesinden/shared';
 
 /** Multer yüklenen dosya (Express.Multer.File global augmentasyonu yerine yerel tip). */
 interface MulterFile {
@@ -27,6 +29,7 @@ interface MulterFile {
  *  POST /api/evrak/:ilanId (multipart 'file') → upload
  *  GET  /api/evrak/:id → download (stream)
  */
+@Roller(KullaniciRolu.TenantAdmin)
 @Controller('evrak')
 export class EvrakController {
   constructor(private readonly service: EvrakService) {}
