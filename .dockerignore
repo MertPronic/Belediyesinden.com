@@ -1,0 +1,27 @@
+# Bağımlılıklar (Docker'da yeniden üretilmez/relocatable)
+node_modules
+**/node_modules
+coverage
+**/coverage
+
+# Git ve IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Ortam & geçici (artifacts DEĞİL — dist/.next build çıktıları context'e dahil)
+.env
+.env.*
+!.env.example
+*.log
+tmp
+.cache
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Platform
+.claude
+docs
