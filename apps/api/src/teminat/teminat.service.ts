@@ -24,6 +24,31 @@ export class TeminatService {
     return tenant.queryRunner;
   }
 
+  /** Tenant'ın tüm teminatları (başvuru + ilan bağlamı ile, encümen/admin). */
+  async list(): Promise<
+    Array<{
+      id: string;
+      basvuru_id: string;
+      ilan_id: string;
+      ilan_baslik: string;
+      tutar: string;
+      durum: string;
+      dekont_dosya_adi: string | null;
+      onaylayan: string | null;
+      created_at: Date;
+    }>
+  > {
+    return rawQuery(
+      this.qr(),
+      `SELECT t.id, t.basvuru_id, b.ilan_id, i.baslik AS ilan_baslik,
+              t.tutar, t.durum, t.dekont_dosya_adi, t.onaylayan, t.created_at
+       FROM teminat t
+       JOIN basvuru b ON b.id = t.basvuru_id
+       JOIN ilan i ON i.id = b.ilan_id
+       ORDER BY t.created_at DESC`,
+    );
+  }
+
   /** E-dekont yükle → teminat kaydı (BEKLEMEDE). Tutar = başvurunun gereken teminatı. */
   async upload(
     basvuruId: string,
