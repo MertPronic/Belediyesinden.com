@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { QueryRunner } from 'typeorm';
+import { DataSource, type QueryRunner } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { appendAuditLog } from '@belediyesinden/audit';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
@@ -16,7 +18,10 @@ import type { Teklif } from './teklif.entity';
  */
 @Injectable()
 export class TeklifService {
-  constructor(private readonly gateway: AuctionGateway) {}
+  constructor(
+    private readonly gateway: AuctionGateway,
+    @InjectDataSource() private readonly ds: DataSource,
+  ) {}
 
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
@@ -84,6 +89,16 @@ export class TeklifService {
       kullanici_id: teklif.kullanici_id,
       tutar: teklif.tutar,
     });
+
+    // Audit (hash-chain) — fire-and-forget.
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: kullaniciId,
+      action: 'TEKLIF_SUBMIT',
+      entityType: 'ilan',
+      entityId: ilanId,
+      payload: { tutar },
+    }).catch(() => {});
 
     // Anti-snipping: bitişe yakınsa süreyi uzat.
     if (sureUzatmaGerekirMi(bitis, kurallar.sureUzatmaDakika)) {

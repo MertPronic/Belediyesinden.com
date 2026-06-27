@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { QueryRunner } from 'typeorm';
+import { DataSource, type QueryRunner } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { appendAuditLog } from '@belediyesinden/audit';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
@@ -14,7 +16,10 @@ const GUN_MS = 86_400_000;
 /** Tenant-scoped ilan servisi + durum makinesi. */
 @Injectable()
 export class IlanService {
-  constructor(private readonly os: OpenSearchService) {}
+  constructor(
+    private readonly os: OpenSearchService,
+    @InjectDataSource() private readonly ds: DataSource,
+  ) {}
 
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
@@ -90,6 +95,15 @@ export class IlanService {
           durum: updated.durum,
         });
       }
+      // Audit (hash-chain) — fire-and-forget.
+      appendAuditLog(this.ds, {
+        tenantId: tenant?.slug ?? null,
+        actorId: 'system:ilan',
+        action: 'ILAN_YAYINLA',
+        entityType: 'ilan',
+        entityId: id,
+        payload: { ihale_tipi: ilan.ihale_tipi },
+      }).catch(() => {});
       return updated;
     }
 
