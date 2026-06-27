@@ -56,4 +56,12 @@ export class BasvuruController {
     if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
     return this.service.withdraw(id, user.sub);
   }
+
+  /** KVKK: açık rızayı geri çek (vatandaş, kendi başvurusu). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Post(':id/ruzsa-cek')
+  rizaCek(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.rizaCek(id, user.sub);
+  }
 }

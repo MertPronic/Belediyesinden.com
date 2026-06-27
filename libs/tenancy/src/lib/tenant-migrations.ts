@@ -327,6 +327,23 @@ class IlanGorselKonum1740000013000 extends TenantMigration {
   }
 }
 
+/**
+ * 0014 — 2886 encümen karar kaydı (ilan'a karar no/tarih).
+ */
+class IlanEncumenKarar1740000014000 extends TenantMigration {
+  name = 'IlanEncumenKarar1740000014000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS encumen_karar_no VARCHAR(100)`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS encumen_karar_tarihi TIMESTAMPTZ`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS encumen_karar_tarihi`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS encumen_karar_no`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -341,4 +358,5 @@ export const tenantMigrations = [
   AddIlanKazanan1740000011000,
   CreateIlanFavoriler1740000012000,
   IlanGorselKonum1740000013000,
+  IlanEncumenKarar1740000014000,
 ];

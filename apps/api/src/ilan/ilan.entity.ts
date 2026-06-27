@@ -23,6 +23,9 @@ export interface Ilan {
   il: string | null;
   ilce: string | null;
   mahalle: string | null;
+  /** 2886: encümen karar numarası (sonuçlandırmada). */
+  encumen_karar_no: string | null;
+  encumen_karar_tarihi: Date | null;
   created_at: Date;
   updated_at: Date;
 }

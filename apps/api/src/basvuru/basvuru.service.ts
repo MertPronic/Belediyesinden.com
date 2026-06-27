@@ -112,4 +112,28 @@ export class BasvuruService {
     }).catch(() => {});
     return updated[0];
   }
+
+  /** KVKK: açık rızayı geri çek (vatandaş, kendi başvurusu). */
+  async rizaCek(basvuruId: string, kullaniciId: string): Promise<Basvuru> {
+    const rows = await rawQuery<Basvuru>(this.qr(), 'SELECT * FROM basvuru WHERE id = $1', [basvuruId]);
+    const b = rows[0];
+    if (!b) throw new NotFoundException('Başvuru bulunamadı');
+    if (b.kullanici_id !== kullaniciId) {
+      throw new BadRequestException('Bu işlem için yetkiniz yok');
+    }
+    const updated = await rawQuery<Basvuru>(
+      this.qr(),
+      'UPDATE basvuru SET acik_riza = false WHERE id = $1 RETURNING *',
+      [basvuruId],
+    );
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: kullaniciId,
+      action: 'KVKK_RIZA_CEK',
+      entityType: 'basvuru',
+      entityId: basvuruId,
+      payload: { ilan_id: b.ilan_id },
+    }).catch(() => {});
+    return updated[0];
+  }
 }

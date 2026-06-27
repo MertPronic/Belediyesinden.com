@@ -173,7 +173,7 @@ export class IlanService {
    * İhaleyi sonuçlandır: en yüksek teklifi bul → ilan SONUCLANDI.
    * @Roller(TenantAdmin, Encumen) tarafından çağrılır.
    */
-  async sonuclandir(id: string): Promise<{
+  async sonuclandir(id: string, kararNo?: string): Promise<{
     winnerId: string | null;
     kazananTutar: number | null;
     ilan: Ilan;
@@ -193,8 +193,8 @@ export class IlanService {
     const winner = maxRows[0];
     const rows = await rawQuery<Ilan>(
       this.qr(),
-      'UPDATE ilan SET durum = $1, kazanan_kullanici_id = $2, kazanan_tutar = $3 WHERE id = $4 RETURNING *',
-      [IlanDurumu.Sonuclandi, winner?.kullanici_id ?? null, winner?.tutar ?? null, id],
+      'UPDATE ilan SET durum = $1, kazanan_kullanici_id = $2, kazanan_tutar = $3, encumen_karar_no = $4, encumen_karar_tarihi = $5 WHERE id = $6 RETURNING *',
+      [IlanDurumu.Sonuclandi, winner?.kullanici_id ?? null, winner?.tutar ?? null, kararNo ?? null, new Date(), id],
     );
     // BullMQ gecikmeli iade planla (fire-and-forget).
     this.iadeService.planlaIadeForIlan(id).catch(() => {});

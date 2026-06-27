@@ -50,6 +50,11 @@ class UpdateIlanDto {
   baslangicFiyati?: number;
 }
 
+class SonuclandirDto {
+  @IsOptional() @IsString() @MaxLength(100)
+  kararNo?: string;
+}
+
 /** `/api/ilan` — tenant-scoped ilan CRUD + durum geçişleri. */
 @Controller('ilan')
 export class IlanController {
@@ -161,7 +166,7 @@ export class IlanController {
   /** İhaleyi sonuçlandır (en yüksek teklif → kazanan). */
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/sonuclandir')
-  sonuclandir(@Param('id') id: string) {
-    return this.service.sonuclandir(id);
+  sonuclandir(@Param('id') id: string, @Body() dto: SonuclandirDto) {
+    return this.service.sonuclandir(id, dto?.kararNo);
   }
 }
