@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Clock, Gavel, Minus, TrendingUp, Trophy } from 'lucide-react';
 import { RequireAuth } from '../../../components/require-auth';
 import { apiFetch } from '../../../lib/api';
+import { getToken } from '../../../lib/keycloak';
 import {
   Alert,
   Button,
@@ -100,8 +101,10 @@ function TeklifEkrani({ ilanId }: { ilanId: string }) {
   useEffect(() => {
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    const connect = () => {
-      const ws = new WebSocket(WS_URL);
+    const connect = async () => {
+      const token = await getToken().catch(() => undefined);
+      const url = token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL;
+      const ws = new WebSocket(url);
       wsRef.current = ws;
       ws.onopen = () => setConnected(true);
       ws.onclose = () => {

@@ -83,8 +83,9 @@ export class TeklifService {
     );
     const teklif = rows[0];
 
-    // Gerçek zamanlı yayın (ws).
-    this.gateway.broadcastTeklif(ilanId, {
+    // Gerçek zamanlı yayın (ws, tenant izolasyonlu).
+    const tenantSlug = getCurrentTenant()?.slug ?? '';
+    this.gateway.broadcastTeklif(tenantSlug, ilanId, {
       id: teklif.id,
       kullanici_id: teklif.kullanici_id,
       tutar: teklif.tutar,
