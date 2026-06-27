@@ -17,6 +17,7 @@ import { VarlikModule } from '../varlik/varlik.module';
 import { IlanModule } from '../ilan/ilan.module';
 import { EvrakModule } from '../evrak/evrak.module';
 import { BasvuruModule } from '../basvuru/basvuru.module';
+import { TeminatModule } from '../teminat/teminat.module';
 import { SearchModule } from '../search/search.module';
 
 @Module({
@@ -63,6 +64,7 @@ import { SearchModule } from '../search/search.module';
     EvrakModule, // şartname/evrak (MinIO + tenant-scoped)
     SearchModule, // OpenSearch ilan arama (global)
     BasvuruModule, // başvuru + KVKK (tenant-scoped)
+    TeminatModule, // teminat simülasyon (e-dekont + onay/iade)
   ],
   controllers: [AppController],
   providers: [

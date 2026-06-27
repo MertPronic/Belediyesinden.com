@@ -199,6 +199,33 @@ class CreateBasvuru1740000008000 extends TenantMigration {
   }
 }
 
+/** 0008 — teminat (e-dekont + bloke/iade simülasyon). */
+class CreateTeminat1740000009000 extends TenantMigration {
+  name = 'CreateTeminat1740000009000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS teminat (
+        id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        basvuru_id       UUID         NOT NULL REFERENCES basvuru(id),
+        tutar            NUMERIC(18,2) NOT NULL,
+        durum            VARCHAR(20)  NOT NULL DEFAULT 'BEKLEMEDE',
+        dekont_minio_key VARCHAR(500),
+        dekont_dosya_adi VARCHAR(255),
+        onaylayan        VARCHAR(100),
+        onay_tarihi      TIMESTAMPTZ,
+        iade_tarihi      TIMESTAMPTZ,
+        created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )
+    `);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS teminat`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -208,4 +235,5 @@ export const tenantMigrations = [
   CreateIlan1740000006000,
   CreateEvrak1740000007000,
   CreateBasvuru1740000008000,
+  CreateTeminat1740000009000,
 ];

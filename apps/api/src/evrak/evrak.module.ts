@@ -7,5 +7,6 @@ import { MinioService } from './minio.service';
 @Module({
   controllers: [EvrakController],
   providers: [EvrakService, MinioService],
+  exports: [MinioService],
 })
 export class EvrakModule {}
