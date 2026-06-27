@@ -1,0 +1,64 @@
+# Belediyesinden — frontend K8s (tenant-web + portal)
+# nginx-ingress ile routing: portal → belediyesinden.com, tenant → {slug}.belediyesinden.com
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: belediyesinden-tenant-web
+  labels: { app: belediyesinden-tenant-web }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: belediyesinden-tenant-web } }
+  template:
+    metadata: { labels: { app: belediyesinden-tenant-web } }
+    spec:
+      containers:
+        - name: tenant-web
+          image: registry.gitlab.example.com/belediyesinden/tenant-web:latest
+          ports: [{ containerPort: 4200 }]
+          env:
+            - name: API_INTERNAL_URL
+              value: http://belediyesinden-api:3000/api
+          readinessProbe:
+            httpGet: { path: /, port: 4200 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: belediyesinden-tenant-web
+spec:
+  selector: { app: belediyesinden-tenant-web }
+  ports: [{ port: 4200, targetPort: 4200 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: belediyesinden-portal
+  labels: { app: belediyesinden-portal }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: belediyesinden-portal } }
+  template:
+    metadata: { labels: { app: belediyesinden-portal } }
+    spec:
+      containers:
+        - name: portal
+          image: registry.gitlab.example.com/belediyesinden/portal:latest
+          ports: [{ containerPort: 4201 }]
+          env:
+            - name: API_INTERNAL_URL
+              value: http://belediyesinden-api:3000/api
+          readinessProbe:
+            httpGet: { path: /, port: 4201 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: belediyesinden-portal
+spec:
+  selector: { app: belediyesinden-portal }
+  ports: [{ port: 4201, targetPort: 4201 }]

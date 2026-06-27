@@ -1,8 +1,9 @@
 # Belediyesinden · GitLab CI
 # nx affected: sadece değişen projeler (ve bağımlılıkları) lint/test/build edilir.
-# Docker image build (api) main branch push'larında.
+# Docker image build (api + tenant-web + portal) main branch push'larında.
+# Test gate: verify geçmeden docker build çalışmaz.
 
-image: node:24
+image: node:22
 
 stages:
   - install
@@ -25,26 +26,61 @@ install:
         - pnpm-lock.yaml
     paths:
       - .pnpm-store
+  artifacts:
+    paths:
+      - node_modules
+    expire_in: 1 hour
 
+# Lint + test + build gate (MR + main).
 verify:
   stage: verify
   needs: [install]
   script:
-    - pnpm nx affected -t lint test build --base=origin/main
+    - NX_DAEMON=false pnpm nx affected -t lint test build --base=origin/main
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
 
+# Docker image build (main only, verify geçmiş).
 docker:api:
   stage: docker
   needs: [verify]
   image: docker:24
   services:
     - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
+    - pnpm nx build api
     - docker build -f apps/api/Dockerfile -t $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA .
     - docker push $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      changes:
-        - apps/api/**/*
+
+docker:tenant-web:
+  stage: docker
+  needs: [verify]
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f apps/tenant-web/Dockerfile -t $CI_REGISTRY_IMAGE/tenant-web:$CI_COMMIT_SHORT_SHA .
+    - docker push $CI_REGISTRY_IMAGE/tenant-web:$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+docker:portal:
+  stage: docker
+  needs: [verify]
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f apps/portal/Dockerfile -t $CI_REGISTRY_IMAGE/portal:$CI_COMMIT_SHORT_SHA .
+    - docker push $CI_REGISTRY_IMAGE/portal:$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"

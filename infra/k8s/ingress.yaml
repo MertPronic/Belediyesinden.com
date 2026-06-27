@@ -1,0 +1,46 @@
+# Belediyesinden — nginx ingress
+# Portal: belediyesinden.com → portal:4201
+# Tenant: {slug}.belediyesinden.com → tenant-web:4200 (wildcard)
+# API:   belediyesinden.com/api, {slug}.belediyesinden.com/api → api:3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: belediyesinden-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "belediyesinden-api"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - belediyesinden.com
+        - "*.belediyesinden.com"
+      secretName: belediyesinden-tls
+  rules:
+    # Portal (ana domain)
+    - host: belediyesinden.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: belediyesinden-api, port: { number: 3000 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: belediyesinden-portal, port: { number: 4201 } }
+    # Tenant alt-alanları (wildcard)
+    - host: "*.belediyesinden.com"
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: belediyesinden-api, port: { number: 3000 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: belediyesinden-tenant-web, port: { number: 4200 } }
