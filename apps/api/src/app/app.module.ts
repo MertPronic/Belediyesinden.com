@@ -20,6 +20,7 @@ import { BasvuruModule } from '../basvuru/basvuru.module';
 import { TeminatModule } from '../teminat/teminat.module';
 import { TeklifModule } from '../teklif/teklif.module';
 import { AuctionGatewayModule } from '../auction/auction-gateway.module';
+import { RaporModule } from '../rapor/rapor.module';
 import { SearchModule } from '../search/search.module';
 
 @Module({
@@ -69,6 +70,7 @@ import { SearchModule } from '../search/search.module';
     TeminatModule, // teminat simülasyon (e-dekont + onay/iade)
     TeklifModule, // server-authoritative teklif + anti-snicking
     AuctionGatewayModule, // ws gerçek zamanlı teklif yayını
+    RaporModule, // tenant dashboard (raporlama)
   ],
   controllers: [AppController],
   providers: [
