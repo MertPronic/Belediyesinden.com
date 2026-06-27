@@ -21,10 +21,17 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "rootUrl": "http://localhost:3000",
+      "rootUrl": "http://localhost:4201",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": [
+        "http://localhost:4201/*",
+        "http://127.0.0.1:4201/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4201",
+        "http://127.0.0.1:4201",
+        "+"
+      ],
       "attributes": {
         "post.logout.redirect.uris": "+",
         "pkce.code.challenge.method": "S256"
@@ -40,10 +47,17 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "rootUrl": "http://localhost:3001",
+      "rootUrl": "http://localhost:4200",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:3001/*"],
-      "webOrigins": ["http://localhost:3001"],
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://127.0.0.1:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://127.0.0.1:4200",
+        "+"
+      ],
       "attributes": {
         "post.logout.redirect.uris": "+",
         "pkce.code.challenge.method": "S256"
@@ -64,11 +78,26 @@
   ],
   "roles": {
     "realm": [
-      { "name": "SUPERADMIN", "description": "Platform süper yöneticisi" },
-      { "name": "TENANT_ADMIN", "description": "Belediye yöneticisi" },
-      { "name": "ENCUMEN", "description": "Belediye encümen üyesi" },
-      { "name": "VATANDAS", "description": "Vatandaş" },
-      { "name": "YATIRIMCI", "description": "Yatırımcı / tüzel kişi" }
+      {
+        "name": "SUPERADMIN",
+        "description": "Platform süper yöneticisi"
+      },
+      {
+        "name": "TENANT_ADMIN",
+        "description": "Belediye yöneticisi"
+      },
+      {
+        "name": "ENCUMEN",
+        "description": "Belediye encümen üyesi"
+      },
+      {
+        "name": "VATANDAS",
+        "description": "Vatandaş"
+      },
+      {
+        "name": "YATIRIMCI",
+        "description": "Yatırımcı / tüzel kişi"
+      }
     ]
   }
 }
