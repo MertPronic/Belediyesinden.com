@@ -14,7 +14,7 @@ export class AuditLog {
   id!: string;
 
   /** İlgili tenant (merkezi işlem için null). */
-  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  @Column({ name: 'tenant_id', type: 'varchar', length: 100, nullable: true })
   tenantId!: string | null;
 
   /** İşlemi yapan aktör (Keycloak sub / sistem). */

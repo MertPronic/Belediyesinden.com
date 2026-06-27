@@ -93,5 +93,25 @@ class AuditLog1740000002000 implements MigrationInterface {
   }
 }
 
+/**
+ * 0003 — audit_log.tenant_id UUID → varchar: servisler slug (tenant adı) geçer,
+ * uuid bekleyen kolon INSERT'leri sessizce fail ediyordu. Slug her yerde tutarlı.
+ */
+class AuditTenantIdVarchar1740000003000 implements MigrationInterface {
+  name = 'AuditTenantIdVarchar1740000003000';
+
+  async up(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE shared.audit_log ALTER COLUMN tenant_id TYPE varchar(100) USING tenant_id::text`);
+  }
+
+  async down(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE shared.audit_log ALTER COLUMN tenant_id TYPE uuid USING NULL`);
+  }
+}
+
 /** shared DataSource için migration listesi. */
-export const sharedMigrations = [InitShared1740000001000, AuditLog1740000002000];
+export const sharedMigrations = [
+  InitShared1740000001000,
+  AuditLog1740000002000,
+  AuditTenantIdVarchar1740000003000,
+];

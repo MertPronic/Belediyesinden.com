@@ -23,6 +23,7 @@ import { TeminatModule } from '../teminat/teminat.module';
 import { TeklifModule } from '../teklif/teklif.module';
 import { AuctionGatewayModule } from '../auction/auction-gateway.module';
 import { RaporModule } from '../rapor/rapor.module';
+import { AuditModule } from '../audit/audit.module';
 import { SearchModule } from '../search/search.module';
 
 @Module({
@@ -73,6 +74,7 @@ import { SearchModule } from '../search/search.module';
     TeklifModule, // server-authoritative teklif + anti-snicking
     AuctionGatewayModule, // ws gerçek zamanlı teklif yayını
     RaporModule, // tenant dashboard (raporlama)
+    AuditModule, // audit hash-chain doğrulama
   ],
   controllers: [AppController],
   providers: [

@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { QueryRunner } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource, QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { BasvuruDurumu, IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
+import { appendAuditLog } from '@belediyesinden/audit';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
 import { rawQuery } from '@belediyesinden/db';
 import type { Ilan } from '../ilan/ilan.entity';
@@ -10,6 +12,8 @@ import type { Basvuru } from './basvuru.entity';
 /** Tenant-scoped başvuru servisi: KVKK onayı + gereken teminat hesabı. */
 @Injectable()
 export class BasvuruService {
+  constructor(@InjectDataSource() private readonly ds: DataSource) {}
+
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
     if (!tenant) {
@@ -55,6 +59,14 @@ export class BasvuruService {
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
         [ilanId, kullaniciId, BasvuruDurumu.TeminatBekleniyor, kvkkOnay, acikRiza, gereken],
       );
+      appendAuditLog(this.ds, {
+        tenantId: getCurrentTenant()?.slug ?? null,
+        actorId: kullaniciId,
+        action: 'BASVURU_OLUSTUR',
+        entityType: 'basvuru',
+        entityId: rows[0].id,
+        payload: { ilan_id: ilanId, kvkk_onay: kvkkOnay, acik_riza: acikRiza, gereken_teminat: gereken },
+      }).catch(() => {});
       return rows[0];
     } catch {
       throw new BadRequestException('Bu ilana zaten başvurdunuz');

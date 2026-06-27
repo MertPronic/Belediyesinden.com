@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { QueryRunner } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource, QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
+import { appendAuditLog } from '@belediyesinden/audit';
 import { rawQuery } from '@belediyesinden/db';
 import { Varlik } from './varlik.entity';
 
 /** Tenant-scoped varlık servisi (raw sorgu → search_path → tenant_<slug>). */
 @Injectable()
 export class VarlikService {
+  constructor(@InjectDataSource() private readonly ds: DataSource) {}
+
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
     if (!tenant) {
@@ -57,6 +61,7 @@ export class VarlikService {
       'UPDATE varlik SET ad = $1, aciklama = $2, detay = $3 WHERE id = $4 RETURNING *',
       [ad, aciklama, JSON.stringify(detay), id],
     );
+    this.audit('VARLIK_GUNCELLE', id, { ad, tip: mevcut.tip });
     return rows[0];
   }
 
@@ -67,5 +72,17 @@ export class VarlikService {
       throw new NotFoundException('Varlık bulunamadı');
     }
     await rawQuery(this.qr(), 'DELETE FROM varlik WHERE id = $1', [id]);
+    this.audit('VARLIK_SIL', id, { ad: mevcut.ad, tip: mevcut.tip });
+  }
+
+  private audit(action: string, entityId: string, payload: Record<string, unknown>): void {
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: 'system:varlik',
+      action,
+      entityType: 'varlik',
+      entityId,
+      payload,
+    }).catch(() => {});
   }
 }

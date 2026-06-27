@@ -147,6 +147,18 @@ export class IlanService {
     // BullMQ gecikmeli iade planla (fire-and-forget).
     this.iadeService.planlaIadeForIlan(id).catch(() => {});
 
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: 'system:ilan',
+      action: 'ILAN_SONUCLANDIR',
+      entityType: 'ilan',
+      entityId: id,
+      payload: {
+        kazanan_kullanici_id: winner?.kullanici_id ?? null,
+        kazanan_tutar: winner ? Number(winner.tutar) : null,
+      },
+    }).catch(() => {});
+
     return {
       winnerId: winner?.kullanici_id ?? null,
       kazananTutar: winner ? Number(winner.tutar) : null,

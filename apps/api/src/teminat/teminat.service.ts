@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import type { QueryRunner } from 'typeorm';
+import type { DataSource, QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { BasvuruDurumu, TeminatDurumu } from '@belediyesinden/shared';
 import { rawQuery } from '@belediyesinden/db';
+import { appendAuditLog } from '@belediyesinden/audit';
 import { MinioService } from '../evrak/minio.service';
 import type { Basvuru } from '../basvuru/basvuru.entity';
 import type { Teminat } from './teminat.entity';
@@ -14,7 +16,10 @@ import type { Teminat } from './teminat.entity';
  */
 @Injectable()
 export class TeminatService {
-  constructor(private readonly minio: MinioService) {}
+  constructor(
+    private readonly minio: MinioService,
+    @InjectDataSource() private readonly ds: DataSource,
+  ) {}
 
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
@@ -90,6 +95,7 @@ export class TeminatService {
       throw new BadRequestException('Teminat BEKLEMEDE durumunda değil veya bulunamadı');
     }
     await this.qr().query('UPDATE basvuru SET durum=$1 WHERE id=$2', [BasvuruDurumu.Onaylandi, rows[0].basvuru_id]);
+    this.audit('TEMINAT_ONAYLA', id, onaylayan, { basvuru_id: rows[0].basvuru_id, tutar: rows[0].tutar });
     return rows[0];
   }
 
@@ -104,6 +110,7 @@ export class TeminatService {
       throw new BadRequestException('Teminat reddedilebilir durumda değil');
     }
     await this.qr().query('UPDATE basvuru SET durum=$1 WHERE id=$2', [BasvuruDurumu.Reddedildi, rows[0].basvuru_id]);
+    this.audit('TEMINAT_REDDET', id, 'system:teminat', { basvuru_id: rows[0].basvuru_id });
     return rows[0];
   }
 
@@ -118,6 +125,19 @@ export class TeminatService {
       throw new BadRequestException('Teminat iade edilebilir durumda değil');
     }
     await this.qr().query('UPDATE basvuru SET durum=$1 WHERE id=$2', [BasvuruDurumu.IadeEdildi, rows[0].basvuru_id]);
+    this.audit('TEMINAT_IADE', id, 'system:teminat', { basvuru_id: rows[0].basvuru_id, tutar: rows[0].tutar });
     return rows[0];
+  }
+
+  /** Audit yardımcı (fire-and-forget, hash-chain). */
+  private audit(action: string, entityId: string, actorId: string, payload: Record<string, unknown>): void {
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId,
+      action,
+      entityType: 'teminat',
+      entityId,
+      payload,
+    }).catch(() => {});
   }
 }

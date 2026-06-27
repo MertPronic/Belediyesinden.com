@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { DataSource } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
+import { appendAuditLog } from '@belediyesinden/audit';
 import { rawQuery } from '@belediyesinden/db';
 import { MinioService } from './minio.service';
 import type { Evrak } from './evrak.entity';
@@ -8,7 +11,10 @@ import type { Evrak } from './evrak.entity';
 /** Tenant-scoped evrak servisi: MinIO + DB kaydı. */
 @Injectable()
 export class EvrakService {
-  constructor(private readonly minio: MinioService) {}
+  constructor(
+    private readonly minio: MinioService,
+    @InjectDataSource() private readonly ds: DataSource,
+  ) {}
 
   /** İlan'ın evraklarını listele (minio_key hariç — güvenli özet). */
   async listByIlan(ilanId: string): Promise<
@@ -49,6 +55,14 @@ export class EvrakService {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [ilanId, file.originalname, key, file.mimetype ?? null, file.size ?? file.buffer.length],
     );
+    appendAuditLog(this.ds, {
+      tenantId: tenant.slug,
+      actorId: 'system:evrak',
+      action: 'EVRAK_YUKLE',
+      entityType: 'evrak',
+      entityId: rows[0].id,
+      payload: { ilan_id: ilanId, dosya_adi: file.originalname, boyut: file.size ?? file.buffer.length },
+    }).catch(() => {});
     return rows[0];
   }
 
