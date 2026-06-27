@@ -18,6 +18,7 @@ import { IlanModule } from '../ilan/ilan.module';
 import { EvrakModule } from '../evrak/evrak.module';
 import { BasvuruModule } from '../basvuru/basvuru.module';
 import { TeminatModule } from '../teminat/teminat.module';
+import { TeklifModule } from '../teklif/teklif.module';
 import { SearchModule } from '../search/search.module';
 
 @Module({
@@ -65,6 +66,7 @@ import { SearchModule } from '../search/search.module';
     SearchModule, // OpenSearch ilan arama (global)
     BasvuruModule, // başvuru + KVKK (tenant-scoped)
     TeminatModule, // teminat simülasyon (e-dekont + onay/iade)
+    TeklifModule, // server-authoritative teklif + anti-snipping
   ],
   controllers: [AppController],
   providers: [

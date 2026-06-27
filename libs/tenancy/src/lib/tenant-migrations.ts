@@ -226,6 +226,29 @@ class CreateTeminat1740000009000 extends TenantMigration {
   }
 }
 
+/** 0009 — teklif (açık artırma teklifi, server-authoritative). */
+class CreateTeklif1740000010000 extends TenantMigration {
+  name = 'CreateTeklif1740000010000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS teklif (
+        id           UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        ilan_id      UUID          NOT NULL REFERENCES ilan(id),
+        kullanici_id VARCHAR(100)  NOT NULL,
+        tutar        NUMERIC(18,2) NOT NULL,
+        kabul_edildi BOOLEAN       NOT NULL DEFAULT false,
+        created_at   TIMESTAMPTZ   NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_teklif_ilan ON teklif (ilan_id)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS teklif`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -236,4 +259,5 @@ export const tenantMigrations = [
   CreateEvrak1740000007000,
   CreateBasvuru1740000008000,
   CreateTeminat1740000009000,
+  CreateTeklif1740000010000,
 ];
