@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -16,6 +18,12 @@ class CreateVarlikDto {
   tip!: string;
   ad!: string;
   aciklama?: string;
+  detay?: Record<string, unknown>;
+}
+
+class UpdateVarlikDto {
+  ad?: string;
+  aciklama?: string | null;
   detay?: Record<string, unknown>;
 }
 
@@ -52,5 +60,20 @@ export class VarlikController {
       aciklama: dto.aciklama,
       detay: dto.detay,
     });
+  }
+
+  /** Varlık güncelle (TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateVarlikDto) {
+    return this.service.update(id, dto);
+  }
+
+  /** Varlık sil (TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.service.remove(id);
+    return { id, silindi: true };
   }
 }

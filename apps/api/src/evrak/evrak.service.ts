@@ -10,6 +10,29 @@ import type { Evrak } from './evrak.entity';
 export class EvrakService {
   constructor(private readonly minio: MinioService) {}
 
+  /** İlan'ın evraklarını listele (minio_key hariç — güvenli özet). */
+  async listByIlan(ilanId: string): Promise<
+    Array<{
+      id: string;
+      ilan_id: string;
+      dosya_adi: string;
+      content_type: string | null;
+      boyut: number | null;
+      created_at: Date;
+    }>
+  > {
+    const tenant = getCurrentTenant();
+    if (!tenant) {
+      throw new Error('Tenant bağlamı yok');
+    }
+    return rawQuery(
+      tenant.queryRunner,
+      `SELECT id, ilan_id, dosya_adi, content_type, boyut, created_at
+       FROM evrak WHERE ilan_id = $1 ORDER BY created_at DESC`,
+      [ilanId],
+    );
+  }
+
   async upload(
     ilanId: string,
     file: { originalname: string; buffer: Buffer; mimetype?: string; size?: number },

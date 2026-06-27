@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '../../../../lib/api';
+import { apiFetch, downloadFile } from '../../../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle, DurumBadge } from '@belediyesinden/ui';
 
 interface Ilan {
@@ -15,10 +15,19 @@ interface Ilan {
   bitis_tarihi: string | null;
 }
 
+interface Evrak {
+  id: string;
+  dosya_adi: string;
+  content_type: string | null;
+  boyut: number | null;
+  created_at: string;
+}
+
 export default function AdminIlanDetayPage() {
   const params = useParams<{ id: string }>();
   const [ilan, setIlan] = useState<Ilan | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [evraklar, setEvraklar] = useState<Evrak[]>([]);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -28,6 +37,9 @@ export default function AdminIlanDetayPage() {
     apiFetch<Ilan>(`/ilan/${params.id}`)
       .then(setIlan)
       .catch(() => setError('İlan yüklenemedi.'));
+    apiFetch<Evrak[]>(`/evrak/ilan/${params.id}`)
+      .then(setEvraklar)
+      .catch(() => setEvraklar([]));
   }, [params.id]);
 
   useEffect(() => {
@@ -76,6 +88,7 @@ export default function AdminIlanDetayPage() {
       await apiFetch(`/evrak/${params.id}`, { method: 'POST', body: fd });
       setFile(null);
       setMsg('Evrak yüklendi.');
+      await yukle();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Yükleme başarısız.');
     } finally {
@@ -177,6 +190,32 @@ export default function AdminIlanDetayPage() {
               {uploading ? 'Yükleniyor...' : 'Evrak Yükle'}
             </button>
           </form>
+
+          {evraklar.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-sm font-medium text-gray-600">
+                Yüklü Evraklar ({evraklar.length})
+              </p>
+              <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                {evraklar.map((ev) => (
+                  <li key={ev.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <span className="truncate text-gray-700">{ev.dosya_adi}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadFile(`/evrak/${ev.id}`, ev.dosya_adi).catch((e) =>
+                          setError(e instanceof Error ? e.message : 'İndirme başarısız.'),
+                        )
+                      }
+                      className="ml-3 shrink-0 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                    >
+                      İndir
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

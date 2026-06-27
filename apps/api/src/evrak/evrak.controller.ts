@@ -48,6 +48,12 @@ export class EvrakController {
     });
   }
 
+  /** İlan'ın evraklarını listele (minio_key hariç). */
+  @Get('ilan/:ilanId')
+  listByIlan(@Param('ilanId') ilanId: string) {
+    return this.service.listByIlan(ilanId);
+  }
+
   @Get(':id')
   async download(@Param('id') id: string, @Res() res: Response): Promise<void> {
     const { stream, evrak } = await this.service.download(id);

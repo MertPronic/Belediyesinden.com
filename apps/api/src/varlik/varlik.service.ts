@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { rawQuery } from '@belediyesinden/db';
@@ -38,5 +38,34 @@ export class VarlikService {
       [data.tip, data.ad, data.aciklama ?? null, JSON.stringify(data.detay ?? {})],
     );
     return rows[0];
+  }
+
+  /** Varlık güncelle (sadece ad/aciklama/detay; tip değişmez). */
+  async update(
+    id: string,
+    data: { ad?: string; aciklama?: string | null; detay?: Record<string, unknown> },
+  ): Promise<Varlik> {
+    const mevcut = await this.get(id);
+    if (!mevcut) {
+      throw new NotFoundException('Varlık bulunamadı');
+    }
+    const ad = data.ad ?? mevcut.ad;
+    const aciklama = data.aciklama !== undefined ? data.aciklama : mevcut.aciklama;
+    const detay = data.detay !== undefined ? data.detay : mevcut.detay;
+    const rows = await rawQuery<Varlik>(
+      this.qr(),
+      'UPDATE varlik SET ad = $1, aciklama = $2, detay = $3 WHERE id = $4 RETURNING *',
+      [ad, aciklama, JSON.stringify(detay), id],
+    );
+    return rows[0];
+  }
+
+  /** Varlık sil. */
+  async remove(id: string): Promise<void> {
+    const mevcut = await this.get(id);
+    if (!mevcut) {
+      throw new NotFoundException('Varlık bulunamadı');
+    }
+    await rawQuery(this.qr(), 'DELETE FROM varlik WHERE id = $1', [id]);
   }
 }

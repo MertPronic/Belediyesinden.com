@@ -38,6 +38,25 @@ export async function apiFetch<T>(
   return (ct.includes('application/json') ? res.json() : null) as Promise<T>;
 }
 
+/** Authenticated dosya indirme (blob → tarayıcı indirisi). */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = await getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: {
+      'x-tenant-slug': getTenantSlug(),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`İndirme başarısız: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Server-side API fetch (no auth — public endpoints only). */
 export async function serverApiFetch<T>(
   path: string,
