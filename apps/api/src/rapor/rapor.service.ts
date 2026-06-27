@@ -8,6 +8,9 @@ export interface TenantRaporu {
   teklifSayisi: number;
   basvurular: Record<string, number>;
   varliklar: Record<string, number>;
+  katilimciSayisi: number;
+  /** SONUCLANDI ilanların kazanan teklif tutarı toplamı. */
+  gelir: number;
 }
 
 /** Tenant-scoped raporlama (dashboard aggregasyonları). */
@@ -37,11 +40,23 @@ export class RaporService {
   async ozet(): Promise<TenantRaporu> {
     const qr = this.qr();
 
-    const [ilanlar, teklifler, basvurular, varliklar] = await Promise.all([
+    const [ilanlar, teklifler, basvurular, varliklar, katilimcilar, gelirRows] = await Promise.all([
       rawQuery<Record<string, string>>(qr, 'SELECT durum, COUNT(*)::text AS count FROM ilan GROUP BY durum'),
       rawQuery<Record<string, string>>(qr, 'SELECT COUNT(*)::text AS count FROM teklif WHERE kabul_edildi = true'),
       rawQuery<Record<string, string>>(qr, 'SELECT durum, COUNT(*)::text AS count FROM basvuru GROUP BY durum'),
       rawQuery<Record<string, string>>(qr, 'SELECT tip, COUNT(*)::text AS count FROM varlik GROUP BY tip'),
+      rawQuery<Record<string, string>>(
+        qr,
+        'SELECT COUNT(DISTINCT kullanici_id)::text AS count FROM basvuru',
+      ),
+      // Gelir: SONUCLANDI ilanların en yüksek teklif toplamı (kazanan tutar).
+      rawQuery<Record<string, string>>(
+        qr,
+        `SELECT COALESCE(SUM(m.tutar), 0)::text AS gelir
+         FROM (SELECT ilan_id, MAX(tutar) AS tutar
+               FROM teklif WHERE kabul_edildi = true GROUP BY ilan_id) m
+         JOIN ilan i ON i.id = m.ilan_id AND i.durum = 'SONUCLANDI'`,
+      ),
     ]);
 
     return {
@@ -49,6 +64,8 @@ export class RaporService {
       teklifSayisi: Number(teklifler[0]?.['count'] ?? 0),
       basvurular: this.toRecord(basvurular, 'durum', 'count'),
       varliklar: this.toRecord(varliklar, 'tip', 'count'),
+      katilimciSayisi: Number(katilimcilar[0]?.['count'] ?? 0),
+      gelir: Number(gelirRows[0]?.['gelir'] ?? 0),
     };
   }
 }
