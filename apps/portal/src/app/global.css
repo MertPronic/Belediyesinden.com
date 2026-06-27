@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Monorepo: libs/ui (ve diğer libs) kaynaklarını tara. */
+@source '../../../../libs';
+
 /* Design token'ları (statik) — --renk runtime override olduğu için @theme'de DEĞİL. */
 @theme {
   --radius-sm: 0.375rem;
