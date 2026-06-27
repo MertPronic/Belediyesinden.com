@@ -59,6 +59,58 @@ export class IlanService {
     return rows[0];
   }
 
+  /** İlan güncelle — sadece TASLAK durumunda. */
+  async update(
+    id: string,
+    data: { baslik?: string; aciklama?: string | null; baslangicFiyati?: number },
+  ): Promise<Ilan> {
+    const ilan = await this.get(id);
+    if (!ilan) throw new NotFoundException('İlan bulunamadı');
+    if (ilan.durum !== IlanDurumu.Taslak) {
+      throw new BadRequestException('Sadece taslak ilanlar güncellenebilir');
+    }
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    let i = 1;
+    if (data.baslik !== undefined) { sets.push(`baslik = $${i++}`); vals.push(data.baslik); }
+    if (data.aciklama !== undefined) { sets.push(`aciklama = $${i++}`); vals.push(data.aciklama); }
+    if (data.baslangicFiyati !== undefined) { sets.push(`baslangic_fiyati = $${i++}`); vals.push(data.baslangicFiyati); }
+    if (sets.length === 0) return ilan;
+    vals.push(id);
+    const rows = await rawQuery<Ilan>(
+      this.qr(),
+      `UPDATE ilan SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
+      vals,
+    );
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: 'system:ilan',
+      action: 'ILAN_GUNCELLE',
+      entityType: 'ilan',
+      entityId: id,
+      payload: data,
+    }).catch(() => {});
+    return rows[0];
+  }
+
+  /** İlan sil — sadece TASLAK durumunda. */
+  async remove(id: string): Promise<void> {
+    const ilan = await this.get(id);
+    if (!ilan) throw new NotFoundException('İlan bulunamadı');
+    if (ilan.durum !== IlanDurumu.Taslak) {
+      throw new BadRequestException('Sadece taslak ilanlar silinebilir');
+    }
+    await rawQuery(this.qr(), 'DELETE FROM ilan WHERE id = $1', [id]);
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: 'system:ilan',
+      action: 'ILAN_SIL',
+      entityType: 'ilan',
+      entityId: id,
+      payload: { baslik: ilan.baslik },
+    }).catch(() => {});
+  }
+
   /**
    * Durum makinesi.
    *  TASLAK → YAYINDA: kural motorundan kuralları çekip snapshot'lar + başlangıç/bitiş tarihleri.

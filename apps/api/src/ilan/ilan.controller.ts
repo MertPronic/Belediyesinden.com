@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { IsEnum, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { IlanService } from './ilan.service';
 import { Roller, Unprotected } from '@belediyesinden/auth';
@@ -24,6 +24,17 @@ class CreateIlanDto {
 class ChangeDurumDto {
   @IsString()
   durum!: string;
+}
+
+class UpdateIlanDto {
+  @IsOptional() @IsString() @MaxLength(300)
+  baslik?: string;
+
+  @IsOptional() @IsString()
+  aciklama?: string | null;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(1_000_000_000)
+  baslangicFiyati?: number;
 }
 
 /** `/api/ilan` — tenant-scoped ilan CRUD + durum geçişleri. */
@@ -63,6 +74,21 @@ export class IlanController {
   }
 
   /** Durum geçişi: { durum: 'YAYINDA' | 'IPTAL' | ... } */
+  /** İlan güncelle (TASLAK, TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateIlanDto) {
+    return this.service.update(id, dto);
+  }
+
+  /** İlan sil (TASLAK, TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.service.remove(id);
+    return { id, silindi: true };
+  }
+
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/durum')
   changeDurum(@Param('id') id: string, @Body() dto: ChangeDurumDto) {

@@ -72,4 +72,31 @@ export class BasvuruService {
       throw new BadRequestException('Bu ilana zaten başvurdunuz');
     }
   }
+
+  /** Başvuruyu geri çek (vatandaş). Sadece onaylanMAMış + sahibi. */
+  async withdraw(basvuruId: string, kullaniciId: string): Promise<Basvuru> {
+    const rows = await rawQuery<Basvuru>(this.qr(), 'SELECT * FROM basvuru WHERE id = $1', [basvuruId]);
+    const b = rows[0];
+    if (!b) throw new NotFoundException('Başvuru bulunamadı');
+    if (b.kullanici_id !== kullaniciId) {
+      throw new BadRequestException('Bu başvuruyu geri çekme yetkiniz yok');
+    }
+    if (b.durum === BasvuruDurumu.Onaylandi) {
+      throw new BadRequestException('Onaylanmış başvuru geri çekilemez');
+    }
+    const updated = await rawQuery<Basvuru>(
+      this.qr(),
+      'UPDATE basvuru SET durum = $1 WHERE id = $2 RETURNING *',
+      [BasvuruDurumu.IptalEdildi, basvuruId],
+    );
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: kullaniciId,
+      action: 'BASVURU_GERI_CEK',
+      entityType: 'basvuru',
+      entityId: basvuruId,
+      payload: { ilan_id: b.ilan_id, onceki_durum: b.durum },
+    }).catch(() => {});
+    return updated[0];
+  }
 }

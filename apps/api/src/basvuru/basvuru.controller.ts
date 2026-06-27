@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { IsBoolean, IsOptional } from 'class-validator';
 import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
@@ -39,5 +39,13 @@ export class BasvuruController {
   @Get('ilan/:ilanId')
   list(@Param('ilanId') ilanId: string) {
     return this.service.list(ilanId);
+  }
+
+  /** Başvuruyu geri çek (vatandaş, kendi başvurusu, onaylanMAMış). */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Post(':id/withdraw')
+  withdraw(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.withdraw(id, user.sub);
   }
 }

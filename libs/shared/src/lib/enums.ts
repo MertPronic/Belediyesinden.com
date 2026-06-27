@@ -60,4 +60,5 @@ export enum BasvuruDurumu {
   Onaylandi = 'ONAYLANDI',
   Reddedildi = 'REDDEDILDI',
   IadeEdildi = 'IADE_EDILDI',
+  IptalEdildi = 'IPTAL_EDILDI',
 }
