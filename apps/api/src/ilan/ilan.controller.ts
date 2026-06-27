@@ -1,17 +1,28 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { IsEnum, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { IlanService } from './ilan.service';
 import { Roller, Unprotected } from '@belediyesinden/auth';
-import { KullaniciRolu } from '@belediyesinden/shared';
+import { IhaleTipi, KullaniciRolu } from '@belediyesinden/shared';
 
 class CreateIlanDto {
+  @IsString() @MaxLength(300)
   baslik!: string;
+
+  @IsOptional() @IsString()
   aciklama?: string;
+
+  @IsString()
   varlikId!: string;
-  ihaleTipi!: string;
+
+  @IsEnum(IhaleTipi)
+  ihaleTipi!: IhaleTipi;
+
+  @IsNumber() @Min(0) @Max(1_000_000_000)
   baslangicFiyati!: number;
 }
 
 class ChangeDurumDto {
+  @IsString()
   durum!: string;
 }
 

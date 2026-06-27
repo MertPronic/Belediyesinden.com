@@ -1,10 +1,14 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { IsBoolean, IsOptional } from 'class-validator';
 import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
 import { BasvuruService } from './basvuru.service';
 
 class CreateBasvuruDto {
+  @IsBoolean()
   kvkkOnay!: boolean;
+
+  @IsOptional() @IsBoolean()
   acikRiza?: boolean;
 }
 

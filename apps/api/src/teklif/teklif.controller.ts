@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { IsNumber, Min } from 'class-validator';
 import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
 import { TeklifService } from './teklif.service';
 
 class SubmitTeklifDto {
+  @IsNumber() @Min(0)
   tutar!: number;
 }
 

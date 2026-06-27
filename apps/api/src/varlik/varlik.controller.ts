@@ -10,20 +10,33 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { IsEnum, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import { KullaniciRolu, VarlikTipi } from '@belediyesinden/shared';
 import { Roller } from '@belediyesinden/auth';
 import { VarlikService } from './varlik.service';
 
 class CreateVarlikDto {
-  tip!: string;
+  @IsEnum(VarlikTipi)
+  tip!: VarlikTipi;
+
+  @IsString() @MaxLength(200)
   ad!: string;
+
+  @IsOptional() @IsString()
   aciklama?: string;
+
+  @IsOptional() @IsObject()
   detay?: Record<string, unknown>;
 }
 
 class UpdateVarlikDto {
+  @IsOptional() @IsString() @MaxLength(200)
   ad?: string;
+
+  @IsOptional() @IsString()
   aciklama?: string | null;
+
+  @IsOptional() @IsObject()
   detay?: Record<string, unknown>;
 }
 
