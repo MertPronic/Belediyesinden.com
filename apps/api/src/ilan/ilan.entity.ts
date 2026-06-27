@@ -13,6 +13,10 @@ export interface Ilan {
   baslangic_tarihi: Date | null;
   bitis_tarihi: Date | null;
   kurallar: Record<string, unknown>;
+  /** Sonuçlandırma: kazanan teklif sahibi (null = kazanan yok). */
+  kazanan_kullanici_id: string | null;
+  /** Sonuçlandırma: kazanan teklif tutarı (NUMERIC → pg string). */
+  kazanan_tutar: string | null;
   created_at: Date;
   updated_at: Date;
 }

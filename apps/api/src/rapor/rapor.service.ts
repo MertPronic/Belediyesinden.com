@@ -49,13 +49,11 @@ export class RaporService {
         qr,
         'SELECT COUNT(DISTINCT kullanici_id)::text AS count FROM basvuru',
       ),
-      // Gelir: SONUCLANDI ilanların en yüksek teklif toplamı (kazanan tutar).
+      // Gelir: SONUCLANDI ilanların persist edilen kazanan_tutar toplamı.
       rawQuery<Record<string, string>>(
         qr,
-        `SELECT COALESCE(SUM(m.tutar), 0)::text AS gelir
-         FROM (SELECT ilan_id, MAX(tutar) AS tutar
-               FROM teklif WHERE kabul_edildi = true GROUP BY ilan_id) m
-         JOIN ilan i ON i.id = m.ilan_id AND i.durum = 'SONUCLANDI'`,
+        `SELECT COALESCE(SUM(kazanan_tutar), 0)::text AS gelir
+         FROM ilan WHERE durum = 'SONUCLANDI' AND kazanan_tutar IS NOT NULL`,
       ),
     ]);
 

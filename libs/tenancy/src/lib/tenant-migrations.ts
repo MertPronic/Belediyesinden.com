@@ -249,6 +249,24 @@ class CreateTeklif1740000010000 extends TenantMigration {
   }
 }
 
+/**
+ * 0010 — ilan'a kazanan kolonları (sonuçlandırma persist).
+ * sonuclandir en yüksek teklif sahibini + tutarı yazar; rapor geliri buradan okur.
+ */
+class AddIlanKazanan1740000011000 extends TenantMigration {
+  name = 'AddIlanKazanan1740000011000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS kazanan_kullanici_id VARCHAR(100)`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS kazanan_tutar NUMERIC(18,2)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS kazanan_tutar`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS kazanan_kullanici_id`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -260,4 +278,5 @@ export const tenantMigrations = [
   CreateBasvuru1740000008000,
   CreateTeminat1740000009000,
   CreateTeklif1740000010000,
+  AddIlanKazanan1740000011000,
 ];

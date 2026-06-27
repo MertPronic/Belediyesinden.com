@@ -14,6 +14,7 @@ import { RollerGuard } from './roller.guard';
 import { DuyuruModule } from '../duyuru/duyuru.module';
 import { TenantThemeModule } from '../tenants/tenant-theme.module';
 import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
+import { TenantMigrationBootstrap } from '../tenancy-bootstrap/tenant-migration-bootstrap';
 import { VarlikModule } from '../varlik/varlik.module';
 import { IlanModule } from '../ilan/ilan.module';
 import { EvrakModule } from '../evrak/evrak.module';
@@ -77,6 +78,7 @@ import { SearchModule } from '../search/search.module';
   providers: [
     AppService,
     TenantGuard,
+    TenantMigrationBootstrap, // startup'ta tüm tenant'ların pending migration'ları
     // Global guard sırası: auth → rol → tenant-uyum, sonra interceptor search_path kurar.
     { provide: APP_GUARD, useClass: TenantThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },

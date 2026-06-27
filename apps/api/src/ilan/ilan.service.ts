@@ -141,8 +141,8 @@ export class IlanService {
     const winner = maxRows[0];
     const rows = await rawQuery<Ilan>(
       this.qr(),
-      'UPDATE ilan SET durum = $1 WHERE id = $2 RETURNING *',
-      [IlanDurumu.Sonuclandi, id],
+      'UPDATE ilan SET durum = $1, kazanan_kullanici_id = $2, kazanan_tutar = $3 WHERE id = $4 RETURNING *',
+      [IlanDurumu.Sonuclandi, winner?.kullanici_id ?? null, winner?.tutar ?? null, id],
     );
     // BullMQ gecikmeli iade planla (fire-and-forget).
     this.iadeService.planlaIadeForIlan(id).catch(() => {});
