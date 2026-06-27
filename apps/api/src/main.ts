@@ -31,6 +31,9 @@ async function bootstrap() {
   // Tutarlı hata yanıtı (#62).
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // pino structured logger (LoggerModule ile).
+  app.useLogger(app.get(Logger));
+
   // WebSocket (ws) adapter — gerçek zamanlı teklif yayını (JWT doğrulamalı).
   app.useWebSocketAdapter(new WsAdapter(app));
 

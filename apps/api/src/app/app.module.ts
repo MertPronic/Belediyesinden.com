@@ -3,6 +3,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { AuthGuard, KeycloakConnectModule, TokenValidation } from 'nest-keycloak-connect';
 import { sharedDataSourceOptions } from '@belediyesinden/db';
 import { KeycloakAuthModule } from '@belediyesinden/auth';
@@ -24,6 +25,8 @@ import { TeklifModule } from '../teklif/teklif.module';
 import { AuctionGatewayModule } from '../auction/auction-gateway.module';
 import { RaporModule } from '../rapor/rapor.module';
 import { AuditModule } from '../audit/audit.module';
+import { MetricsModule } from '../metrics/metrics.module';
+import { MetricsInterceptor } from '../metrics/metrics.interceptor';
 import { SearchModule } from '../search/search.module';
 
 @Module({
@@ -75,6 +78,14 @@ import { SearchModule } from '../search/search.module';
     AuctionGatewayModule, // ws gerçek zamanlı teklif yayını
     RaporModule, // tenant dashboard (raporlama)
     AuditModule, // audit hash-chain doğrulama
+    MetricsModule, // Prometheus /metrics
+    LoggerModule.forRoot({
+      pinoHttp: {
+        // Prod-friendly JSON log; health/metrics/noise'u filtrele.
+        autoLogging: { ignore: (req) => !!String(req.url ?? '').match(/\/(health|metrics)/) },
+        level: process.env['LOG_LEVEL'] ?? 'info',
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [
@@ -87,6 +98,7 @@ import { SearchModule } from '../search/search.module';
     { provide: APP_GUARD, useClass: RollerGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_INTERCEPTOR, useClass: TenancyInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor }, // Prometheus metrik
   ],
 })
 export class AppModule {}
