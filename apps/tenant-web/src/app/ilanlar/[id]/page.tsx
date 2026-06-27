@@ -2,22 +2,29 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  ArrowLeft,
+  ArrowRight,
   CalendarClock,
   CalendarDays,
+  ChevronRight,
   Download,
   FileText,
   Gavel,
+  Hash,
+  Home,
   Info,
+  Layers,
+  Lock,
+  Minus,
+  TrendingUp,
   Wallet,
 } from 'lucide-react';
 import { serverApiFetch } from '../../../lib/api';
 import {
   Alert,
   Badge,
+  Button,
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
   DurumBadge,
@@ -32,6 +39,7 @@ interface Ilan {
   baslangic_fiyati: string;
   baslangic_tarihi: string | null;
   bitis_tarihi: string | null;
+  kurallar: { minArtirmaAdimi?: number } | null;
 }
 
 interface Evrak {
@@ -44,10 +52,11 @@ interface Evrak {
 const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 
-const TIP_LABEL: Record<string, string> = {
-  ACIK_ARTIRMA: 'Açık Artırma',
-  ACIK_TEKLIF: 'Açık Teklif',
-  KAPALI_TEKLIF: 'Kapalı Teklif',
+const TIP: Record<string, { label: string; icon: typeof Gavel }> = {
+  ACAIK_ARTIRMA: { label: 'Açık Artırma', icon: Gavel },
+  ACIK_ARTIRMA: { label: 'Açık Artırma', icon: Gavel },
+  ACIK_TEKLIF: { label: 'Açık Teklif', icon: FileText },
+  KAPALI_TEKLIF: { label: 'Kapalı Teklif', icon: Lock },
 };
 
 async function getTenantSlug(): Promise<string> {
@@ -57,6 +66,18 @@ async function getTenantSlug(): Promise<string> {
   const host = h.get('host') ?? '';
   const first = host.split(':')[0].split('.')[0]?.toLowerCase();
   return first && !['localhost', 'www', 'belediyesinden'].includes(first) ? first : '';
+}
+
+function InfoRow({ icon: Icon, label, value }: { icon: typeof Hash; label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-gray-100 py-2.5 last:border-0">
+      <span className="flex items-center gap-2 text-sm text-gray-500">
+        <Icon className="h-4 w-4 text-gray-400" />
+        {label}
+      </span>
+      <span className="text-right text-sm font-medium text-gray-900">{value}</span>
+    </div>
+  );
 }
 
 export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -79,122 +100,185 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
     evraklar = [];
   }
 
+  const tip = TIP[ilan.ihale_tipi] ?? { label: ilan.ihale_tipi, icon: FileText };
+  const TipIcon = tip.icon;
   const canBid = ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA';
   const baslangic = ilan.baslangic_tarihi ? new Date(ilan.baslangic_tarihi) : null;
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
+  const minAdim = Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0;
+  const fiyat = Number(ilan.baslangic_fiyati);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <Link
-        href="/ilanlar"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        İlanlara dön
-      </Link>
+    <div className="space-y-6">
+      {/* Breadcrumb */}
+      <nav className="flex flex-wrap items-center gap-1 text-sm text-gray-400">
+        <Link href="/" className="inline-flex items-center gap-1 hover:text-gray-700">
+          <Home className="h-3.5 w-3.5" />
+          Ana Sayfa
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <Link href="/ilanlar" className="hover:text-gray-700">İlanlar</Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="truncate text-gray-600">{ilan.baslik}</span>
+      </nav>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <Badge variant="info" icon={<Gavel />}>{TIP_LABEL[ilan.ihale_tipi] ?? ilan.ihale_tipi}</Badge>
-              <CardTitle className="text-3xl">{ilan.baslik}</CardTitle>
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        {/* Sol: ana içerik */}
+        <div className="min-w-0 space-y-6">
+          {/* Banner (galeri yerine — ihale tipi ikonu + tenant rengi gradient) */}
+          <div
+            className="relative aspect-[16/8] overflow-hidden rounded-xl"
+            style={{
+              background: `linear-gradient(135deg, var(--renk), color-mix(in srgb, var(--renk) 55%, #0f172a))`,
+            }}
+          >
+            <TipIcon className="absolute -right-6 -bottom-6 h-56 w-56 text-white/10" strokeWidth={1.2} />
+            <div className="absolute left-5 top-5 flex items-center gap-2">
+              <Badge className="border-0 bg-white/20 text-white backdrop-blur" icon={<TipIcon className="h-3 w-3" />}>
+                {tip.label}
+              </Badge>
             </div>
-            <DurumBadge durum={ilan.durum} />
+            <div className="absolute right-5 top-5">
+              <DurumBadge durum={ilan.durum} />
+            </div>
+            <div className="absolute bottom-5 left-5 right-5">
+              <h1 className="text-2xl font-bold leading-tight text-white drop-shadow-sm sm:text-3xl">
+                {ilan.baslik}
+              </h1>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+
+          {/* İlan Bilgileri tablosu */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Layers className="h-4 w-4 text-gray-400" />
+                İlan Bilgileri
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-x-8 sm:grid-cols-2">
+              <InfoRow icon={Hash} label="İlan No" value={<span className="font-mono text-xs">{ilan.id.slice(0, 8)}</span>} />
+              <InfoRow icon={TipIcon} label="İhale Tipi" value={tip.label} />
+              <InfoRow icon={Info} label="Durum" value={<DurumBadge durum={ilan.durum} dot={false} />} />
+              <InfoRow icon={TrendingUp} label="Min. Artırma" value={`${minAdim.toLocaleString('tr-TR')} ₺`} />
+              {baslangic && (
+                <InfoRow icon={CalendarDays} label="Başlangıç" value={baslangic.toLocaleDateString('tr-TR')} />
+              )}
+              {bitis && (
+                <InfoRow icon={CalendarClock} label="Bitiş" value={bitis.toLocaleDateString('tr-TR')} />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Açıklama */}
           {ilan.aciklama && (
-            <p className="whitespace-pre-wrap leading-relaxed text-gray-700">{ilan.aciklama}</p>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Açıklama</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="whitespace-pre-wrap leading-relaxed text-gray-700">{ilan.aciklama}</p>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Bilgi ızgarası */}
-          <div className="grid gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-xs">
-                <Wallet className="h-4 w-4 text-gray-500" />
-              </span>
-              <div>
-                <p className="text-lg font-bold leading-tight text-gray-900">
-                  {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
-                </p>
-                <p className="text-xs text-gray-500">Başlangıç</p>
-              </div>
-            </div>
-            {baslangic && (
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-xs">
-                  <CalendarDays className="h-4 w-4 text-gray-500" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{baslangic.toLocaleDateString('tr-TR')}</p>
-                  <p className="text-xs text-gray-500">Başlangıç</p>
-                </div>
-              </div>
-            )}
-            {bitis && (
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-xs">
-                  <CalendarClock className="h-4 w-4 text-gray-500" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{bitis.toLocaleDateString('tr-TR')}</p>
-                  <p className="text-xs text-gray-500">Bitiş</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {canBid ? (
-            <Link
-              href={`/teklif/${ilan.id}`}
-              className="inline-flex h-12 items-center gap-2 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-              style={{ background: 'var(--renk)' }}
-            >
-              <Gavel className="h-4 w-4" />
-              Teklif Ver
-            </Link>
-          ) : (
-            <Alert variant="info" icon={<Info />}>
-              Bu ihale sonuçlandırılmıştır. Teklif kabul edilmemektedir.
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-      {evraklar.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Şartname / Ekler</CardTitle>
-            <p className="text-sm text-gray-500">{evraklar.length} dosya</p>
-          </CardHeader>
-          <CardContent className="divide-y divide-gray-100 p-0">
-            {evraklar.map((ev) => {
-              const boyut = ev.boyut ? `${(ev.boyut / 1024).toFixed(0)} KB` : null;
-              return (
-                <div key={ev.id} className="flex items-center justify-between gap-3 px-6 py-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                      <FileText className="h-4 w-4 text-gray-500" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">{ev.dosya_adi}</p>
-                      {boyut && <p className="text-xs text-gray-400">{boyut}</p>}
+          {/* Şartname / Evrak */}
+          {evraklar.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  Şartname / Ekler
+                  <span className="text-sm font-normal text-gray-400">({evraklar.length})</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="divide-y divide-gray-100 p-0">
+                {evraklar.map((ev) => {
+                  const boyut = ev.boyut ? `${(ev.boyut / 1024).toFixed(0)} KB` : null;
+                  return (
+                    <div key={ev.id} className="flex items-center justify-between gap-3 px-6 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                          <FileText className="h-4 w-4 text-gray-500" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-gray-900">{ev.dosya_adi}</p>
+                          {boyut && <p className="text-xs text-gray-400">{boyut}</p>}
+                        </div>
+                      </div>
+                      <a
+                        href={`${API_URL}/evrak/${ev.id}`}
+                        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        İndir
+                      </a>
                     </div>
-                  </div>
-                  <a
-                    href={`${API_URL}/evrak/${ev.id}`}
-                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    İndir
-                  </a>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Sağ: sticky teklif paneli */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <Card variant="elevated" className="overflow-hidden">
+            {/* Fiyat başlığı */}
+            <div className="accent-soft-bg px-5 py-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Başlangıç Fiyatı</p>
+              <p className="mt-0.5 text-3xl font-bold tracking-tight text-gray-900">
+                {fiyat.toLocaleString('tr-TR')} <span className="text-xl">₺</span>
+              </p>
+            </div>
+
+            <CardContent className="space-y-4 p-5">
+              {/* Hızlı bilgiler */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5 text-gray-500">
+                    <Minus className="h-3.5 w-3.5" /> Min. artırma adımı
+                  </span>
+                  <span className="font-medium text-gray-900">{minAdim.toLocaleString('tr-TR')} ₺</span>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
+                {bitis && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-gray-500">
+                      <CalendarClock className="h-3.5 w-3.5" /> İhale bitişi
+                    </span>
+                    <span className="font-medium text-gray-900">{bitis.toLocaleDateString('tr-TR')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* CTA */}
+              {canBid ? (
+                <Link
+                  href={`/teklif/${ilan.id}`}
+                  className="flex h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+                  style={{ background: 'var(--renk)' }}
+                >
+                  <Gavel className="h-4 w-4" />
+                  Teklif Ver
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <Alert variant="info" icon={<Info />}>
+                  Bu ihale sonuçlandırılmıştır.
+                </Alert>
+              )}
+
+              <Button variant="outline" className="w-full" leftIcon={<Wallet />}>
+                Katılım Koşulları
+              </Button>
+
+              <p className="text-center text-xs text-gray-400">
+                Teklif vermek için giriş yapmanız ve teminat yatırmanız gerekir.
+              </p>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 }
