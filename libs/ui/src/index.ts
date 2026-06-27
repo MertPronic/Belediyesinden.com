@@ -15,3 +15,6 @@ export * from './lib/skeleton';
 export * from './lib/avatar';
 export * from './lib/ilan-karti';
 export * from './lib/tabs';
+export * from './lib/galeri';
+export * from './lib/gorseller';
+export * from './lib/footer';

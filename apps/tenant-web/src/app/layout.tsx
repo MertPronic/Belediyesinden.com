@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { Landmark } from 'lucide-react';
 import { serverApiFetch } from '../lib/api';
+import { Footer } from '@belediyesinden/ui';
 import { UserMenu } from '../components/user-menu';
 
 export const metadata: Metadata = {
@@ -78,6 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        <Footer brand={siteName} />
       </body>
     </html>
   );

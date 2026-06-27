@@ -2,6 +2,7 @@ import './global.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Building2 } from 'lucide-react';
+import { Footer } from '@belediyesinden/ui';
 
 export const metadata: Metadata = {
   title: 'Belediyesinden.com — Belediye İlan Portalı',
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        <Footer brand="Belediyesinden.com" />
       </body>
     </html>
   );

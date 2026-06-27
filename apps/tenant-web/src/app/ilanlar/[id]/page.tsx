@@ -15,8 +15,10 @@ import {
   Info,
   Layers,
   Lock,
+  MapPin,
   Minus,
   Share2,
+  ShieldCheck,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
@@ -31,6 +33,8 @@ import {
   CardTitle,
   DurumBadge,
   EmptyState,
+  FotoGaleri,
+  dummyGorseller,
   Tabs,
 } from '@belediyesinden/ui';
 
@@ -73,7 +77,7 @@ async function getTenantSlug(): Promise<string> {
 
 function InfoRow({ icon: Icon, label, value }: { icon: typeof Hash; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-100 py-2.5 last:border-0">
+    <div className="flex items-center justify-between gap-3 border-b border-gray-100 py-3 last:border-0">
       <span className="flex items-center gap-2 text-sm text-gray-500">
         <Icon className="h-4 w-4 text-gray-400" />
         {label}
@@ -109,6 +113,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
   const minAdim = Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0;
   const fiyat = Number(ilan.baslangic_fiyati);
+  const gorseller = dummyGorseller(id, 15); // TODO: backend ilan görselleri bağlanınca değiştirilecek
 
   const tabs = [
     {
@@ -116,7 +121,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
       label: 'İlan Bilgileri',
       content: (
         <Card>
-          <CardContent className="grid gap-x-8 sm:grid-cols-2">
+          <CardContent className="grid gap-x-10 sm:grid-cols-2">
             <InfoRow icon={Hash} label="İlan No" value={<span className="font-mono text-xs">{ilan.id.slice(0, 8)}</span>} />
             <InfoRow icon={TipIcon} label="İhale Tipi" value={tip.label} />
             <InfoRow icon={Info} label="Durum" value={<DurumBadge durum={ilan.durum} dot={false} />} />
@@ -184,6 +189,43 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
           </Card>
         ),
     },
+    {
+      value: 'konum',
+      label: 'Konum',
+      content: (
+        <Card>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className="flex items-center gap-1 text-gray-400"><MapPin className="h-4 w-4" /> Konum:</span>
+              <span className="font-medium text-gray-900">Kayseri</span>
+              <ChevronRight className="h-3 w-3 text-gray-300" />
+              <span className="font-medium text-gray-900">Talas</span>
+              <ChevronRight className="h-3 w-3 text-gray-300" />
+              <span className="text-gray-600">Cumhuriyet Mahallesi</span>
+            </div>
+            {/* OpenStreetMap embed */}
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <iframe
+                title="İlan konumu"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=35.4150%2C38.6775%2C35.4350%2C38.6975&layer=mapnik&marker=38.6875%2C35.4250"
+                className="h-72 w-full"
+                loading="lazy"
+              />
+            </div>
+            <a
+              href="https://www.openstreetmap.org/?mlat=38.6875&mlon=35.4250#map=15/38.6875/35.4250"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+              style={{ color: 'var(--renk)' }}
+            >
+              <MapPin className="h-4 w-4" />
+              Haritada aç (OpenStreetMap)
+            </a>
+          </CardContent>
+        </Card>
+      ),
+    },
   ];
 
   return (
@@ -202,24 +244,25 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Sol */}
-        <div className="min-w-0 space-y-6">
-          {/* Banner */}
-          <div
-            className="relative aspect-[16/8] overflow-hidden rounded-xl"
-            style={{ background: `linear-gradient(135deg, var(--renk), color-mix(in srgb, var(--renk) 55%, #0f172a))` }}
-          >
-            <TipIcon className="absolute -right-6 -bottom-6 h-56 w-56 text-white/10" strokeWidth={1.2} />
-            <div className="absolute left-5 top-5">
-              <Badge className="border-0 bg-white/20 text-white backdrop-blur" icon={<TipIcon className="h-3 w-3" />}>
-                {tip.label}
-              </Badge>
-            </div>
-            <div className="absolute right-5 top-5">
+        <div className="min-w-0 space-y-5">
+          {/* Foto galeri */}
+          <FotoGaleri images={gorseller} alt={ilan.baslik} />
+
+          {/* Başlık bloğu */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="info" icon={<TipIcon className="h-3 w-3" />}>{tip.label}</Badge>
               <DurumBadge durum={ilan.durum} />
+              <span className="flex items-center gap-1 text-sm text-gray-500">
+                <ShieldCheck className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
+                Resmî İlan
+              </span>
             </div>
-            <div className="absolute bottom-5 left-5 right-5">
-              <h1 className="text-2xl font-bold leading-tight text-white drop-shadow-sm sm:text-3xl">{ilan.baslik}</h1>
-            </div>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-gray-900 sm:text-3xl">{ilan.baslik}</h1>
+            <p className="flex items-center gap-1 text-sm text-gray-500">
+              <MapPin className="h-4 w-4 text-gray-400" />
+              Kayseri, Talas · Cumhuriyet Mahallesi
+            </p>
           </div>
 
           {/* Tabs */}
@@ -269,23 +312,15 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                 </Alert>
               )}
 
-              {/* Favori / Paylaş (sahibinden tarzı aksiyon satırı) */}
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" leftIcon={<Heart />}>
-                  Favori
-                </Button>
-                <Button variant="outline" className="flex-1" leftIcon={<Share2 />}>
-                  Paylaş
-                </Button>
+                <Button variant="outline" className="flex-1" leftIcon={<Heart />}>Favori</Button>
+                <Button variant="outline" className="flex-1" leftIcon={<Share2 />}>Paylaş</Button>
               </div>
 
-              <p className="text-center text-xs text-gray-400">
-                Teklif için giriş + teminat gerekir.
-              </p>
+              <p className="text-center text-xs text-gray-400">Teklif için giriş + teminat gerekir.</p>
             </CardContent>
           </Card>
 
-          {/* Katılım bilgisi */}
           <Card className="mt-4">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -294,7 +329,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <ul className="space-y-2.5 text-sm text-gray-600">
                 <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Keycloak ile giriş yapmak</li>
                 <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> KVKK onayı ile başvuru</li>
                 <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Teminat e-dekontu yükleme</li>
