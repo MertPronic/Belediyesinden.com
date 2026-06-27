@@ -1,6 +1,19 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express/multer';
+import type { Response } from 'express';
 import { IsEnum, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { IlanService } from './ilan.service';
+import { GorselService } from './gorsel.service';
+
+/** Multer yüklenen dosya (Express.Multer.File global augmentasyonu yerine yerel tip). */
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  buffer: Buffer;
+  size: number;
+}
 import { CurrentUser, Roller, Unprotected, type AuthenticatedUser } from '@belediyesinden/auth';
 import { IhaleTipi, KullaniciRolu } from '@belediyesinden/shared';
 
@@ -40,7 +53,10 @@ class UpdateIlanDto {
 /** `/api/ilan` — tenant-scoped ilan CRUD + durum geçişleri. */
 @Controller('ilan')
 export class IlanController {
-  constructor(private readonly service: IlanService) {}
+  constructor(
+    private readonly service: IlanService,
+    private readonly gorseller: GorselService,
+  ) {}
 
   /** İlanları listele (public — vatandaş ilanları auth'suz görüntüler). */
   @Unprotected()
@@ -55,6 +71,37 @@ export class IlanController {
   favorilerim(@CurrentUser() user: AuthenticatedUser | null) {
     if (!user) throw new NotFoundException('Kimlik doğrulanmış kullanıcı yok');
     return this.service.listFavoriler(user.sub);
+  }
+
+  /** Görsel stream (galeri <img> proxy'si). :id'den ÖNCE tanımlı. */
+  @Unprotected()
+  @Get('gorsel/:gorselId')
+  async gorsel(@Param('gorselId') gorselId: string, @Res() res: Response): Promise<void> {
+    const { stream, gorsel } = await this.gorseller.stream(gorselId);
+    res.setHeader('Content-Type', gorsel.content_type ?? 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    stream.pipe(res);
+  }
+
+  /** İlan'ın görselleri (public galeri için id listesi). */
+  @Unprotected()
+  @Get(':id/gorsel')
+  gorselleri(@Param('id') id: string) {
+    return this.gorseller.listByIlan(id);
+  }
+
+  /** İlan'a çoklu görsel yükle (TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Post(':id/gorsel')
+  @UseInterceptors(FilesInterceptor('files', 15))
+  gorselYukle(@Param('id') id: string, @UploadedFiles() files: MulterFile[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Dosya bulunamadı (multipart "files" alanı)');
+    }
+    return this.gorseller.upload(
+      id,
+      files.map((f) => ({ originalname: f.originalname, buffer: f.buffer, mimetype: f.mimetype, size: f.size })),
+    );
   }
 
   /** İlan detayı (public). */

@@ -290,6 +290,43 @@ class CreateIlanFavoriler1740000012000 extends TenantMigration {
   }
 }
 
+/**
+ * 0012 — ilan görselleri (MinIO) + ilan konum kolonları (lat/lng/il/ilçe/mahalle).
+ */
+class IlanGorselKonum1740000013000 extends TenantMigration {
+  name = 'IlanGorselKonum1740000013000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS ilan_gorseller (
+        id           UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        ilan_id      UUID          NOT NULL REFERENCES ilan(id) ON DELETE CASCADE,
+        minio_key    VARCHAR(500)  NOT NULL,
+        dosya_adi    VARCHAR(255)  NOT NULL,
+        content_type VARCHAR(100),
+        boyut        BIGINT        NOT NULL DEFAULT 0,
+        sira         INTEGER       NOT NULL DEFAULT 0,
+        created_at   TIMESTAMPTZ   NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_ilan_gorseller_ilan ON ilan_gorseller (ilan_id)`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS il VARCHAR(100)`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS ilce VARCHAR(100)`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS mahalle VARCHAR(100)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS ilan_gorseller`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS mahalle`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS ilce`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS il`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS lng`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS lat`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -303,4 +340,5 @@ export const tenantMigrations = [
   CreateTeklif1740000010000,
   AddIlanKazanan1740000011000,
   CreateIlanFavoriler1740000012000,
+  IlanGorselKonum1740000013000,
 ];

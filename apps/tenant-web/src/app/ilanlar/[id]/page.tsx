@@ -48,6 +48,11 @@ interface Ilan {
   baslangic_tarihi: string | null;
   bitis_tarihi: string | null;
   kurallar: { minArtirmaAdimi?: number } | null;
+  lat: number | null;
+  lng: number | null;
+  il: string | null;
+  ilce: string | null;
+  mahalle: string | null;
 }
 interface Evrak {
   id: string;
@@ -113,7 +118,22 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
   const minAdim = Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0;
   const fiyat = Number(ilan.baslangic_fiyati);
-  const gorseller = dummyGorseller(id, 15); // TODO: backend ilan görselleri bağlanınca değiştirilecek
+
+  // Gerçek ilan görselleri (MinIO proxy); yoksa dummy placeholder.
+  let gorseller: string[] = dummyGorseller(id, 15);
+  try {
+    const gorselRows = await serverApiFetch<{ id: string }[]>(`/ilan/${id}/gorsel`, slug);
+    if (gorselRows.length > 0) {
+      gorseller = gorselRows.map((g) => `${API_URL}/ilan/gorsel/${g.id}`);
+    }
+  } catch {
+    /* dummy fallback */
+  }
+
+  // Konum: gerçek lat/lng varsa kullan, yoksa varsayılan (Talas/Kayseri).
+  const lat = ilan.lat ?? 38.6875;
+  const lng = ilan.lng ?? 35.425;
+  const konumMetni = [ilan.il, ilan.ilce, ilan.mahalle].filter(Boolean).join(', ') || 'Kayseri, Talas';
 
   const tabs = [
     {
@@ -197,23 +217,19 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span className="flex items-center gap-1 text-gray-400"><MapPin className="h-4 w-4" /> Konum:</span>
-              <span className="font-medium text-gray-900">Kayseri</span>
-              <ChevronRight className="h-3 w-3 text-gray-300" />
-              <span className="font-medium text-gray-900">Talas</span>
-              <ChevronRight className="h-3 w-3 text-gray-300" />
-              <span className="text-gray-600">Cumhuriyet Mahallesi</span>
+              <span className="font-medium text-gray-900">{konumMetni}</span>
             </div>
             {/* OpenStreetMap embed */}
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <iframe
                 title="İlan konumu"
-                src="https://www.openstreetmap.org/export/embed.html?bbox=35.4150%2C38.6775%2C35.4350%2C38.6975&layer=mapnik&marker=38.6875%2C35.4250"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`}
                 className="h-72 w-full"
                 loading="lazy"
               />
             </div>
             <a
-              href="https://www.openstreetmap.org/?mlat=38.6875&mlon=35.4250#map=15/38.6875/35.4250"
+              href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
@@ -261,7 +277,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
             <h1 className="text-2xl font-bold leading-tight tracking-tight text-gray-900 sm:text-3xl">{ilan.baslik}</h1>
             <p className="flex items-center gap-1 text-sm text-gray-500">
               <MapPin className="h-4 w-4 text-gray-400" />
-              Kayseri, Talas · Cumhuriyet Mahallesi
+              {konumMetni}
             </p>
           </div>
 

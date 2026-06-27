@@ -17,6 +17,12 @@ export interface Ilan {
   kazanan_kullanici_id: string | null;
   /** Sonuçlandırma: kazanan teklif tutarı (NUMERIC → pg string). */
   kazanan_tutar: string | null;
+  /** Konum (opsiyonel — harita için). */
+  lat: number | null;
+  lng: number | null;
+  il: string | null;
+  ilce: string | null;
+  mahalle: string | null;
   created_at: Date;
   updated_at: Date;
 }

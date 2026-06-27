@@ -38,6 +38,8 @@ export default function AdminIlanDetayPage() {
   const [file, setFile] = useState<File | null>(null);
   const [evraklar, setEvraklar] = useState<Evrak[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [gorselFiles, setGorselFiles] = useState<FileList | null>(null);
+  const [gorselUploading, setGorselUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,27 @@ export default function AdminIlanDetayPage() {
       setError(err instanceof Error ? err.message : 'Yükleme başarısız.');
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function gorselYukle(e: React.FormEvent) {
+    e.preventDefault();
+    if (!gorselFiles || gorselFiles.length === 0) {
+      setError('En az bir görsel seçin.');
+      return;
+    }
+    setGorselUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      Array.from(gorselFiles).forEach((f) => fd.append('files', f));
+      await apiFetch(`/ilan/${params.id}/gorsel`, { method: 'POST', body: fd });
+      setGorselFiles(null);
+      setMsg(`${gorselFiles.length} görsel yüklendi.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Görsel yükleme başarısız.');
+    } finally {
+      setGorselUploading(false);
     }
   }
 
@@ -214,6 +237,29 @@ export default function AdminIlanDetayPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">İlan Görselleri (galeri)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={gorselYukle} className="space-y-3">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setGorselFiles(e.target.files)}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
+            />
+            {gorselFiles && (
+              <p className="text-xs text-gray-500">{gorselFiles.length} görsel seçili</p>
+            )}
+            <Button type="submit" variant="outline" loading={gorselUploading} leftIcon={<Upload />}>
+              Görselleri Yükle (max 15)
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
