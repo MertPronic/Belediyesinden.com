@@ -15,7 +15,15 @@ interface Ilan {
   bitis_tarihi: string | null;
 }
 
+interface Evrak {
+  id: string;
+  dosya_adi: string;
+  content_type: string | null;
+  boyut: number | null;
+}
+
 const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 
 async function getTenantSlug(): Promise<string> {
   const h = await headers();
@@ -31,6 +39,7 @@ export default async function IlanDetayPage({ params }: { params: { id: string }
   if (!slug) notFound();
 
   let ilan: Ilan | null = null;
+  let evraklar: Evrak[] = [];
   try {
     ilan = await serverApiFetch<Ilan>(`/ilan/${params.id}`, slug);
   } catch {
@@ -40,6 +49,13 @@ export default async function IlanDetayPage({ params }: { params: { id: string }
   // Taslak/iptal edilmiş ilanlar public olarak görüntülenmez.
   if (!ilan || !PUBLIC_DURUMLAR.includes(ilan.durum)) {
     notFound();
+  }
+
+  // Şartname/evrak listesi (public).
+  try {
+    evraklar = await serverApiFetch<Evrak[]>(`/evrak/ilan/${params.id}`, slug);
+  } catch {
+    evraklar = [];
   }
 
   const canBid = ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA';
@@ -101,6 +117,30 @@ export default async function IlanDetayPage({ params }: { params: { id: string }
           )}
         </CardContent>
       </Card>
+
+      {evraklar.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Şartname / Ekler ({evraklar.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+              {evraklar.map((ev) => (
+                <li key={ev.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                  <span className="truncate text-gray-700">{ev.dosya_adi}</span>
+                  <a
+                    href={`${API_URL}/evrak/${ev.id}`}
+                    className="ml-3 shrink-0 rounded-lg px-3 py-1.5 text-xs text-white"
+                    style={{ background: 'var(--renk)' }}
+                  >
+                    İndir
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

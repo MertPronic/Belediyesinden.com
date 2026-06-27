@@ -11,7 +11,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import type { Response } from 'express';
 import { EvrakService } from './evrak.service';
-import { Roller } from '@belediyesinden/auth';
+import { Roller, Unprotected } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
 
 /** Multer yüklenen dosya (Express.Multer.File global augmentasyonu yerine yerel tip). */
@@ -25,15 +25,16 @@ interface MulterFile {
 }
 
 /**
- * `/api/evrak` — ilan şartname/ek evrak upload + download.
- *  POST /api/evrak/:ilanId (multipart 'file') → upload
- *  GET  /api/evrak/:id → download (stream)
+ * `/api/evrak` — ilan şartname/ek evrak.
+ *  POST   /api/evrak/:ilanId (multipart 'file') → upload (TenantAdmin)
+ *  GET    /api/evrak/ilan/:ilanId → ilanın evrak listesi (public)
+ *  GET    /api/evrak/:id → download/stream (public — şartname erişimi)
  */
-@Roller(KullaniciRolu.TenantAdmin)
 @Controller('evrak')
 export class EvrakController {
   constructor(private readonly service: EvrakService) {}
 
+  @Roller(KullaniciRolu.TenantAdmin)
   @Post(':ilanId')
   @UseInterceptors(FileInterceptor('file'))
   upload(@Param('ilanId') ilanId: string, @UploadedFile() file: MulterFile) {
@@ -48,12 +49,15 @@ export class EvrakController {
     });
   }
 
-  /** İlan'ın evraklarını listele (minio_key hariç). */
+  /** İlan'ın evraklarını listele (public — şartname herkese açık). */
+  @Unprotected()
   @Get('ilan/:ilanId')
   listByIlan(@Param('ilanId') ilanId: string) {
     return this.service.listByIlan(ilanId);
   }
 
+  /** Evrak indir (public — şartname erişimi). */
+  @Unprotected()
   @Get(':id')
   async download(@Param('id') id: string, @Res() res: Response): Promise<void> {
     const { stream, evrak } = await this.service.download(id);
