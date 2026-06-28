@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { IsNumber, Min } from 'class-validator';
-import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
+import { CurrentUser, Roller, Unprotected, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
 import { TeklifService } from './teklif.service';
 
@@ -28,7 +28,8 @@ export class TeklifController {
     return this.service.submit(ilanId, user.sub, dto.tutar);
   }
 
-  /** İlan'ın tekliflerini listele (en yüksek ilk). */
+  /** İlan'ın tekliflerini listele (public — ihale şeffaflığı, sadece tutar). */
+  @Unprotected()
   @Get('ilan/:ilanId')
   list(@Param('ilanId') ilanId: string) {
     return this.service.list(ilanId);
