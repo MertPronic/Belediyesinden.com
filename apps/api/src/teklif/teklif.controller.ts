@@ -15,7 +15,7 @@ export class TeklifController {
   constructor(private readonly service: TeklifService) {}
 
   /** Teklif ver (server-authoritative: teklifDogrula + anti-snipping). */
-  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci, KullaniciRolu.TenantAdmin)
   @Post('ilan/:ilanId')
   submit(
     @Param('ilanId') ilanId: string,
