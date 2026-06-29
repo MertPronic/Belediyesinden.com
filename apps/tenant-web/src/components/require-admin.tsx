@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useAuth } from '../lib/use-auth';
 import { RequireAuth } from './require-auth';
 
-const ADMIN_ROLLER = ['tenant_admin', 'encumen', 'superadmin'];
+const ADMIN_ROLLER = ['TENANT_ADMIN', 'ENCUMEN', 'SUPERADMIN'];
 
 /**
  * RequireAuth + rol kontrolü. Sadece tenant_admin/encumen/superadmin alt ağacı

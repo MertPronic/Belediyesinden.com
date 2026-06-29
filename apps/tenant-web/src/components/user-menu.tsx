@@ -4,7 +4,7 @@ import { LogOut, Shield, User } from 'lucide-react';
 import { useAuth, login, logout } from '../lib/use-auth';
 import { Avatar, Button } from '@belediyesinden/ui';
 
-const ADMIN_ROLLER = ['tenant_admin', 'encumen', 'superadmin'];
+const ADMIN_ROLLER = ['TENANT_ADMIN', 'ENCUMEN', 'SUPERADMIN'];
 
 /** Header'daki auth-aware menü: login durumu + rol bazlı admin linki + çıkış. */
 export function UserMenu() {
