@@ -1,10 +1,19 @@
 /* Belediyesinden — Keycloak login tema */
 
 :root {
+  /* Kendi marka rengimiz */
   --bld-renk: #0f766e;
   --bld-renk-koyu: #0d5a54;
   --bld-yazi: #0f172a;
   --bld-border: #e2e8e0;
+
+  /* PatternFly varsayilan maviyi TEAL yap */
+  --pf-global--primary-color--100: #0f766e !important;
+  --pf-global--primary-color--200: #0d5a54 !important;
+  --pf-global--primary-color--light-100: #14b8a6 !important;
+  --pf-global--active-color--100: #0f766e !important;
+  --pf-global--link--Color: #0f766e !important;
+  --pf-global--link--Color--hover: #0d5a54 !important;
 }
 
 /* === GENEL === */
@@ -23,14 +32,13 @@ html.login-pf, body {
   background: transparent !important;
 }
 
-/* === HEADER — SADECE RENK + YAZI DEGISTIR === */
+/* === HEADER === */
 #kc-header.login-pf-page-header {
   background: linear-gradient(135deg, var(--bld-renk), var(--bld-renk-koyu)) !important;
   border-radius: 16px 16px 0 0 !important;
   padding: 1.75rem !important;
   margin: 0 !important;
 }
-/* icteki yaziyi markala (gizleme — direk stillendir) */
 #kc-header-wrapper {
   color: #ffffff !important;
   font-size: 1.4rem !important;
@@ -40,7 +48,6 @@ html.login-pf, body {
   text-align: center !important;
   padding: 0 !important;
 }
-/* Yazinin onune emoji ekle */
 #kc-header-wrapper::before {
   content: "🏛 ";
   margin-right: 0.25rem;
@@ -62,7 +69,8 @@ html.login-pf, body {
 
 /* === FORM === */
 .form-group { margin-bottom: 1.25rem !important; }
-.form-group label {
+.login-pf-page .form-group label,
+#kc-form-login .form-group label {
   color: var(--bld-yazi) !important;
   font-weight: 500 !important;
   font-size: 0.85rem !important;
@@ -71,8 +79,10 @@ html.login-pf, body {
 }
 
 /* === INPUTS === */
-#username, #password,
-input[type="text"], input[type="password"] {
+.login-pf-page #username,
+.login-pf-page #password,
+.login-pf-page input[type="text"],
+.login-pf-page input[type="password"] {
   border: 1px solid var(--bld-border) !important;
   border-radius: 8px !important;
   padding: 0.65rem 0.9rem !important;
@@ -80,30 +90,29 @@ input[type="text"], input[type="password"] {
   height: auto !important;
   box-shadow: none !important;
 }
-#username:focus, #password:focus,
-input:focus[type="text"], input:focus[type="password"] {
+.login-pf-page #username:focus,
+.login-pf-page #password:focus,
+.login-pf-page input:focus {
   border-color: var(--bld-renk) !important;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12) !important;
   outline: none !important;
 }
 
-/* === ŞİFRE GÖSTER BUTONU — SADECE RADIUS, BOYUTA DOKUNMA === */
-.input-group-btn .btn,
-.input-group .btn,
-.card-pf .input-group button {
+/* === ŞİFRE GÖSTER BUTONU === */
+.login-pf-page .card-pf button:not([type="submit"]):not(#kc-login):not(.btn-primary) {
   border-radius: 0 8px 8px 0 !important;
   border-left: none !important;
-  min-height: 100% !important;
-}
-/* tek basit kural: card icindeki buton (submit haric) radius al */
-.card-pf button:not([type="submit"]):not(#kc-login):not(.btn-primary) {
-  border-radius: 0 8px 8px 0 !important;
 }
 
-/* === GİRİŞ BUTONU === */
-.btn-primary, #kc-login, button[type="submit"] {
+/* === GİRİŞ BUTONU — PatternFly specificity override === */
+.login-pf-page .btn-primary,
+.login-pf-page #kc-login,
+.login-pf-page button[type="submit"],
+.card-pf .btn-primary {
+  background-color: var(--bld-renk) !important;
   background: var(--bld-renk) !important;
-  border: 1px solid var(--bld-renk) !important;
+  background-image: none !important;
+  border-color: var(--bld-renk) !important;
   border-radius: 8px !important;
   font-weight: 600 !important;
   font-size: 0.95rem !important;
@@ -111,16 +120,40 @@ input:focus[type="text"], input:focus[type="password"] {
   margin-top: 0.5rem !important;
   width: 100% !important;
 }
-.btn-primary:hover, #kc-login:hover {
+.login-pf-page .btn-primary:hover,
+.login-pf-page #kc-login:hover,
+.card-pf .btn-primary:hover {
+  background-color: var(--bld-renk-koyu) !important;
   background: var(--bld-renk-koyu) !important;
+  background-image: none !important;
+  border-color: var(--bld-renk-koyu) !important;
   box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25) !important;
 }
 
-/* === LINKS / MISC === */
-a { color: var(--bld-renk) !important; }
-.alert { border-radius: 8px !important; }
+/* === LINKS — PatternFly override === */
+.login-pf-page a,
+.card-pf a,
+#kc-form a,
+.kc-form a {
+  color: var(--bld-renk) !important;
+}
+.login-pf-page a:hover {
+  color: var(--bld-renk-koyu) !important;
+}
+.login-pf-page .btn-link,
+.login-pf-page a.btn-link {
+  color: var(--bld-renk) !important;
+}
+
+/* === MISC === */
+.login-pf-page .alert { border-radius: 8px !important; }
 input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
-#kc-info, .login-pf-footer { color: #64748b !important; font-size: 0.85rem !important; text-align: center !important; padding: 1rem !important; }
+#kc-info, .login-pf-footer {
+  color: #64748b !important;
+  font-size: 0.85rem !important;
+  text-align: center !important;
+  padding: 1rem !important;
+}
 
 @media (max-width: 500px) {
   .login-pf-page { margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
