@@ -1,22 +1,17 @@
-/* Belediyesinden — Keycloak login tema */
+/* Belediyesinden — Keycloak login tema (AGRESIF PatternFly v3 override) */
 
 :root {
-  /* Kendi marka rengimiz */
   --bld-renk: #0f766e;
   --bld-renk-koyu: #0d5a54;
   --bld-yazi: #0f172a;
   --bld-border: #e2e8e0;
-
-  /* PatternFly varsayilan maviyi TEAL yap */
   --pf-global--primary-color--100: #0f766e !important;
   --pf-global--primary-color--200: #0d5a54 !important;
-  --pf-global--primary-color--light-100: #14b8a6 !important;
   --pf-global--active-color--100: #0f766e !important;
   --pf-global--link--Color: #0f766e !important;
   --pf-global--link--Color--hover: #0d5a54 !important;
 }
 
-/* === GENEL === */
 html.login-pf, body {
   background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 40%, #f0fdfa 100%) !important;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
@@ -40,22 +35,18 @@ html.login-pf, body {
   margin: 0 !important;
 }
 #kc-header-wrapper {
-  color: #ffffff !important;
+  color: #fff !important;
   font-size: 1.4rem !important;
   font-weight: 800 !important;
-  letter-spacing: -0.02em !important;
   text-transform: capitalize !important;
   text-align: center !important;
   padding: 0 !important;
 }
-#kc-header-wrapper::before {
-  content: "🏛 ";
-  margin-right: 0.25rem;
-}
+#kc-header-wrapper::before { content: "🏛 "; margin-right: 0.25rem; }
 
 /* === CARD === */
 .card-pf {
-  background: #ffffff !important;
+  background: #fff !important;
   border: 1px solid var(--bld-border) !important;
   border-top: none !important;
   border-radius: 0 0 16px 16px !important;
@@ -63,26 +54,19 @@ html.login-pf, body {
   padding: 0 !important;
   margin: 0 !important;
 }
-.card-pf-body, #kc-form, #kc-form-login {
-  padding: 2rem !important;
-}
+.card-pf-body, #kc-form, #kc-form-login { padding: 2rem !important; }
 
 /* === FORM === */
 .form-group { margin-bottom: 1.25rem !important; }
-.login-pf-page .form-group label,
-#kc-form-login .form-group label {
+.form-group label {
   color: var(--bld-yazi) !important;
   font-weight: 500 !important;
   font-size: 0.85rem !important;
-  margin-bottom: 0.4rem !important;
   text-align: left !important;
 }
 
 /* === INPUTS === */
-.login-pf-page #username,
-.login-pf-page #password,
-.login-pf-page input[type="text"],
-.login-pf-page input[type="password"] {
+#username, #password, input[type="text"], input[type="password"] {
   border: 1px solid var(--bld-border) !important;
   border-radius: 8px !important;
   padding: 0.65rem 0.9rem !important;
@@ -90,64 +74,76 @@ html.login-pf, body {
   height: auto !important;
   box-shadow: none !important;
 }
-.login-pf-page #username:focus,
-.login-pf-page #password:focus,
-.login-pf-page input:focus {
+#username:focus, #password:focus, input:focus {
   border-color: var(--bld-renk) !important;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12) !important;
   outline: none !important;
 }
 
-/* === ŞİFRE GÖSTER BUTONU === */
-.login-pf-page .card-pf button:not([type="submit"]):not(#kc-login):not(.btn-primary) {
+/* === ŞİFRE BUTONU === */
+.card-pf button:not([type="submit"]):not(#kc-login):not(.btn-primary) {
   border-radius: 0 8px 8px 0 !important;
-  border-left: none !important;
 }
 
-/* === GİRİŞ BUTONU — PatternFly specificity override === */
+/* ====================================================================
+   AGRESIF TEAL OVERRIDE — PatternFly v3 hardcoded maviyi ezer
+   ==================================================================== */
+
+/* Tum linkler */
+a, a:link, a:visited, a:hover, a:active,
+.btn-link, a.btn, .login-pf a, .card-pf a {
+  color: var(--bld-renk) !important;
+}
+
+/* Tum butonlar — primary HARIC radius */
+button { border-radius: 8px !important; }
+input-group button { border-radius: 0 8px 8px 0 !important; }
+
+/* Primary buton — TEAL (background-image gradient'i de ezer) */
+.btn-primary,
+#kc-login,
+button[type="submit"],
+.login-pf .btn-primary,
 .login-pf-page .btn-primary,
-.login-pf-page #kc-login,
-.login-pf-page button[type="submit"],
-.card-pf .btn-primary {
-  background-color: var(--bld-renk) !important;
+.card-pf .btn-primary,
+form .btn-primary {
   background: var(--bld-renk) !important;
+  background-color: var(--bld-renk) !important;
   background-image: none !important;
+  border: 1px solid var(--bld-renk) !important;
   border-color: var(--bld-renk) !important;
+  color: #fff !important;
   border-radius: 8px !important;
   font-weight: 600 !important;
   font-size: 0.95rem !important;
   padding: 0.65rem 1.5rem !important;
-  margin-top: 0.5rem !important;
   width: 100% !important;
+  text-shadow: none !important;
+  margin-top: 0.5rem !important;
 }
-.login-pf-page .btn-primary:hover,
-.login-pf-page #kc-login:hover,
-.card-pf .btn-primary:hover {
-  background-color: var(--bld-renk-koyu) !important;
+.btn-primary:hover, #kc-login:hover,
+.login-pf .btn-primary:hover, .card-pf .btn-primary:hover {
   background: var(--bld-renk-koyu) !important;
+  background-color: var(--bld-renk-koyu) !important;
   background-image: none !important;
   border-color: var(--bld-renk-koyu) !important;
   box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25) !important;
 }
 
-/* === LINKS — PatternFly override === */
-.login-pf-page a,
-.card-pf a,
-#kc-form a,
-.kc-form a {
-  color: var(--bld-renk) !important;
-}
-.login-pf-page a:hover {
-  color: var(--bld-renk-koyu) !important;
-}
-.login-pf-page .btn-link,
-.login-pf-page a.btn-link {
-  color: var(--bld-renk) !important;
+/* Focus outline (mavi yerine teal) */
+*:focus { outline-color: var(--bld-renk) !important; }
+input:focus, button:focus, a:focus, .form-control:focus {
+  outline: 2px solid rgba(15, 118, 110, 0.3) !important;
+  border-color: var(--bld-renk) !important;
 }
 
-/* === MISC === */
-.login-pf-page .alert { border-radius: 8px !important; }
+/* Checkbox */
 input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
+
+/* Alert */
+.alert { border-radius: 8px !important; }
+
+/* Footer */
 #kc-info, .login-pf-footer {
   color: #64748b !important;
   font-size: 0.85rem !important;
@@ -157,6 +153,6 @@ input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
 
 @media (max-width: 500px) {
   .login-pf-page { margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
-  #kc-header.login-pf-page-header { border-radius: 0 !important; }
+  #kc-header { border-radius: 0 !important; }
   .card-pf { border-radius: 0 !important; }
 }
