@@ -99,5 +99,6 @@
         "description": "Yatırımcı / tüzel kişi"
       }
     ]
-  }
+  },
+  "loginTheme": "belediyesinden"
 }
