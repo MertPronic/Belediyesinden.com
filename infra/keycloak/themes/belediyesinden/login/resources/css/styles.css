@@ -13,7 +13,7 @@ html.login-pf, body {
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-/* === SAYFA KONTEYNERI === */
+/* === SAYFA === */
 .login-pf-page {
   max-width: 460px !important;
   margin: 4vh auto !important;
@@ -23,32 +23,27 @@ html.login-pf, body {
   background: transparent !important;
 }
 
-/* === HEADER BANNER (tek kaynak) === */
-.login-pf-page-header {
+/* === HEADER — SADECE RENK + YAZI DEGISTIR === */
+#kc-header.login-pf-page-header {
   background: linear-gradient(135deg, var(--bld-renk), var(--bld-renk-koyu)) !important;
   border-radius: 16px 16px 0 0 !important;
-  padding: 1.75rem 1.5rem !important;
-  text-align: center !important;
-  margin-bottom: 0 !important;
+  padding: 1.75rem !important;
+  margin: 0 !important;
 }
-/* Header'daki TUM metni gizle */
-.login-pf-page-header * {
-  font-size: 0 !important;
-  color: transparent !important;
-}
-/* Kendi marka metnini ekle */
-.login-pf-page-header::after {
-  content: "🏛  Belediyesinden";
+/* icteki yaziyi markala (gizleme — direk stillendir) */
+#kc-header-wrapper {
+  color: #ffffff !important;
   font-size: 1.4rem !important;
   font-weight: 800 !important;
-  color: #ffffff !important;
-  letter-spacing: -0.02em;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em !important;
+  text-transform: capitalize !important;
+  text-align: center !important;
+  padding: 0 !important;
 }
-
-/* === KC-HEADER GIZLE (header banner'da zaten var) === */
-#kc-header-wrapper, #kc-header, .kc-logo-text {
-  display: none !important;
+/* Yazinin onune emoji ekle */
+#kc-header-wrapper::before {
+  content: "🏛 ";
+  margin-right: 0.25rem;
 }
 
 /* === CARD === */
@@ -62,12 +57,12 @@ html.login-pf, body {
   margin: 0 !important;
 }
 .card-pf-body, #kc-form, #kc-form-login {
-  padding: 2rem 2rem 1.5rem !important;
+  padding: 2rem !important;
 }
 
 /* === FORM === */
 .form-group { margin-bottom: 1.25rem !important; }
-.form-group label, #kc-form-login label {
+.form-group label {
   color: var(--bld-yazi) !important;
   font-weight: 500 !important;
   font-size: 0.85rem !important;
@@ -86,34 +81,23 @@ input[type="text"], input[type="password"] {
   box-shadow: none !important;
 }
 #username:focus, #password:focus,
-input[type="text"]:focus, input[type="password"]:focus {
+input:focus[type="text"], input:focus[type="password"] {
   border-color: var(--bld-renk) !important;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12) !important;
   outline: none !important;
 }
 
-/* === TUM BUTONLAR (card icinde, primary HARIC) — YUVARLAT === */
-.card-pf button:not(.btn-primary):not(#kc-login):not([type="submit"]) {
-  border-radius: 8px !important;
-  border: 1px solid var(--bld-border) !important;
-  background: #f8fafc !important;
-  color: var(--bld-renk) !important;
-  padding: 0.5rem 0.75rem !important;
-  font-size: 0.85rem !important;
-  box-shadow: none !important;
-  transition: all 0.2s !important;
-}
-.card-pf button:not(.btn-primary):not(#kc-login):not([type="submit"]):hover {
-  background: #f0fdfa !important;
-  border-color: var(--bld-renk) !important;
-}
-/* Input-group icindeki buton (sifre goster) sol border kaldir */
-.input-group button {
-  border-left: none !important;
+/* === ŞİFRE GÖSTER BUTONU — SADECE RADIUS, BOYUTA DOKUNMA === */
+.input-group-btn .btn,
+.input-group .btn,
+.card-pf .input-group button {
   border-radius: 0 8px 8px 0 !important;
+  border-left: none !important;
+  min-height: 100% !important;
 }
-.input-group input {
-  border-radius: 8px 0 0 8px !important;
+/* tek basit kural: card icindeki buton (submit haric) radius al */
+.card-pf button:not([type="submit"]):not(#kc-login):not(.btn-primary) {
+  border-radius: 0 8px 8px 0 !important;
 }
 
 /* === GİRİŞ BUTONU === */
@@ -129,31 +113,17 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 .btn-primary:hover, #kc-login:hover {
   background: var(--bld-renk-koyu) !important;
-  border-color: var(--bld-renk-koyu) !important;
   box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25) !important;
 }
 
-/* === LINKS === */
+/* === LINKS / MISC === */
 a { color: var(--bld-renk) !important; }
-.btn-link, a.btn-link { color: var(--bld-renk) !important; }
-
-/* === ALERT === */
-.alert { border-radius: 8px !important; padding: 0.75rem 1rem !important; }
-
-/* === CHECKBOX === */
+.alert { border-radius: 8px !important; }
 input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
+#kc-info, .login-pf-footer { color: #64748b !important; font-size: 0.85rem !important; text-align: center !important; padding: 1rem !important; }
 
-/* === FOOTER === */
-#kc-info, .kc-info-area-wrapper, .login-pf-footer {
-  color: #64748b !important;
-  font-size: 0.85rem !important;
-  text-align: center !important;
-  padding: 1rem !important;
-}
-
-/* === RESPONSIVE === */
 @media (max-width: 500px) {
   .login-pf-page { margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
-  .login-pf-page-header { border-radius: 0 !important; }
-  .card-pf { border-radius: 0 !important; min-height: 80vh; }
+  #kc-header.login-pf-page-header { border-radius: 0 !important; }
+  .card-pf { border-radius: 0 !important; }
 }
