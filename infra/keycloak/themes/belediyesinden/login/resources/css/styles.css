@@ -1,11 +1,11 @@
-/* Belediyesinden — Keycloak login tema (base keycloak FreeMarker) */
-/* PatternFly full-width'i override et */
+/* Belediyesinden — Keycloak login tema */
+/* PatternFly override + marka tasarımı */
 
 :root {
   --bld-renk: #0f766e;
   --bld-renk-koyu: #0d5a54;
   --bld-yazi: #0f172a;
-  --bld-border: #e2e8f0;
+  --bld-border: #e2e8e0;
 }
 
 /* === GENEL === */
@@ -13,36 +13,45 @@ html.login-pf, body {
   background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 40%, #f0fdfa 100%) !important;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
 }
-.login-pf-page {
-  background: transparent !important;
-}
 
-/* === PAGE — TAM EKRANI ENGELLE === */
+/* === SAYFA KONTEYNERI (460px sinirla) === */
 .login-pf-page {
-  max-width: 480px !important;
-  margin: 3vh auto !important;
+  max-width: 460px !important;
+  margin: 4vh auto !important;
   padding: 0 1rem !important;
   width: auto !important;
   float: none !important;
+  background: transparent !important;
 }
 
-/* === HEADER === */
+/* === SAYFA HEADER — MARKALI BANNER === */
 .login-pf-page-header {
-  display: none !important;
-}
-#kc-header-wrapper {
-  color: #ffffff !important;
   background: linear-gradient(135deg, var(--bld-renk), var(--bld-renk-koyu)) !important;
+  border-radius: 16px 16px 0 0 !important;
   padding: 1.75rem 1.5rem !important;
-  font-size: 0 !important;
-  text-align: center;
-  border-radius: 16px 16px 0 0;
+  text-align: center !important;
+  margin-bottom: 0 !important;
+}
+.login-pf-page-header * {
+  color: #ffffff !important;
+}
+/* Keycloak header metnini degistir */
+.login-pf-page-header a,
+.kc-logo-text,
+#kc-header-wrapper {
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: #ffffff !important;
+}
+/* Default logo metnini gizle + kendi ekle */
+.kc-logo-text span,
+#kc-header-wrapper span {
+  display: none !important;
 }
 #kc-header-wrapper::before {
   content: "🏛 Belediyesinden";
-  font-size: 1.4rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  display: block;
 }
 
 /* === CARD === */
@@ -51,33 +60,27 @@ html.login-pf, body {
   border: 1px solid var(--bld-border) !important;
   border-top: none !important;
   border-radius: 0 0 16px 16px !important;
-  box-shadow: 0 4px 24px rgba(15, 118, 110, 0.08) !important;
-  max-width: 100% !important;
-  margin: 0 auto !important;
+  box-shadow: 0 4px 24px rgba(15, 118, 110, 0.1) !important;
   padding: 0 !important;
+  margin: 0 !important;
 }
 
-/* PatternFly inner padding override */
-.card-pf > .card-pf-body,
-.card-pf .card-pf-body,
-#kc-form,
-#kc-form-login {
-  padding: 2rem !important;
+/* Form alanı padding */
+.card-pf-body, #kc-form, #kc-form-login {
+  padding: 2rem 2rem 1.5rem !important;
 }
 
-/* === FORM === */
+/* === FORM GROUP === */
 .form-group {
   margin-bottom: 1.25rem !important;
 }
-.form-group > label,
-#kc-form-login label,
-.kc-form-horizontal label {
+.form-group label,
+#kc-form-login label {
   color: var(--bld-yazi) !important;
   font-weight: 500 !important;
   font-size: 0.85rem !important;
   margin-bottom: 0.4rem !important;
   text-align: left !important;
-  width: 100% !important;
 }
 
 /* === INPUTS === */
@@ -97,7 +100,50 @@ input[type="text"]:focus, input[type="password"]:focus {
   outline: none !important;
 }
 
-/* === BUTTON === */
+/* === ŞİFRE GÖSTER/GİZLE BUTONU — YUVARLAT === */
+.input-group-btn .btn,
+button[data-kc-action="password"],
+.kc-form-password button,
+button.btn-default[type="button"],
+.input-group-addon button,
+button[onclick*="password"],
+button[aria-label*="password"],
+button[aria-label*="Password"],
+.btn[aria-label*="password"],
+.kc-password-toggle,
+.kc-password-toggle-icon {
+  border-radius: 0 8px 8px 0 !important;
+  border: 1px solid var(--bld-border) !important;
+  border-left: none !important;
+  background: #f8fafc !important;
+  color: var(--bld-renk) !important;
+  padding: 0.55rem 0.75rem !important;
+  height: 100% !important;
+}
+/* Eger buton input-group icinde degilse */
+.card-pf button.btn {
+  border-radius: 8px !important;
+  padding: 0.55rem 1rem !important;
+  font-size: 0.85rem !important;
+  background: #f8fafc !important;
+  border: 1px solid var(--bld-border) !important;
+  color: var(--bld-renk) !important;
+  transition: all 0.2s !important;
+}
+.card-pf button.btn:hover {
+  background: #f0fdfa !important;
+  border-color: var(--bld-renk) !important;
+}
+
+/* Input + buton yan yana ise border ayar */
+.input-group {
+  display: flex !important;
+}
+.input-group input {
+  flex: 1 !important;
+}
+
+/* === GİRİŞ BUTONU === */
 .btn-primary, #kc-login, button[type="submit"] {
   background: var(--bld-renk) !important;
   border: 1px solid var(--bld-renk) !important;
@@ -106,23 +152,29 @@ input[type="text"]:focus, input[type="password"]:focus {
   font-size: 0.95rem !important;
   padding: 0.65rem 1.5rem !important;
   margin-top: 0.5rem !important;
+  width: 100% !important;
 }
 .btn-primary:hover, #kc-login:hover {
   background: var(--bld-renk-koyu) !important;
+  border-color: var(--bld-renk-koyu) !important;
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25) !important;
 }
 
-/* === LINKS === */
+/* === LINK BUTONLARI === */
 a { color: var(--bld-renk) !important; }
-.btn-default, .btn-link { color: var(--bld-renk) !important; }
+.btn-link, a.btn-link { color: var(--bld-renk) !important; }
 
 /* === ALERT === */
-.alert { border-radius: 8px !important; }
+.alert {
+  border-radius: 8px !important;
+  padding: 0.75rem 1rem !important;
+}
 
 /* === CHECKBOX === */
 input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
 
 /* === FOOTER === */
-#kc-info, .kc-info-area-wrapper {
+#kc-info, .kc-info-area-wrapper, .login-pf-footer {
   color: #64748b !important;
   font-size: 0.85rem !important;
   text-align: center !important;
@@ -132,6 +184,6 @@ input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
 /* === RESPONSIVE === */
 @media (max-width: 500px) {
   .login-pf-page { margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
-  .card-pf { border-radius: 0 !important; min-height: 100vh; }
-  #kc-header-wrapper { border-radius: 0 !important; }
+  .login-pf-page-header { border-radius: 0 !important; }
+  .card-pf { border-radius: 0 !important; min-height: 80vh; }
 }
