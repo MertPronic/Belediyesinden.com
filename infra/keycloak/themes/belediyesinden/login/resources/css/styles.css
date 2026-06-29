@@ -8,135 +8,149 @@
 }
 
 /* === GENEL === */
-body {
+body, .login-pf body, .login-pf-page {
   background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 40%, #f0fdfa 100%) !important;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-/* === LOGIN CONTAINER === */
-.login-pf body, .login-pf-page {
-  background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 40%, #f0fdfa 100%) !important;
+/* === LAYOUT — KARTI SINIRLA === */
+.login-pf-page .container {
+  max-width: 440px !important;
+  margin: 2rem auto !important;
+}
+.row {
+  margin: 0 !important;
+}
+.col-sm-10, .col-sm-offset-1 {
+  width: 100% !important;
+  margin: 0 !important;
+  float: none !important;
 }
 
 /* === HEADER === */
 #kc-header-wrapper {
   color: #ffffff !important;
+  background: linear-gradient(135deg, var(--bld-renk), var(--bld-renk-koyu)) !important;
+  padding: 2rem 1.5rem !important;
   font-size: 0 !important;
   text-align: center;
+  border-radius: 16px 16px 0 0;
 }
 #kc-header-wrapper::before {
   content: "🏛 Belediyesinden";
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   font-family: ui-sans-serif, system-ui, sans-serif;
-}
-
-div.kc-logo-stretch {
-  background-color: var(--bld-renk) !important;
-}
-
-.kcBrand {
-  background: linear-gradient(135deg, var(--bld-renk), var(--bld-renk-koyu)) !important;
-  padding: 2rem !important;
 }
 
 /* === CARD === */
 .card-pf {
   background: #ffffff !important;
   border: 1px solid var(--bld-border) !important;
-  border-radius: 16px !important;
+  border-radius: 0 0 16px 16px !important;
   box-shadow: 0 4px 24px rgba(15, 118, 110, 0.08) !important;
+  padding: 0 !important;
 }
 
 /* === FORM === */
-#kc-form-login, .form-horizontal {
-  padding: 1.5rem !important;
+#kc-form, #kc-form-login, form {
+  padding: 2rem !important;
 }
 
-.form-group label {
+.form-group {
+  margin-bottom: 1.25rem !important;
+}
+
+.form-group label, #kc-form-login label {
   color: var(--bld-yazi) !important;
   font-weight: 500 !important;
-  font-size: 0.875rem !important;
+  font-size: 0.85rem !important;
+  margin-bottom: 0.4rem !important;
+  display: block;
+  text-align: left;
 }
 
-.form-control, #username, #password, input[type="text"], input[type="password"] {
+/* === INPUTS — NORMAL BOYUT === */
+#username, #password,
+input[type="text"], input[type="password"] {
   border: 1px solid var(--bld-border) !important;
   border-radius: 8px !important;
-  padding: 0.7rem 1rem !important;
+  padding: 0.65rem 0.9rem !important;
   font-size: 0.95rem !important;
+  height: auto !important;
   box-shadow: none !important;
   transition: all 0.2s !important;
 }
-
-.form-control:focus, #username:focus, #password:focus {
+#username:focus, #password:focus,
+input[type="text"]:focus, input[type="password"]:focus {
   border-color: var(--bld-renk) !important;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12) !important;
   outline: none !important;
 }
 
-/* === BUTTONS === */
-.btn-primary, #kc-login, input[type="submit"], button[type="submit"] {
+/* === BUTTON === */
+.btn-primary, #kc-login, button[type="submit"] {
   background: var(--bld-renk) !important;
-  border-color: var(--bld-renk) !important;
+  border: 1px solid var(--bld-renk) !important;
   border-radius: 8px !important;
   font-weight: 600 !important;
   font-size: 0.95rem !important;
-  padding: 0.7rem 1.5rem !important;
-  width: 100% !important;
+  padding: 0.65rem 1.5rem !important;
   transition: all 0.2s !important;
+  margin-top: 0.5rem !important;
 }
 .btn-primary:hover, #kc-login:hover {
   background: var(--bld-renk-koyu) !important;
   border-color: var(--bld-renk-koyu) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
 }
 
 .btn-default, .btn-link {
   color: var(--bld-renk) !important;
+  border-radius: 8px !important;
 }
 
 /* === LINKS === */
-a {
-  color: var(--bld-renk) !important;
-}
+a { color: var(--bld-renk) !important; }
 
 /* === ALERTS === */
 .alert {
   border-radius: 8px !important;
-}
-.alert-error, .alert-warning {
-  border-color: #fca5a5 !important;
-  background: #fef2f2 !important;
-  color: #991b1b !important;
+  padding: 0.75rem 1rem !important;
+  margin-bottom: 1rem !important;
 }
 
 /* === CHECKBOX === */
 input[type="checkbox"] {
   accent-color: var(--bld-renk) !important;
+  margin-top: 0 !important;
 }
 
-/* === FOOTER === */
-.kc-info-area, .kc-footer {
+/* === FOOTER / INFO === */
+.kc-info-area-wrapper, #kc-info-wrapper {
   color: #64748b !important;
   font-size: 0.85rem !important;
+  padding: 1rem !important;
+  text-align: center;
 }
 
-/* === INFO === */
-.kc-registration-container, #kc-info {
-  color: #64748b !important;
+/* === UTILITY === */
+.kcformhelpers, .col-xs-12 {
+  padding: 0 !important;
 }
 
 /* === RESPONSIVE === */
-@media (max-width: 768px) {
+@media (max-width: 500px) {
+  .login-pf-page .container {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
   .card-pf {
     border-radius: 0 !important;
-    border: none !important;
     min-height: 100vh;
   }
-  .col-sm-7, .col-sm-5 {
-    width: 100% !important;
-    padding: 0 !important;
+  #kc-header-wrapper {
+    border-radius: 0 !important;
+    padding: 1.5rem !important;
   }
 }
