@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<title>Belediyesinden — Teknik Mimari Diyagramı v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07090d; --bg-grid:#0d1118; --panel:#0b0f17; --line:#1a2030;
+    --text:#e7ecf5; --dim:#8d97ad; --faint:#5a6378;
+    --pilot:oklch(78% 0.16 150); --hedef:oklch(72% 0.14 240);
+    --stub:oklch(80% 0.13 75); --acik:oklch(72% 0.16 25); --sim:oklch(80% 0.10 300);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  .page{max-width:1440px;margin:0 auto;padding:40px 28px 56px;}
+
+  .doc-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+    flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:22px;}
+  .doc-head h1{font-size:25px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px;}
+  .doc-head h1 .v{color:var(--pilot);font-size:15px;font-weight:500;}
+  .doc-head .sub{color:var(--dim);font-size:12.5px;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;max-width:640px;line-height:1.6;}
+  .doc-head .meta{text-align:right;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--faint);line-height:1.75;}
+  .doc-head .meta b{color:var(--dim);font-weight:500;}
+
+  .principle{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px;}
+  .principle .card{flex:1;min-width:260px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:14px 16px;border-left:3px solid var(--edge);}
+  .principle .card .t{font-size:12px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;
+    letter-spacing:.12em;color:var(--edge);margin-bottom:6px;}
+  .principle .card .d{font-size:13px;color:var(--dim);line-height:1.55;}
+  .principle .hedef-c{--edge:var(--hedef);} .principle .pilot-c{--edge:var(--pilot);}
+
+  .legend{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:26px;
+    padding:12px 18px;background:var(--bg-grid);border:1px solid var(--line);border-radius:8px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);}
+  .legend .g{display:flex;align-items:center;gap:8px;}
+  .legend .sw{width:11px;height:11px;border-radius:3px;}
+  .legend .lbl{color:var(--faint);text-transform:uppercase;letter-spacing:.1em;font-size:9.5px;margin-right:4px;}
+
+  .stack{display:flex;flex-direction:column;gap:12px;
+    background:
+      linear-gradient(var(--bg-grid) 1px,transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg,var(--bg-grid) 1px,transparent 1px) 0 0/40px 40px,
+      radial-gradient(ellipse at 50% 0%, #0c1018 0%, #07090d 70%);
+    border:1px solid var(--line);border-radius:12px;padding:18px;position:relative;}
+
+  .band{display:grid;grid-template-columns:130px 1fr;gap:14px;align-items:stretch;
+    border-radius:9px;padding:12px 14px;border:1px solid var(--bc,transparent);
+    background:var(--bb,transparent);}
+  .band-head{display:flex;flex-direction:column;justify-content:center;gap:3px;}
+  .band-head .no{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ac);font-weight:600;}
+  .band-head .ds{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--faint);letter-spacing:.03em;line-height:1.5;}
+  .band-body{display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;}
+
+  .node{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:10px 12px;min-width:150px;flex:0 1 auto;position:relative;
+    border-top:2px solid var(--ac);transition:transform .12s ease,border-color .12s ease;}
+  .node:hover{transform:translateY(-2px);border-color:#2a3346;}
+  .node .nt{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;}
+  .node .ns{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);margin-top:4px;line-height:1.5;}
+  .node .nm{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--faint);margin-top:5px;letter-spacing:.03em;}
+  .node.wide{min-width:230px;} .node.xwide{min-width:300px;}
+
+  .node.hedef{border-style:dashed;border-color:oklch(72% 0.14 240 / .5);opacity:.72;background:oklch(72% 0.14 240 / .04);}
+  .node.hedef:hover{opacity:1;}
+
+  .badge{font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap;}
+  .b-pilot{background:oklch(78% 0.16 150 / .15);color:var(--pilot);}
+  .b-hedef{background:oklch(72% 0.14 240 / .15);color:var(--hedef);}
+  .b-stub{background:oklch(80% 0.13 75 / .15);color:var(--stub);}
+  .b-acik{background:oklch(72% 0.16 25 / .15);color:var(--acik);}
+  .b-sim{background:oklch(80% 0.10 300 / .15);color:var(--sim);}
+  .kk{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:var(--faint);
+    border:1px solid var(--line);border-radius:3px;padding:1px 4px;letter-spacing:.03em;}
+  .warn{color:var(--acik);}
+
+  .notes{margin-top:24px;}
+  .notes h2{font-size:14px;font-family:'JetBrains Mono',monospace;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--dim);margin:0 0 12px;font-weight:500;}
+  .note-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+  .note{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:13px 15px;border-left:3px solid var(--nc,var(--faint));}
+  .note .h{font-size:12.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+  .note .b{font-size:12px;color:var(--dim);line-height:1.6;}
+  .note code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);background:#12161f;padding:1px 5px;border-radius:3px;}
+
+  footer{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;letter-spacing:.04em;}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-head">
+    <div>
+      <h1>Belediyesinden — Teknik Mimari Diyagramı <span class="v">· v2</span></h1>
+      <div class="sub">çok kiracılı belediye varlık yönetimi &amp; elektronik açık artırma · varlık · ilan · evrak · başvuru · teminat · teklif · duyuru · rapor · audit</div>
+    </div>
+    <div class="meta">
+      <div><b>v</b> 2026.07.v2 · pilot-öncelikli · hedef-vs-pilot ayrımı işlendi</div>
+      <div><b>stack</b> NestJS 11 · Next.js 16 / React 19 · PostgreSQL 16 · Keycloak 26 · Redis 7 · BullMQ · MinIO</div>
+      <div><b>topoloji</b> modüler monolit (api) + worker + iskelet auction-service · 2 Next.js app · Nx monorepo</div>
+    </div>
+  </header>
+
+  <section class="principle">
+    <div class="card hedef-c">
+      <div class="t">Hedef mimari</div>
+      <div class="d">1.300+ belediye, on binlerce eş zamanlı vatandaş, çoklu-instance ölçek. Vizyon dökümanının resmettiği tam hâl — <b style="color:var(--hedef)">tasarlanır</b>.</div>
+    </div>
+    <div class="card pilot-c">
+      <div class="t">Pilot kesiti</div>
+      <div class="d">Tek belediye, tek gerçek açık artırma, uçtan uca izole ve denetlenebilir. Bugün <b style="color:var(--pilot)">inşa edilen</b> en küçük dikey kesit.</div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <span class="lbl">rozetler</span>
+    <div class="g"><span class="sw" style="background:var(--pilot)"></span>PİLOT · bugün inşa edilen</div>
+    <div class="g"><span class="sw" style="background:var(--hedef)"></span>HEDEF · ertelendi (kesik çizgi)</div>
+    <div class="g"><span class="sw" style="background:var(--stub)"></span>STUB · arayüz hazır</div>
+    <div class="g"><span class="sw" style="background:var(--sim)"></span>SİM · simülasyon</div>
+    <div class="g"><span class="sw" style="background:var(--acik)"></span>AÇIK · karar bekliyor</div>
+    <div class="g"><span class="kk">KK-XX</span>karar günlüğü referansı</div>
+  </div>
+
+  <div class="stack">
+
+    <!-- 01 İSTEMCİ -->
+    <div class="band" style="--ac:oklch(78% 0.08 245);--bc:oklch(78% 0.08 245 / .18);--bb:oklch(78% 0.08 245 / .035)">
+      <div class="band-head"><span class="no">01 — İstemci</span><span class="ds">next.js 16 · react 19</span></div>
+      <div class="band-body">
+        <div class="node wide" style="--ac:oklch(78% 0.08 245)"><div class="nt">tenant-web <span class="badge b-pilot">pilot</span></div><div class="ns">{slug}.belediyesinden.com · vatandaş + belediye admin</div><div class="nm">App Router · SSR+CSR · WS canlı teklif ekranı · PKCE</div></div>
+        <div class="node wide" style="--ac:oklch(78% 0.08 245)"><div class="nt">portal <span class="badge b-pilot">pilot</span></div><div class="ns">merkezi · public · tüm belediye ilanları tek noktada</div><div class="nm">[tenant]/[ilanId] · küçük yüzey · ağırlıklı kimliksiz</div></div>
+      </div>
+    </div>
+
+    <!-- 02 KİMLİK -->
+    <div class="band" style="--ac:oklch(75% 0.13 35);--bc:oklch(75% 0.13 35 / .18);--bb:oklch(75% 0.13 35 / .035)">
+      <div class="band-head"><span class="no">02 — Kimlik</span><span class="ds">keycloak 26</span></div>
+      <div class="band-body">
+        <div class="node xwide" style="--ac:oklch(75% 0.13 35)"><div class="nt">Keycloak · realm belediyesinden <span class="badge b-pilot">pilot</span> <span class="kk">KK-04</span></div><div class="ns">roller: SUPERADMIN · TENANT_ADMIN · ENCUMEN · VATANDAS · YATIRIMCI</div><div class="nm">tenant ayrımı → grup-üyeliği claim (KC26 user-attribute bug workaround) · offline JWKS</div></div>
+      </div>
+    </div>
+
+    <!-- 03 GİRİŞ -->
+    <div class="band" style="--ac:oklch(72% 0.14 220);--bc:oklch(72% 0.14 220 / .18);--bb:oklch(72% 0.14 220 / .035)">
+      <div class="band-head"><span class="no">03 — Giriş</span><span class="ds">ingress + guard zinciri</span></div>
+      <div class="band-body">
+        <div class="node wide" style="--ac:oklch(72% 0.14 220)"><div class="nt">Nginx Ingress <span class="badge b-pilot">pilot: tek-host</span></div><div class="ns">dev: compose port · prod: ingress + cert-manager</div><div class="nm">*.belediyesinden.com wildcard · WS proxy</div></div>
+        <div class="node xwide" style="--ac:oklch(72% 0.14 220)"><div class="nt">Guard Zinciri <span class="badge b-pilot">pilot</span> <span class="kk">KK-02</span></div><div class="ns">Throttler → Auth(JWT) → Roller → Tenant → Tenancy(search_path) → Metrics</div><div class="nm">guard'lar interceptor'dan önce → geçersiz tenant search_path kurulmadan reddedilir</div></div>
+      </div>
+    </div>
+
+    <!-- 04 SERVİS -->
+    <div class="band" style="--ac:oklch(78% 0.16 150);--bc:oklch(78% 0.16 150 / .18);--bb:oklch(78% 0.16 150 / .035)">
+      <div class="band-head"><span class="no">04 — Servis</span><span class="ds">nestjs 11 · api<br>modüler monolit</span></div>
+      <div class="band-body">
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Varlık <span class="badge b-pilot">pilot</span></div><div class="ns">polimorfik CRUD · tip + jsonb</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">İlan <span class="badge b-pilot">pilot</span></div><div class="ns">durum makinesi · 2886 ihale tipi</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Evrak <span class="badge b-pilot">pilot</span></div><div class="ns">şartname/belge → MinIO</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Başvuru <span class="badge b-pilot">pilot</span></div><div class="ns">KVKK açık rıza · belge ekleri</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Teminat <span class="badge b-sim">sim</span></div><div class="ns">depozito · iade → BullMQ</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Teklif <span class="badge b-pilot">pilot</span></div><div class="ns">server-auth · anti-sniping · audit</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Tenants/Tema <span class="badge b-pilot">pilot</span></div><div class="ns">/tenants/current → renk+ad</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Audit <span class="badge b-pilot">pilot</span></div><div class="ns">hash-chain · tamper-evident</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Duyuru <span class="badge b-hedef">sonrası</span></div><div class="ns">tenant-scoped CRUD</div></div>
+        <div class="node" style="--ac:oklch(78% 0.16 150)"><div class="nt">Rapor <span class="badge b-hedef">sonrası</span></div><div class="ns">belediye dashboard</div></div>
+        <div class="node wide" style="--ac:oklch(78% 0.16 150)"><div class="nt">AuctionGateway (WS /ws) <span class="badge b-pilot">pilot</span> <span class="kk warn">KK-10</span></div><div class="ns">canlı yayın · Redis pub/sub · tenant izole</div><div class="nm warn">⚠ WS tenant izolasyonu kodda doğrulanacak (interceptor HTTP-only)</div></div>
+        <div class="node hedef" style="--ac:oklch(72% 0.14 240)"><div class="nt">auction-service <span class="badge b-hedef">ertelendi</span></div><div class="ns">bidding ayrımı · ~iskelet · katlanmış tutulur</div></div>
+      </div>
+    </div>
+
+    <!-- 05 OUTBOX -->
+    <div class="band" style="--ac:oklch(72% 0.14 155);--bc:oklch(72% 0.14 155 / .18);--bb:oklch(72% 0.14 155 / .04)">
+      <div class="band-head"><span class="no">05 — Outbox</span><span class="ds">transactional<br>ortak desen</span></div>
+      <div class="band-body">
+        <div class="node xwide" style="--ac:oklch(72% 0.14 155)"><div class="nt">Transactional Outbox <span class="badge b-pilot">teminat</span> <span class="badge b-hedef">arama</span> <span class="kk">KK-08 · KK-15</span></div><div class="ns">iş kaydı + outbox satırı AYNI transaction'da → worker hedefe iter</div><div class="nm">tek desen, iki dert: teminat-iade kaybını + arama tutarsızlığını birlikte çözer</div></div>
+      </div>
+    </div>
+
+    <!-- 06 KUYRUK -->
+    <div class="band" style="--ac:oklch(72% 0.14 155);--bc:oklch(72% 0.14 155 / .18);--bb:oklch(72% 0.14 155 / .035)">
+      <div class="band-head"><span class="no">06 — Kuyruk</span><span class="ds">redis + bullmq</span></div>
+      <div class="band-body">
+        <div class="node xwide" style="--ac:oklch(72% 0.14 155)"><div class="nt">Redis 7 <span class="badge b-pilot">pilot</span> <span class="kk">KK-09</span></div><div class="ns">üç rol tek instance: kuyruk (BullMQ) + throttle deposu + WS pub/sub</div><div class="nm">ayrışma eşiği (yük/instance) tanımlı tutulur</div></div>
+      </div>
+    </div>
+
+    <!-- 07 CONSUMER -->
+    <div class="band" style="--ac:oklch(78% 0.13 45);--bc:oklch(78% 0.13 45 / .18);--bb:oklch(78% 0.13 45 / .035)">
+      <div class="band-head"><span class="no">07 — Consumer</span><span class="ds">standalone worker</span></div>
+      <div class="band-body">
+        <div class="node xwide" style="--ac:oklch(78% 0.13 45)"><div class="nt">worker <span class="badge b-pilot">pilot</span></div><div class="ns">createApplicationContext (HTTP yok) · outbox → hedef · teminat-iade işler</div><div class="nm">graceful shutdown · api ile aynı build deseni</div></div>
+      </div>
+    </div>
+
+    <!-- 08 VERİ -->
+    <div class="band" style="--ac:oklch(72% 0.14 265);--bc:oklch(72% 0.14 265 / .18);--bb:oklch(72% 0.14 265 / .035)">
+      <div class="band-head"><span class="no">08 — Veri</span><span class="ds">postgres · minio · arama</span></div>
+      <div class="band-body">
+        <div class="node xwide" style="--ac:oklch(72% 0.14 265)"><div class="nt">PostgreSQL 16 · Master <span class="badge b-pilot">pilot</span> <span class="kk">KK-01</span></div><div class="ns">şema-başına-tenant: tenant_&lt;slug&gt; + shared · search_path izolasyonu</div><div class="nm">yazma + tüm okuma (pilot) · sıcak (açık artırma) okuma her zaman burada</div></div>
+        <div class="node hedef" style="--ac:oklch(72% 0.14 240)"><div class="nt">PostgreSQL · Replica <span class="badge b-hedef">ertelendi</span> <span class="kk">KK-14</span></div><div class="ns">soğuk okuma · replica-hazır soyutlama</div><div class="nm">açık artırma okuması ASLA replica'dan (lag)</div></div>
+        <div class="node" style="--ac:oklch(72% 0.14 265)"><div class="nt">MinIO <span class="badge b-pilot">pilot</span></div><div class="ns">nesne depolama · pre-signed URL · tenant path</div></div>
+        <div class="node" style="--ac:oklch(72% 0.14 265)"><div class="nt">Arama: Postgres FTS <span class="badge b-pilot">pilot</span> <span class="kk">KK-11</span></div><div class="ns">tsvector + GIN (+ pg_trgm)</div></div>
+        <div class="node hedef" style="--ac:oklch(72% 0.14 240)"><div class="nt">OpenSearch <span class="badge b-hedef">ertelendi</span> <span class="kk">KK-15</span></div><div class="ns">outbox-indexer besler · tek tenant-filtreli index · reindex replica'dan</div></div>
+      </div>
+    </div>
+
+    <!-- 09 DIŞ / STUB -->
+    <div class="band" style="--ac:oklch(72% 0.13 8);--bc:oklch(72% 0.13 8 / .18);--bb:oklch(72% 0.13 8 / .035)">
+      <div class="band-head"><span class="no">09 — Dış / Stub</span><span class="ds">provider-interfaces<br>DI arkasında · KK-06</span></div>
+      <div class="band-body">
+        <div class="node" style="--ac:oklch(80% 0.13 75)"><div class="nt">TeminatProvider <span class="badge b-stub">stub</span></div><div class="ns">blokeEkle/iadeEt/durumSorgula</div><div class="nm">→ banka / Sanal POS (hedef)</div></div>
+        <div class="node" style="--ac:oklch(80% 0.13 75)"><div class="nt">EImzaProvider <span class="badge b-stub">stub</span></div><div class="ns">imzala/dogrula · sha256 placeholder</div><div class="nm">→ KamuSM / mobil imza (hedef)</div></div>
+        <div class="node" style="--ac:oklch(80% 0.13 75)"><div class="nt">EDevletProvider <span class="badge b-stub">stub</span></div><div class="ns">tcDogrula · şimdi hep "doğrulandı"</div><div class="nm warn">→ e-Devlet · ⚠ hukuki: canlı öncesi zorunlu</div></div>
+      </div>
+    </div>
+
+    <!-- 10 OBSERVABILITY -->
+    <div class="band" style="--ac:oklch(78% 0.10 190);--bc:oklch(78% 0.10 190 / .18);--bb:oklch(78% 0.10 190 / .035)">
+      <div class="band-head"><span class="no">10 — Observability</span><span class="ds">log · metric · health</span></div>
+      <div class="band-body">
+        <div class="node" style="--ac:oklch(78% 0.10 190)"><div class="nt">Prometheus <span class="badge b-pilot">pilot</span></div><div class="ns">MetricsInterceptor · /api/metrics</div></div>
+        <div class="node" style="--ac:oklch(78% 0.10 190)"><div class="nt">Grafana <span class="badge b-pilot">pilot</span></div><div class="ns">dashboard repoda hazır</div></div>
+        <div class="node" style="--ac:oklch(78% 0.10 190)"><div class="nt">Pino <span class="badge b-pilot">pilot</span></div><div class="ns">yapılandırılmış JSON log</div></div>
+        <div class="node" style="--ac:oklch(78% 0.10 190)"><div class="nt">/api/health <span class="badge b-pilot">pilot</span></div><div class="ns">DB ping + uptime</div></div>
+      </div>
+    </div>
+
+    <!-- 11 ALTYAPI -->
+    <div class="band" style="--ac:oklch(72% 0.14 55);--bc:oklch(72% 0.14 55 / .18);--bb:oklch(72% 0.14 55 / .035)">
+      <div class="band-head"><span class="no">11 — Altyapı</span><span class="ds">deploy · ci/cd</span></div>
+      <div class="band-body">
+        <div class="node" style="--ac:oklch(72% 0.14 55)"><div class="nt">Docker Compose <span class="badge b-pilot">dev</span></div><div class="ns">tek-host tam stack</div></div>
+        <div class="node" style="--ac:oklch(72% 0.14 55)"><div class="nt">Tek-host prod <span class="badge b-pilot">pilot</span></div><div class="ns">compose / basit container host</div></div>
+        <div class="node hedef" style="--ac:oklch(72% 0.14 240)"><div class="nt">Kubernetes <span class="badge b-hedef">ertelendi</span> <span class="kk">KK-12</span></div><div class="ns">manifestler repoda · çoklu-instance ölçekte açılır</div></div>
+        <div class="node" style="--ac:oklch(72% 0.14 55)"><div class="nt">GitLab CI <span class="badge b-pilot">pilot</span></div><div class="ns">nx affected · verify → docker</div></div>
+      </div>
+    </div>
+
+  </div><!-- /stack -->
+
+  <section class="notes">
+    <h2>İş Mantığı &amp; Kritik Kararlar</h2>
+    <div class="note-grid">
+      <div class="note" style="--nc:var(--pilot)"><div class="h">Tenant izolasyonu <span class="kk">KK-01/07</span></div><div class="b">Savunma derinliği: <code>TenantGuard</code> allowlist + <code>set_config('search_path',$1,true)</code> (SQLi kapatır) + ALS <code>queryRunner</code> disiplini (<b class="warn">kırmızı çizgi</b>: taze bağlantı yasak).</div></div>
+      <div class="note" style="--nc:var(--acik)"><div class="h">ORM tutarsızlığı <span class="kk warn">KK-03 · açık</span></div><div class="b">TypeORM kurulu ama servisler raw SQL kullanıyor. İzolasyon ALS disiplinine bağlı olduğu için bu bir <b>güvenlik kararı</b> — kapatılmalı.</div></div>
+      <div class="note" style="--nc:var(--pilot)"><div class="h">İlan durum makinesi</div><div class="b"><code>TASLAK → YAYINDA → CANLI_ARTIRMA → SONUÇLANDI</code>; her noktadan <code>→ İPTAL</code>. Geçişler backend'de zorlanır.</div></div>
+      <div class="note" style="--nc:var(--pilot)"><div class="h">Anti-sniping <span class="kk">KK-14</span></div><div class="b">Server-authoritative; bitişe yakın geçerli teklif → süre otomatik uzar (DB'den <code>ilan_kurallari</code>). Okuma <b>her zaman master</b>.</div></div>
+      <div class="note" style="--nc:var(--acik)"><div class="h">WS izolasyonu <span class="kk warn">KK-10 · açık</span></div><div class="b">Interceptor HTTP-only. AuctionGateway kendi tenant çözümü + search_path'ini kurmalı — kodda doğrulanacak.</div></div>
+      <div class="note" style="--nc:var(--stub)"><div class="h">Mevzuat &amp; hukuk</div><div class="b">2886 sayılı Kanun + KVKK. e-imza / e-Devlet stub'ları hukuki sonuç doğurur → canlı öncesi zorunlu; ayrı iş kalemi olarak izlenir.</div></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>BELEDIYESINDEN / SYS-ARCH / 2026.07 / v2 · normatif</span>
+    <span>referans: CLAUDE.md · ARCHITECTURE.md · DECISIONS.md · YOL-HARITASI.md · ACIK-SORULAR.md</span>
+  </footer>
+
+</div>
+</body>
+</html>

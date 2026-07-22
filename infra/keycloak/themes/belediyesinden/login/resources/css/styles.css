@@ -1,19 +1,23 @@
 /* Belediyesinden — Keycloak login tema (AGRESIF PatternFly v3 override) */
 
 :root {
-  --bld-renk: #0f766e;
-  --bld-renk-koyu: #0d5a54;
+  /* Tenant temasıyla BİREBİR eşleşmeli (DB: tenants.renk = #0891b2 cyan-600).
+     Eski #0f766e teal-700 yeşilimsiydi; anasayfa mavi tonlu cyan.
+     Login ekranı tenant bilgisinden bağımsız olduğu için varsayılan tenant
+     (Talas) rengiyle sabitlenir. */
+  --bld-renk: #0891b2;
+  --bld-renk-koyu: #0e7490;
   --bld-yazi: #0f172a;
-  --bld-border: #e2e8e0;
-  --pf-global--primary-color--100: #0f766e !important;
-  --pf-global--primary-color--200: #0d5a54 !important;
-  --pf-global--active-color--100: #0f766e !important;
-  --pf-global--link--Color: #0f766e !important;
-  --pf-global--link--Color--hover: #0d5a54 !important;
+  --bld-border: #e2e8f0;
+  --pf-global--primary-color--100: #0891b2 !important;
+  --pf-global--primary-color--200: #0e7490 !important;
+  --pf-global--active-color--100: #0891b2 !important;
+  --pf-global--link--Color: #0891b2 !important;
+  --pf-global--link--Color--hover: #0e7490 !important;
 }
 
 html.login-pf, body {
-  background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 40%, #f0fdfa 100%) !important;
+  background: linear-gradient(135deg, #ecfeff 0%, #ffffff 40%, #ecfeff 100%) !important;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
 }
 
@@ -50,7 +54,7 @@ html.login-pf, body {
   border: 1px solid var(--bld-border) !important;
   border-top: none !important;
   border-radius: 0 0 16px 16px !important;
-  box-shadow: 0 4px 24px rgba(15, 118, 110, 0.1) !important;
+  box-shadow: 0 4px 24px rgba(8, 145, 178, 0.1) !important;
   padding: 0 !important;
   margin: 0 !important;
 }
@@ -76,7 +80,7 @@ html.login-pf, body {
 }
 #username:focus, #password:focus, input:focus {
   border-color: var(--bld-renk) !important;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12) !important;
   outline: none !important;
 }
 
@@ -127,13 +131,13 @@ form .btn-primary {
   background-color: var(--bld-renk-koyu) !important;
   background-image: none !important;
   border-color: var(--bld-renk-koyu) !important;
-  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25) !important;
+  box-shadow: 0 3px 10px rgba(8, 145, 178, 0.25) !important;
 }
 
 /* Focus outline (mavi yerine teal) */
 *:focus { outline-color: var(--bld-renk) !important; }
 input:focus, button:focus, a:focus, .form-control:focus {
-  outline: 2px solid rgba(15, 118, 110, 0.3) !important;
+  outline: 2px solid rgba(8, 145, 178, 0.3) !important;
   border-color: var(--bld-renk) !important;
 }
 
