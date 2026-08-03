@@ -9,7 +9,8 @@
     "test": "vitest run libs/",
     "serve:api": "nx serve api",
     "build:docker": "nx run-many -t build -p api tenant-web portal",
-    "test:watch": "vitest libs/"
+    "test:watch": "vitest libs/",
+    "test:integration": "vitest run apps/api/src"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",

@@ -134,6 +134,7 @@ services:
       KEYCLOAK_ADMIN_USER: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       TENANT_BASE_DOMAIN: ${TENANT_BASE_DOMAIN:-belediyesinden.com}
+      TENANT_WEB_REDIRECT_TEMPLATE: ${TENANT_WEB_REDIRECT_TEMPLATE:-http://{slug}.localhost:4200/*}
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_BUCKET: ${MINIO_BUCKET:-belediyesinden}
@@ -180,7 +181,7 @@ services:
       dockerfile: apps/portal/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${PORTAL_API_URL:-http://localhost:3000/api}
-        NEXT_PUBLIC_TENANT_BASE_DOMAIN: ${TENANT_BASE_DOMAIN:-belediyesinden.com}
+        NEXT_PUBLIC_TENANT_BASE_DOMAIN: ${PORTAL_TENANT_BASE_DOMAIN:-localhost:4200}
     container_name: bldys-portal
     restart: unless-stopped
     environment:
