@@ -49,6 +49,55 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   },
 ];
 
+/**
+ * `portal`'a özel sütunlar — `tenant-web`'in `/ilanlar` sayfası portal'da yok
+ * (portal'ın ilan listesi zaten ana sayfada); o linkler `/`'e işaret eder.
+ * Kurumsal/Yardım/Yasal statik sayfaları portal'da `/icerik/[bolum]/[sayfa]`
+ * altında yaşar (bkz. `sayfa-icerik.ts`) — `/kurumsal/...` DEĞİL: portal'ın
+ * kök dizininde zaten `[tenant]/[ilanId]` dinamik rotası var; aynı seviyede
+ * farklı isimli ikinci bir dinamik segment (`[bolum]`) Next.js'te bu rotayı
+ * gölgeler (aynı iki-segmentli path'e `tenant/ilanId` olarak bakar). O yüzden
+ * statik sayfalar sabit bir `/icerik` önekiyle taşınıyor.
+ */
+export const PORTAL_COLUMNS: FooterColumn[] = [
+  {
+    title: 'Kurumsal',
+    links: [
+      { label: 'Hakkımızda', href: '/icerik/kurumsal/hakkimizda' },
+      { label: 'Vizyon & Misyon', href: '/icerik/kurumsal/vizyon' },
+      { label: 'Basın & Duyurular', href: '/' },
+      { label: 'İletişim', href: '/icerik/kurumsal/iletisim' },
+    ],
+  },
+  {
+    title: 'Hizmetler',
+    links: [
+      { label: 'İhale Katılımı', href: '/' },
+      { label: 'Teminat İşlemleri', href: '/' },
+      { label: 'e-İmza & e-Devlet', href: '/' },
+      { label: 'Mobil Uygulama', href: '/' },
+    ],
+  },
+  {
+    title: 'Yardım',
+    links: [
+      { label: 'Sıkça Sorulan Sorular', href: '/icerik/yardim/sss' },
+      { label: 'Nasıl Katılırım?', href: '/' },
+      { label: 'Şikayet & Öneri', href: '/icerik/yardim/sikayet' },
+      { label: 'Canlı Destek', href: '/icerik/yardim/destek' },
+    ],
+  },
+  {
+    title: 'Yasal',
+    links: [
+      { label: 'Kullanım Koşulları', href: '/icerik/yasal/kullanim' },
+      { label: 'KVKK Aydınlatma', href: '/icerik/yasal/kvkk' },
+      { label: 'Gizlilik Politikası', href: '/icerik/yasal/gizlilik' },
+      { label: 'Çerez Politikası', href: '/icerik/yasal/cerez' },
+    ],
+  },
+];
+
 /** Sahibinden tarzı kurumsal footer — sütunlu link bloğu + telif. */
 export function Footer({
   brand,

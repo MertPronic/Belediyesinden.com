@@ -62,3 +62,25 @@ export enum BasvuruDurumu {
   IadeEdildi = 'IADE_EDILDI',
   IptalEdildi = 'IPTAL_EDILDI',
 }
+
+/** İlan evrakı kategorisi (ihale dosyası kalemleri). */
+export enum EvrakTipi {
+  IdariSartname = 'IDARI_SARTNAME',
+  TeknikSartname = 'TEKNIK_SARTNAME',
+  IhaleDosyasi = 'IHALE_DOSYASI',
+  Diger = 'DIGER',
+}
+
+/**
+ * İhaleye katılım şartları (2886-usulü yaygın kalemler) — TASLAK liste,
+ * Harun (PO) ile teyit edilecek. jsonb'de saklandığı için yeni değer
+ * eklemek migration istemez.
+ */
+export enum KatilimSarti {
+  VergiBorcuOlmama = 'VERGI_BORCU_OLMAMA',
+  SgkBorcuOlmama = 'SGK_BORCU_OLMAMA',
+  GeciciTeminatYatirma = 'GECICI_TEMINAT_YATIRMA',
+  IhaleyeKatilimYasagiOlmama = 'IHALEYE_KATILIM_YASAGI_OLMAMA',
+  TicaretSicilKaydi = 'TICARET_SICIL_KAYDI',
+  ImzaSirkuleriVekaletname = 'IMZA_SIRKULERI_VEKALETNAME',
+}

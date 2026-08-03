@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import KcAdminClient from '@keycloak/keycloak-admin-client';
 
 export interface KeycloakAdminConfig {
@@ -8,6 +8,8 @@ export interface KeycloakAdminConfig {
   adminClientId: string; // admin-cli
   adminUsername: string; // admin
   adminPassword: string;
+  /** Yeni tenant redirect URI şablonu — `{slug}` yer tutucusu değiştirilir (bkz. TENANT_WEB_REDIRECT_TEMPLATE). */
+  redirectUriTemplate: string;
 }
 
 /**
@@ -21,22 +23,37 @@ export interface KeycloakAdminConfig {
  * token claim olarak yayınlanır (TenantGuard JWT'den okur).
  */
 @Injectable()
-export class KeycloakAdminService {
+export class KeycloakAdminService implements OnModuleInit {
   private readonly client = new KcAdminClient({ baseUrl: 'http://localhost:8080', realmName: 'master' });
   private readonly logger = new Logger(KeycloakAdminService.name);
-  private authed = false;
   private config: KeycloakAdminConfig | null = null;
+
+  /** Ortam değişkenlerinden kendini yapılandırır (bkz. infra/docker-compose.yml → api servisi). */
+  onModuleInit(): void {
+    this.configure({
+      baseUrl: process.env['KEYCLOAK_ADMIN_BASE_URL'] ?? 'http://localhost:8080',
+      targetRealm: process.env['KEYCLOAK_ADMIN_TARGET_REALM'] ?? 'belediyesinden',
+      adminClientId: process.env['KEYCLOAK_ADMIN_CLIENT_ID'] ?? 'admin-cli',
+      adminUsername: process.env['KEYCLOAK_ADMIN_USER'] ?? 'admin',
+      adminPassword: process.env['KEYCLOAK_ADMIN_PASSWORD'] ?? 'admin',
+      redirectUriTemplate: process.env['TENANT_WEB_REDIRECT_TEMPLATE'] ?? 'http://{slug}.localhost:4200/*',
+    });
+  }
 
   configure(config: KeycloakAdminConfig): void {
     this.config = config;
-    this.authed = false;
   }
 
+  /**
+   * Her çağrıda taze token alır (cache YOK). Bu servis nadiren, kısa ömürlü
+   * admin işlemleri için (provisioning) çağrılır — önceki sürüm token'ı
+   * process ömrü boyunca cache'liyordu, bu da uzun süre ayakta kalan
+   * container'larda "refresh token has expired" hatasıyla sonuçlanıyordu.
+   */
   private async ensureAuth(): Promise<void> {
     if (!this.config) {
       throw new Error('KeycloakAdminService configure() çağrılmamış');
     }
-    if (this.authed) return;
     // Master realm'de admin-cli ile doğrula.
     this.client.setConfig({ baseUrl: this.config.baseUrl, realmName: 'master' });
     await this.client.auth({
@@ -47,8 +64,6 @@ export class KeycloakAdminService {
     });
     // Operasyonlar için hedef realm'e geç.
     this.client.setConfig({ realmName: this.config.targetRealm });
-    this.authed = true;
-    this.logger.log(`Keycloak admin bağlantısı kuruldu (realm=${this.config.targetRealm})`);
   }
 
   /** `tenant_<slug>` grubunu oluşturur (varsa id'sini döner). */
@@ -62,6 +77,39 @@ export class KeycloakAdminService {
     }
     const created = (await this.client.groups.create({ name })) as { id?: string };
     return created.id ?? null;
+  }
+
+  /**
+   * Yeni tenant'ın subdomain'ini client'ın redirect URI / web origin allowlist'ine ekler.
+   * İdempotent. Keycloak redirect URI'de subdomain'i wildcard'layamadığı için (yalnızca
+   * sondaki `/*` desteklenir), her tenant'ın URI'si tek tek eklenmek zorunda — bu olmadan
+   * yeni belediye login flow'una hiç giremez (redirect_uri invalid hatası).
+   */
+  async ensureTenantRedirectUri(clientId: string, slug: string): Promise<void> {
+    await this.ensureAuth();
+    if (!this.config) {
+      throw new Error('KeycloakAdminService configure() çağrılmamış');
+    }
+    const uri = this.config.redirectUriTemplate.replace('{slug}', slug);
+    const origin = uri.replace(/\/\*$/, '');
+
+    const clients = await this.client.clients.find({ clientId });
+    const kcClient = clients.find((c) => c.clientId === clientId);
+    if (!kcClient?.id) {
+      throw new Error(`Keycloak client bulunamadı: ${clientId}`);
+    }
+    const redirectUris = new Set(kcClient.redirectUris ?? []);
+    const webOrigins = new Set(kcClient.webOrigins ?? []);
+    if (redirectUris.has(uri) && webOrigins.has(origin)) {
+      return; // zaten ekli
+    }
+    redirectUris.add(uri);
+    webOrigins.add(origin);
+    await this.client.clients.update(
+      { id: kcClient.id },
+      { redirectUris: [...redirectUris], webOrigins: [...webOrigins] },
+    );
+    this.logger.log(`Redirect URI eklendi: ${uri} (client=${clientId})`);
   }
 
   /**

@@ -344,6 +344,62 @@ class IlanEncumenKarar1740000014000 extends TenantMigration {
   }
 }
 
+/**
+ * 0015 — ilan verme akışı sağlamlaştırma: şartname bedeli + katılım şartları
+ * (ilan) + evrak kategorisi (evrak). Harun (PO) ile konuşulan gerçek süreç.
+ */
+class IlanVermeSaglamlastirma1740000015000 extends TenantMigration {
+  name = 'IlanVermeSaglamlastirma1740000015000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS sartname_ucretli BOOLEAN NOT NULL DEFAULT false`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS sartname_tutari NUMERIC(18,2)`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS katilim_sartlari JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await qr.query(`ALTER TABLE evrak ADD COLUMN IF NOT EXISTS tip VARCHAR(30) NOT NULL DEFAULT 'DIGER'`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE evrak DROP COLUMN IF EXISTS tip`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS katilim_sartlari`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS sartname_tutari`);
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS sartname_ucretli`);
+  }
+}
+
+/**
+ * 0016 — soft delete: `varlik` ve `ilan` için hard DELETE yasağı (CLAUDE.md
+ * kırmızı çizgisi). `deleted_at` dolu satırlar sorgulardan filtrelenir.
+ */
+class SoftDeleteVarlikIlan1740000016000 extends TenantMigration {
+  name = 'SoftDeleteVarlikIlan1740000016000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE varlik ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS deleted_at`);
+    await qr.query(`ALTER TABLE varlik DROP COLUMN IF EXISTS deleted_at`);
+  }
+}
+
+/**
+ * 0017 — teklif satırında katılımcı adı (yalnızca açık artırmada gösterilir,
+ * bkz. TeklifService.list). Kısaltılmış format ("Ad S.") — controller'da üretilir.
+ */
+class TeklifKullaniciAd1740000017000 extends TenantMigration {
+  name = 'TeklifKullaniciAd1740000017000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE teklif ADD COLUMN IF NOT EXISTS kullanici_ad VARCHAR(100)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE teklif DROP COLUMN IF EXISTS kullanici_ad`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -359,4 +415,7 @@ export const tenantMigrations = [
   CreateIlanFavoriler1740000012000,
   IlanGorselKonum1740000013000,
   IlanEncumenKarar1740000014000,
+  IlanVermeSaglamlastirma1740000015000,
+  SoftDeleteVarlikIlan1740000016000,
+  TeklifKullaniciAd1740000017000,
 ];

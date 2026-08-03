@@ -18,3 +18,5 @@ export * from './lib/tabs';
 export * from './lib/galeri';
 export * from './lib/gorseller';
 export * from './lib/footer';
+export * from './lib/toast';
+export * from './lib/sayfa-icerik';

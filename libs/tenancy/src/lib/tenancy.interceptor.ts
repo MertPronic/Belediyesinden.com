@@ -29,8 +29,9 @@ export class TenancyInterceptor implements NestInterceptor {
   private async handleTenant(context: ExecutionContext, next: CallHandler): Promise<unknown> {
     const req = context.switchToHttp().getRequest<{
       headers: Record<string, string | string[] | undefined>;
+      query?: Record<string, string | string[] | undefined>;
     }>();
-    const slug = resolveTenantSlugFromHeaders(req.headers);
+    const slug = resolveTenantSlugFromHeaders(req.headers, req.query);
     if (!slug) {
       // Merkezi portal — tenant izolasyonu yok.
       return lastValueFrom(next.handle());

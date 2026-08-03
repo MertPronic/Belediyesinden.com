@@ -1,0 +1,9 @@
+{
+  "name": "ilan-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ilan-core/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project ilan-core --web",
+  "targets": {}
+}

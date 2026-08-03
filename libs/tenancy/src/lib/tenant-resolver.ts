@@ -35,12 +35,17 @@ export function extractTenantSlug(host: string, baseDomain = BASE_DOMAIN): strin
 }
 
 /**
- * İstek header'larından tenant slug çözer.
- * Önce `x-tenant-slug` (dev/test/proxy kolaylığı — yük dengeleyici tenant'ı header'da geçirebilir),
- * sonra Host subdomain'i denenir.
+ * İstek header'larından (ve gerekirse query'den) tenant slug çözer.
+ * Sırasıyla: `x-tenant-slug` header (dev/test/proxy kolaylığı — yük dengeleyici
+ * tenant'ı header'da geçirebilir) → Host subdomain'i → `?tenant=` query param'ı.
+ *
+ * Query fallback'i özellikle `<img src>` / `<a href>` gibi özel header
+ * taşıyamayan doğrudan tarayıcı isteklerini kapsar (örn. ilan görseli/evrak
+ * indirme linkleri sabit `NEXT_PUBLIC_API_URL` host'una gider, subdomain taşımaz).
  */
 export function resolveTenantSlugFromHeaders(
   headers: Record<string, string | string[] | undefined>,
+  query?: Record<string, string | string[] | undefined>,
 ): string | null {
   const xSlug = headers['x-tenant-slug'];
   if (typeof xSlug === 'string' && isValidSlug(xSlug)) {
@@ -48,7 +53,13 @@ export function resolveTenantSlugFromHeaders(
   }
   const hostHeader = headers['host'];
   const host = (Array.isArray(hostHeader) ? (hostHeader[0] ?? '') : hostHeader) ?? '';
-  return extractTenantSlug(host);
+  const fromHost = extractTenantSlug(host);
+  if (fromHost) {
+    return fromHost;
+  }
+  const qSlug = query?.['tenant'];
+  const qVal = Array.isArray(qSlug) ? qSlug[0] : qSlug;
+  return typeof qVal === 'string' && isValidSlug(qVal) ? qVal : null;
 }
 
 /**
