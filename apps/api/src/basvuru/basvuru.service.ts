@@ -22,20 +22,51 @@ export class BasvuruService {
     return tenant.queryRunner;
   }
 
-  list(ilanId: string): Promise<Basvuru[]> {
-    return rawQuery<Basvuru>(this.qr(), 'SELECT * FROM basvuru WHERE ilan_id = $1 ORDER BY created_at DESC', [ilanId]);
+  list(ilanId: string, limit: number, offset: number): Promise<Basvuru[]> {
+    return rawQuery<Basvuru>(
+      this.qr(),
+      'SELECT * FROM basvuru WHERE ilan_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+      [ilanId, limit, offset],
+    );
+  }
+
+  /** Kullanıcının katılabileceği ihaleler: onaylı başvuruları + ilanın güncel durumu + görsel/kazanan bilgisi. */
+  async ihalelerim(kullaniciId: string): Promise<
+    Array<{
+      ilan_id: string;
+      ilan_baslik: string;
+      ilan_durum: string;
+      ihale_tipi: string;
+      baslangic_fiyati: string;
+      baslangic_tarihi: Date | null;
+      bitis_tarihi: Date | null;
+      kazanan_kullanici_id: string | null;
+      gorsel_id: string | null;
+    }>
+  > {
+    return rawQuery(
+      this.qr(),
+      `SELECT i.id AS ilan_id, i.baslik AS ilan_baslik, i.durum AS ilan_durum, i.ihale_tipi,
+              i.baslangic_fiyati, i.baslangic_tarihi, i.bitis_tarihi, i.kazanan_kullanici_id,
+              (SELECT g.id FROM ilan_gorseller g WHERE g.ilan_id = i.id ORDER BY g.sira ASC LIMIT 1) AS gorsel_id
+       FROM basvuru b JOIN ilan i ON i.id = b.ilan_id
+       WHERE b.kullanici_id = $1 AND b.durum = $2 AND i.deleted_at IS NULL
+       ORDER BY CASE i.durum WHEN 'CANLI_ARTIRMA' THEN 0 WHEN 'YAYINDA' THEN 1 ELSE 2 END,
+                i.bitis_tarihi ASC NULLS LAST`,
+      [kullaniciId, BasvuruDurumu.Onaylandi],
+    );
   }
 
   /** Kullanıcının kendi başvuruları (ilan başlığı join'li). */
-  async listMy(kullaniciId: string): Promise<
+  async listMy(kullaniciId: string, limit: number, offset: number): Promise<
     Array<{ id: string; ilan_id: string; ilan_baslik: string; durum: string; gereken_teminat: string | null; created_at: Date }>
   > {
     return rawQuery(
       this.qr(),
       `SELECT b.id, b.ilan_id, i.baslik AS ilan_baslik, b.durum, b.gereken_teminat, b.created_at
        FROM basvuru b JOIN ilan i ON i.id = b.ilan_id
-       WHERE b.kullanici_id = $1 ORDER BY b.created_at DESC`,
-      [kullaniciId],
+       WHERE b.kullanici_id = $1 AND i.deleted_at IS NULL ORDER BY b.created_at DESC LIMIT $2 OFFSET $3`,
+      [kullaniciId, limit, offset],
     );
   }
 
@@ -53,7 +84,11 @@ export class BasvuruService {
     if (!kvkkOnay) {
       throw new BadRequestException('KVKK aydınlatma metni onayı zorunludur');
     }
-    const ilanRows = await rawQuery<Ilan>(this.qr(), 'SELECT * FROM ilan WHERE id = $1', [ilanId]);
+    const ilanRows = await rawQuery<Ilan>(
+      this.qr(),
+      'SELECT * FROM ilan WHERE id = $1 AND deleted_at IS NULL',
+      [ilanId],
+    );
     const ilan = ilanRows[0];
     if (!ilan) {
       throw new NotFoundException('İlan bulunamadı');

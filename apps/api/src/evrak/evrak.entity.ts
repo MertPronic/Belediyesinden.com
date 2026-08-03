@@ -7,5 +7,7 @@ export interface Evrak {
   content_type: string | null;
   boyut: string; // BIGINT → pg string
   imza_durumu: string;
+  /** Evrak kategorisi (İdari Şartname / Teknik Şartname / İhale Dosyası / Diğer). */
+  tip: string;
   created_at: Date;
 }

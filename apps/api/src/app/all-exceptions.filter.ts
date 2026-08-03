@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { STATUS_CODES } from 'node:http';
 
 /**
  * Global exception filter — tutarlı hata yanıtı: {statusCode, error, message, path}.
@@ -34,7 +35,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const body = {
       statusCode: status,
-      error: typeof message === 'string' ? message : HttpStatus[status] ?? 'Error',
+      // `error` HER ZAMAN HTTP status ifadesi (örn. "Bad Request") — `message` ile
+      // karıştırılmaz. Eskiden message string olduğunda error da onun kopyası
+      // oluyordu (örn. ikisi de "Eksik zorunlu evrak: ..." → anlamsız/yinelenen yanıt).
+      error: STATUS_CODES[status] ?? 'Error',
       message,
       timestamp: new Date().toISOString(),
       path: req?.url,

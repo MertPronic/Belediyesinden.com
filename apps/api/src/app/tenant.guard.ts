@@ -12,6 +12,7 @@ import { resolveTenantSlugFromHeaders } from '@belediyesinden/tenancy';
 
 type HttpRequest = {
   headers: Record<string, string | string[] | undefined>;
+  query?: Record<string, string | string[] | undefined>;
   tenant?: Tenant;
 };
 
@@ -32,7 +33,7 @@ export class TenantGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<HttpRequest>();
-    const slug = resolveTenantSlugFromHeaders(req.headers);
+    const slug = resolveTenantSlugFromHeaders(req.headers, req.query);
     if (!slug) {
       return true; // merkezi portal — tenant kısıtı yok
     }

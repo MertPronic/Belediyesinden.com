@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { appendAuditLog } from '@belediyesinden/audit';
 import { rawQuery } from '@belediyesinden/db';
+import type { EvrakTipi } from '@belediyesinden/shared';
 import { MinioService } from './minio.service';
 import type { Evrak } from './evrak.entity';
 
@@ -24,6 +25,7 @@ export class EvrakService {
       dosya_adi: string;
       content_type: string | null;
       boyut: number | null;
+      tip: string;
       created_at: Date;
     }>
   > {
@@ -33,7 +35,7 @@ export class EvrakService {
     }
     return rawQuery(
       tenant.queryRunner,
-      `SELECT id, ilan_id, dosya_adi, content_type, boyut, created_at
+      `SELECT id, ilan_id, dosya_adi, content_type, boyut, tip, created_at
        FROM evrak WHERE ilan_id = $1 ORDER BY created_at DESC`,
       [ilanId],
     );
@@ -41,6 +43,7 @@ export class EvrakService {
 
   async upload(
     ilanId: string,
+    tip: EvrakTipi,
     file: { originalname: string; buffer: Buffer; mimetype?: string; size?: number },
   ): Promise<Evrak> {
     const tenant = getCurrentTenant();
@@ -51,9 +54,9 @@ export class EvrakService {
     await this.minio.putObject(key, file.buffer, file.mimetype);
     const rows = await rawQuery<Evrak>(
       tenant.queryRunner,
-      `INSERT INTO evrak (ilan_id, dosya_adi, minio_key, content_type, boyut)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [ilanId, file.originalname, key, file.mimetype ?? null, file.size ?? file.buffer.length],
+      `INSERT INTO evrak (ilan_id, dosya_adi, minio_key, content_type, boyut, tip)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [ilanId, file.originalname, key, file.mimetype ?? null, file.size ?? file.buffer.length, tip],
     );
     appendAuditLog(this.ds, {
       tenantId: tenant.slug,
@@ -61,7 +64,7 @@ export class EvrakService {
       action: 'EVRAK_YUKLE',
       entityType: 'evrak',
       entityId: rows[0].id,
-      payload: { ilan_id: ilanId, dosya_adi: file.originalname, boyut: file.size ?? file.buffer.length },
+      payload: { ilan_id: ilanId, dosya_adi: file.originalname, tip, boyut: file.size ?? file.buffer.length },
     }).catch(() => {});
     return rows[0];
   }

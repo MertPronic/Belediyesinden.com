@@ -1,7 +1,8 @@
-import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { IsBoolean, IsOptional } from 'class-validator';
 import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
+import { sayfalamaCoz } from '@belediyesinden/db';
 import { BasvuruService } from './basvuru.service';
 
 class CreateBasvuruDto {
@@ -37,16 +38,34 @@ export class BasvuruController {
   /** Bir ilan'ın başvurularını listele (encümen/admin). */
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Get('ilan/:ilanId')
-  list(@Param('ilanId') ilanId: string) {
-    return this.service.list(ilanId);
+  list(
+    @Param('ilanId') ilanId: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.list(ilanId, limit, offset);
   }
 
   /** Kullanıcının kendi başvuruları (vatandaş). */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Get('my')
-  listMy(@CurrentUser() user: AuthenticatedUser | null) {
+  listMy(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
     if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
-    return this.service.listMy(user.sub);
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.listMy(user.sub, limit, offset);
+  }
+
+  /** Kullanıcının katılabileceği ihaleler (onaylı başvuru + ilan durumu) — "İhalelerim" sayfası. */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Get('ihalelerim')
+  ihalelerim(@CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.ihalelerim(user.sub);
   }
 
   /** Başvuruyu geri çek (vatandaş, kendi başvurusu, onaylanMAMış). */

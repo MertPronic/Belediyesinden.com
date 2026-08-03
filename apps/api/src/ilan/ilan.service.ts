@@ -3,8 +3,9 @@ import { DataSource, type QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { appendAuditLog } from '@belediyesinden/audit';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
-import { IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
+import { EvrakTipi, IhaleTipi, IlanDurumu, KatilimSarti } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
+import { ihaleBaslatDogrula, ilanGecisGecerliMi, publishDogrula, yayinOnKosullariGecerliMi } from '@belediyesinden/ilan-core';
 import { rawQuery } from '@belediyesinden/db';
 import { OpenSearchService } from '../search/opensearch.service';
 import { TeminatIadeService } from '../teminat/teminat-iade.service';
@@ -12,7 +13,6 @@ import type { Ilan } from './ilan.entity';
 
 const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
 const GECERLI_DURUM = new Set<string>(Object.values(IlanDurumu));
-const GUN_MS = 86_400_000;
 
 /** Tenant-scoped ilan servisi + durum makinesi. */
 @Injectable()
@@ -23,6 +23,23 @@ export class IlanService {
     private readonly iadeService: TeminatIadeService,
   ) {}
 
+  /** Arama indeksini ilanın güncel durumuyla senkronlar (yayınla/iptal/sonuçlandır sonrası). */
+  private syncSearchIndex(ilan: Ilan): void {
+    const tenant = getCurrentTenant();
+    if (!tenant) return;
+    this.os
+      .indexIlan(tenant.slug, {
+        id: ilan.id,
+        baslik: ilan.baslik,
+        aciklama: ilan.aciklama,
+        ihale_tipi: ilan.ihale_tipi,
+        baslangic_fiyati: ilan.baslangic_fiyati,
+        durum: ilan.durum,
+        baslangic_tarihi: ilan.baslangic_tarihi,
+      })
+      .catch(() => {});
+  }
+
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
     if (!tenant) {
@@ -31,12 +48,20 @@ export class IlanService {
     return tenant.queryRunner;
   }
 
-  list(): Promise<Ilan[]> {
-    return rawQuery<Ilan>(this.qr(), 'SELECT * FROM ilan ORDER BY created_at DESC');
+  list(limit: number, offset: number): Promise<Ilan[]> {
+    return rawQuery<Ilan>(
+      this.qr(),
+      'SELECT * FROM ilan WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [limit, offset],
+    );
   }
 
   async get(id: string): Promise<Ilan | null> {
-    const rows = await rawQuery<Ilan>(this.qr(), 'SELECT * FROM ilan WHERE id = $1', [id]);
+    const rows = await rawQuery<Ilan>(
+      this.qr(),
+      'SELECT * FROM ilan WHERE id = $1 AND deleted_at IS NULL',
+      [id],
+    );
     return rows[0] ?? null;
   }
 
@@ -46,23 +71,65 @@ export class IlanService {
     varlikId: string;
     ihaleTipi: string;
     baslangicFiyati: number;
+    /** İlan (yayın) tarihi — opsiyonel, taslakta boş kalabilir (KK-20). Kolon: baslangic_tarihi. */
+    ilanTarihi?: string;
+    /** İhale tarihi — opsiyonel, taslakta boş kalabilir (KK-20). Kolon: bitis_tarihi. */
+    ihaleTarihi?: string;
+    /** Şartname bedeli ücretli mi (ilan başına tek bedel). */
+    sartnameUcretli?: boolean;
+    /** Ücretliyse tutar (controller `sartnameUcretli:true` ile birlikte zorunlu kılar). */
+    sartnameTutari?: number;
+    /** İhaleye katılım şartları (yayınlamadan önce en az bir tanesi seçilmeli). */
+    katilimSartlari?: KatilimSarti[];
   }): Promise<Ilan> {
     if (!GECERLI_TIP.has(data.ihaleTipi)) {
       throw new BadRequestException('Geçersiz ihale tipi');
     }
     const rows = await rawQuery<Ilan>(
       this.qr(),
-      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, durum, baslangic_fiyati)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [data.baslik, data.aciklama ?? null, data.varlikId, data.ihaleTipi, IlanDurumu.Taslak, data.baslangicFiyati],
+      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, durum, baslangic_fiyati, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [
+        data.baslik,
+        data.aciklama ?? null,
+        data.varlikId,
+        data.ihaleTipi,
+        IlanDurumu.Taslak,
+        data.baslangicFiyati,
+        data.ilanTarihi ?? null,
+        data.ihaleTarihi ?? null,
+        data.sartnameUcretli ?? false,
+        data.sartnameTutari ?? null,
+        JSON.stringify(data.katilimSartlari ?? []),
+      ],
     );
-    return rows[0];
+    const ilan = rows[0];
+    appendAuditLog(this.ds, {
+      tenantId: getCurrentTenant()?.slug ?? null,
+      actorId: 'system:ilan',
+      action: 'ILAN_CREATE',
+      entityType: 'ilan',
+      entityId: ilan.id,
+      payload: { baslik: data.baslik, ihaleTipi: data.ihaleTipi },
+    }).catch(() => {});
+    return ilan;
   }
 
   /** İlan güncelle — sadece TASLAK durumunda. */
   async update(
     id: string,
-    data: { baslik?: string; aciklama?: string | null; baslangicFiyati?: number },
+    data: {
+      baslik?: string;
+      aciklama?: string | null;
+      baslangicFiyati?: number;
+      ilanTarihi?: string;
+      ihaleTarihi?: string;
+      sartnameUcretli?: boolean;
+      sartnameTutari?: number;
+      katilimSartlari?: KatilimSarti[];
+      il?: string;
+      ilce?: string;
+    },
   ): Promise<Ilan> {
     const ilan = await this.get(id);
     if (!ilan) throw new NotFoundException('İlan bulunamadı');
@@ -75,6 +142,13 @@ export class IlanService {
     if (data.baslik !== undefined) { sets.push(`baslik = $${i++}`); vals.push(data.baslik); }
     if (data.aciklama !== undefined) { sets.push(`aciklama = $${i++}`); vals.push(data.aciklama); }
     if (data.baslangicFiyati !== undefined) { sets.push(`baslangic_fiyati = $${i++}`); vals.push(data.baslangicFiyati); }
+    if (data.ilanTarihi !== undefined) { sets.push(`baslangic_tarihi = $${i++}`); vals.push(data.ilanTarihi); }
+    if (data.ihaleTarihi !== undefined) { sets.push(`bitis_tarihi = $${i++}`); vals.push(data.ihaleTarihi); }
+    if (data.sartnameUcretli !== undefined) { sets.push(`sartname_ucretli = $${i++}`); vals.push(data.sartnameUcretli); }
+    if (data.sartnameTutari !== undefined) { sets.push(`sartname_tutari = $${i++}`); vals.push(data.sartnameTutari); }
+    if (data.katilimSartlari !== undefined) { sets.push(`katilim_sartlari = $${i++}`); vals.push(JSON.stringify(data.katilimSartlari)); }
+    if (data.il !== undefined) { sets.push(`il = $${i++}`); vals.push(data.il); }
+    if (data.ilce !== undefined) { sets.push(`ilce = $${i++}`); vals.push(data.ilce); }
     if (sets.length === 0) return ilan;
     vals.push(id);
     const rows = await rawQuery<Ilan>(
@@ -93,14 +167,14 @@ export class IlanService {
     return rows[0];
   }
 
-  /** İlan sil — sadece TASLAK durumunda. */
+  /** İlan sil — sadece TASLAK durumunda (soft delete — hard DELETE yasak, CLAUDE.md). */
   async remove(id: string): Promise<void> {
     const ilan = await this.get(id);
     if (!ilan) throw new NotFoundException('İlan bulunamadı');
     if (ilan.durum !== IlanDurumu.Taslak) {
       throw new BadRequestException('Sadece taslak ilanlar silinebilir');
     }
-    await rawQuery(this.qr(), 'DELETE FROM ilan WHERE id = $1', [id]);
+    await rawQuery(this.qr(), 'UPDATE ilan SET deleted_at = now() WHERE id = $1', [id]);
     appendAuditLog(this.ds, {
       tenantId: getCurrentTenant()?.slug ?? null,
       actorId: 'system:ilan',
@@ -112,9 +186,12 @@ export class IlanService {
   }
 
   /**
-   * Durum makinesi.
-   *  TASLAK → YAYINDA: kural motorundan kuralları çekip snapshot'lar + başlangıç/bitiş tarihleri.
-   *  Her durum → IPTAL. CANLI_ARTIRMA / SONUCLANDI: stub (Faz 4).
+   * Durum makinesi. Geçiş haritası `ilanGecisGecerliMi`'de (functional core, KK-16).
+   *  TASLAK → YAYINDA: personelin girdiği ilan/ihale tarihleri `publishDogrula`'dan geçer,
+   *  kural motorundan çekilen kurallar snapshot'lanır.
+   *  YAYINDA → CANLI_ARTIRMA: ihale tarihi gelmeden başlatılamaz (`ihaleBaslatDogrula`) —
+   *  teklif verme yalnızca CANLI_ARTIRMA'da açık olduğu için (bkz. TeklifService.submit)
+   *  bu kapı "ihale tarihine kadar teklif verilemez" kuralını fiilen uygular.
    */
   async changeDurum(id: string, hedef: string): Promise<Ilan> {
     if (!GECERLI_DURUM.has(hedef)) {
@@ -125,33 +202,51 @@ export class IlanService {
       throw new NotFoundException('İlan bulunamadı');
     }
 
+    if (!ilanGecisGecerliMi(ilan.durum as IlanDurumu, hedef as IlanDurumu)) {
+      throw new BadRequestException(`Geçersiz durum geçişi: ${ilan.durum} → ${hedef}`);
+    }
+
     if (hedef === IlanDurumu.Yayinda) {
-      if (ilan.durum !== IlanDurumu.Taslak) {
-        throw new BadRequestException('Yalnızca TASLAK ilanlar yayınlanabilir');
+      const ilanTarihi = ilan.baslangic_tarihi;
+      const ihaleTarihi = ilan.bitis_tarihi;
+      if (!ilanTarihi || !ihaleTarihi) {
+        throw new BadRequestException('İlan tarihi ve ihale tarihi girilmeden yayınlanamaz');
       }
       const kurallar = await getIlanKurallari(this.qr(), ilan.ihale_tipi as IhaleTipi);
-      const baslangic = new Date();
-      const bitis = new Date(baslangic.getTime() + kurallar.ihaleSuresiGun * GUN_MS);
+      const sonuc = publishDogrula(
+        ilanTarihi,
+        ihaleTarihi,
+        kurallar.minIlanIhaleAraligiGun,
+        kurallar.minSimdiIlanAraligiGun,
+        new Date(),
+      );
+      if (!sonuc.gecerli) {
+        throw new BadRequestException(sonuc.hata ?? 'Yayınlama koşulları sağlanmadı');
+      }
+
+      const evrakRows = await rawQuery<{ tip: string }>(
+        this.qr(),
+        'SELECT DISTINCT tip FROM evrak WHERE ilan_id = $1',
+        [id],
+      );
+      const onKosulSonuc = yayinOnKosullariGecerliMi(
+        evrakRows.map((r) => r.tip as EvrakTipi),
+        ilan.katilim_sartlari ?? [],
+      );
+      if (!onKosulSonuc.gecerli) {
+        throw new BadRequestException(onKosulSonuc.hata ?? 'Yayınlama ön koşulları sağlanmadı');
+      }
+
       const rows = await rawQuery<Ilan>(
         this.qr(),
-        'UPDATE ilan SET durum=$1, kurallar=$2, baslangic_tarihi=$3, bitis_tarihi=$4 WHERE id=$5 RETURNING *',
-        [IlanDurumu.Yayinda, JSON.stringify(kurallar), baslangic, bitis, id],
+        'UPDATE ilan SET durum=$1, kurallar=$2 WHERE id=$3 RETURNING *',
+        [IlanDurumu.Yayinda, JSON.stringify(kurallar), id],
       );
       const updated = rows[0];
-      const tenant = getCurrentTenant();
-      if (tenant && updated) {
-        await this.os.indexIlan(tenant.slug, {
-          id: updated.id,
-          baslik: updated.baslik,
-          aciklama: updated.aciklama,
-          ihale_tipi: updated.ihale_tipi,
-          baslangic_fiyati: updated.baslangic_fiyati,
-          durum: updated.durum,
-        });
-      }
+      if (updated) this.syncSearchIndex(updated);
       // Audit (hash-chain) — fire-and-forget.
       appendAuditLog(this.ds, {
-        tenantId: tenant?.slug ?? null,
+        tenantId: getCurrentTenant()?.slug ?? null,
         actorId: 'system:ilan',
         action: 'ILAN_YAYINLA',
         entityType: 'ilan',
@@ -161,12 +256,42 @@ export class IlanService {
       return updated;
     }
 
+    if (hedef === IlanDurumu.CanliArtirma) {
+      const ihaleTarihi = ilan.bitis_tarihi;
+      if (!ihaleTarihi) {
+        throw new BadRequestException('İhale tarihi girilmeden ihale başlatılamaz');
+      }
+      const sonuc = ihaleBaslatDogrula(ihaleTarihi, new Date());
+      if (!sonuc.gecerli) {
+        throw new BadRequestException(sonuc.hata ?? 'İhale başlatma koşulları sağlanmadı');
+      }
+
+      const rows = await rawQuery<Ilan>(
+        this.qr(),
+        'UPDATE ilan SET durum=$1 WHERE id=$2 RETURNING *',
+        [IlanDurumu.CanliArtirma, id],
+      );
+      const updated = rows[0];
+      if (updated) this.syncSearchIndex(updated);
+      appendAuditLog(this.ds, {
+        tenantId: getCurrentTenant()?.slug ?? null,
+        actorId: 'system:ilan',
+        action: 'ILAN_IHALE_BASLAT',
+        entityType: 'ilan',
+        entityId: id,
+        payload: {},
+      }).catch(() => {});
+      return updated;
+    }
+
     const rows = await rawQuery<Ilan>(
       this.qr(),
       'UPDATE ilan SET durum=$1 WHERE id=$2 RETURNING *',
       [hedef, id],
     );
-    return rows[0];
+    const updated = rows[0];
+    if (updated) this.syncSearchIndex(updated);
+    return updated;
   }
 
   /**
@@ -182,8 +307,8 @@ export class IlanService {
     if (!ilan) {
       throw new NotFoundException('İlan bulunamadı');
     }
-    if (ilan.durum !== IlanDurumu.Yayinda) {
-      throw new BadRequestException('Sadece yayındaki ilanlar sonuçlandırılabilir');
+    if (ilan.durum !== IlanDurumu.CanliArtirma) {
+      throw new BadRequestException('Sadece canlı artırmadaki ilanlar sonuçlandırılabilir');
     }
     const maxRows = await rawQuery<{ kullanici_id: string; tutar: string }>(
       this.qr(),
@@ -196,6 +321,7 @@ export class IlanService {
       'UPDATE ilan SET durum = $1, kazanan_kullanici_id = $2, kazanan_tutar = $3, encumen_karar_no = $4, encumen_karar_tarihi = $5 WHERE id = $6 RETURNING *',
       [IlanDurumu.Sonuclandi, winner?.kullanici_id ?? null, winner?.tutar ?? null, kararNo ?? null, new Date(), id],
     );
+    if (rows[0]) this.syncSearchIndex(rows[0]);
     // BullMQ gecikmeli iade planla (fire-and-forget).
     this.iadeService.planlaIadeForIlan(id).catch(() => {});
 
@@ -241,13 +367,13 @@ export class IlanService {
   }
 
   /** Kullanıcının favori ilanları (ilan detayı join'li). */
-  async listFavoriler(kullaniciId: string): Promise<Ilan[]> {
+  async listFavoriler(kullaniciId: string, limit: number, offset: number): Promise<Ilan[]> {
     return rawQuery<Ilan>(
       this.qr(),
       `SELECT i.* FROM ilan i
        JOIN ilan_favoriler f ON f.ilan_id = i.id
-       WHERE f.kullanici_id = $1 ORDER BY f.created_at DESC`,
-      [kullaniciId],
+       WHERE f.kullanici_id = $1 AND i.deleted_at IS NULL ORDER BY f.created_at DESC LIMIT $2 OFFSET $3`,
+      [kullaniciId, limit, offset],
     );
   }
 }

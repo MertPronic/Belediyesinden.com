@@ -1,12 +1,19 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { IsNumber, Min } from 'class-validator';
 import { CurrentUser, Roller, Unprotected, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
+import { sayfalamaCoz } from '@belediyesinden/db';
 import { TeklifService } from './teklif.service';
 
 class SubmitTeklifDto {
   @IsNumber() @Min(0)
   tutar!: number;
+}
+
+/** "Ahmet Yılmaz" → "Ahmet Y." — soyadın tamamı asla paylaşılmaz. */
+function maskeliAd(ad: string | null, soyad: string | null): string | null {
+  if (!ad) return null;
+  return soyad ? `${ad} ${soyad[0]}.` : ad;
 }
 
 /** Teklif endpoint — `/api/teklif`. Katılımcı teklif verir, encümen listeler. */
@@ -25,21 +32,31 @@ export class TeklifController {
     if (!user) {
       throw new Error('Kimlik doğrulanmış kullanıcı yok');
     }
-    return this.service.submit(ilanId, user.sub, dto.tutar);
+    return this.service.submit(ilanId, user.sub, dto.tutar, maskeliAd(user.ad, user.soyad));
   }
 
   /** İlan'ın tekliflerini listele (public — ihale şeffaflığı, sadece tutar). */
   @Unprotected()
   @Get('ilan/:ilanId')
-  list(@Param('ilanId') ilanId: string) {
-    return this.service.list(ilanId);
+  list(
+    @Param('ilanId') ilanId: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.list(ilanId, limit, offset);
   }
 
   /** Kullanıcının kendi teklifleri (vatandaş). */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Get('my')
-  listMy(@CurrentUser() user: AuthenticatedUser | null) {
+  listMy(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
     if (!user) throw new Error('Kimlik doğrulanmış kullanıcı yok');
-    return this.service.listMy(user.sub);
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.listMy(user.sub, limit, offset);
   }
 }

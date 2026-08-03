@@ -19,14 +19,26 @@ export class VarlikService {
     return tenant.queryRunner;
   }
 
-  list(tip?: string): Promise<Varlik[]> {
+  list(limit: number, offset: number, tip?: string): Promise<Varlik[]> {
     return tip
-      ? rawQuery<Varlik>(this.qr(), 'SELECT * FROM varlik WHERE tip = $1 ORDER BY created_at DESC', [tip])
-      : rawQuery<Varlik>(this.qr(), 'SELECT * FROM varlik ORDER BY created_at DESC');
+      ? rawQuery<Varlik>(
+          this.qr(),
+          'SELECT * FROM varlik WHERE tip = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+          [tip, limit, offset],
+        )
+      : rawQuery<Varlik>(
+          this.qr(),
+          'SELECT * FROM varlik WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+          [limit, offset],
+        );
   }
 
   async get(id: string): Promise<Varlik | null> {
-    const rows = await rawQuery<Varlik>(this.qr(), 'SELECT * FROM varlik WHERE id = $1', [id]);
+    const rows = await rawQuery<Varlik>(
+      this.qr(),
+      'SELECT * FROM varlik WHERE id = $1 AND deleted_at IS NULL',
+      [id],
+    );
     return rows[0] ?? null;
   }
 
@@ -65,13 +77,13 @@ export class VarlikService {
     return rows[0];
   }
 
-  /** Varlık sil. */
+  /** Varlık sil (soft delete — hard DELETE yasak, CLAUDE.md). */
   async remove(id: string): Promise<void> {
     const mevcut = await this.get(id);
     if (!mevcut) {
       throw new NotFoundException('Varlık bulunamadı');
     }
-    await rawQuery(this.qr(), 'DELETE FROM varlik WHERE id = $1', [id]);
+    await rawQuery(this.qr(), 'UPDATE varlik SET deleted_at = now() WHERE id = $1', [id]);
     this.audit('VARLIK_SIL', id, { ad: mevcut.ad, tip: mevcut.tip });
   }
 

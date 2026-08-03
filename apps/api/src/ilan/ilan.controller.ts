@@ -1,7 +1,7 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express/multer';
 import type { Response } from 'express';
-import { IsEnum, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsISO8601, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { IlanService } from './ilan.service';
 import { GorselService } from './gorsel.service';
 
@@ -15,7 +15,20 @@ interface MulterFile {
   size: number;
 }
 import { CurrentUser, Roller, Unprotected, type AuthenticatedUser } from '@belediyesinden/auth';
-import { IhaleTipi, KullaniciRolu } from '@belediyesinden/shared';
+import { IhaleTipi, KatilimSarti, KullaniciRolu } from '@belediyesinden/shared';
+import { sayfalamaCoz } from '@belediyesinden/db';
+import { ilanCitizenGorunurMu } from '@belediyesinden/ilan-core';
+
+const PERSONEL_ROLLERI = new Set<string>([
+  KullaniciRolu.TenantAdmin,
+  KullaniciRolu.Encumen,
+  KullaniciRolu.Superadmin,
+]);
+
+/** İstek personelden mi (TenantAdmin/Encümen/Superadmin) geliyor — vatandaş görünürlük kapısını atlar. */
+function isPersonel(user: AuthenticatedUser | null): boolean {
+  return !!user?.roles?.some((r) => PERSONEL_ROLLERI.has(r));
+}
 
 class CreateIlanDto {
   @IsString() @MaxLength(300)
@@ -32,6 +45,26 @@ class CreateIlanDto {
 
   @IsNumber() @Min(0) @Max(1_000_000_000)
   baslangicFiyati!: number;
+
+  /** İlan (yayın) tarihi — opsiyonel; taslakta boş bırakılıp `update` ile de girilebilir. */
+  @IsOptional() @IsISO8601()
+  ilanTarihi?: string;
+
+  /** İhale tarihi — opsiyonel; yayınlamadan önce dolu olmalı (bkz. `IlanService.changeDurum`). */
+  @IsOptional() @IsISO8601()
+  ihaleTarihi?: string;
+
+  /** Şartname bedeli ücretli mi (ilan başına tek bedel). */
+  @IsOptional() @IsBoolean()
+  sartnameUcretli?: boolean;
+
+  /** Ücretliyse zorunlu (aynı istekte `sartnameUcretli: true` ile birlikte gelmeli). */
+  @ValidateIf((o: CreateIlanDto) => o.sartnameUcretli === true)
+  @IsNumber() @Min(0.01) @Max(1_000_000_000)
+  sartnameTutari?: number;
+
+  @IsOptional() @IsArray() @IsEnum(KatilimSarti, { each: true })
+  katilimSartlari?: KatilimSarti[];
 }
 
 class ChangeDurumDto {
@@ -48,6 +81,30 @@ class UpdateIlanDto {
 
   @IsOptional() @IsNumber() @Min(0) @Max(1_000_000_000)
   baslangicFiyati?: number;
+
+  @IsOptional() @IsISO8601()
+  ilanTarihi?: string;
+
+  @IsOptional() @IsISO8601()
+  ihaleTarihi?: string;
+
+  @IsOptional() @IsBoolean()
+  sartnameUcretli?: boolean;
+
+  @ValidateIf((o: UpdateIlanDto) => o.sartnameUcretli === true)
+  @IsNumber() @Min(0.01) @Max(1_000_000_000)
+  sartnameTutari?: number;
+
+  @IsOptional() @IsArray() @IsEnum(KatilimSarti, { each: true })
+  katilimSartlari?: KatilimSarti[];
+
+  /** İl (citizen sayfasında konum gösterimi için). */
+  @IsOptional() @IsString() @MaxLength(100)
+  il?: string;
+
+  /** İlçe. */
+  @IsOptional() @IsString() @MaxLength(100)
+  ilce?: string;
 }
 
 class SonuclandirDto {
@@ -66,16 +123,22 @@ export class IlanController {
   /** İlanları listele (public — vatandaş ilanları auth'suz görüntüler). */
   @Unprotected()
   @Get()
-  list() {
-    return this.service.list();
+  list(@Query('page') page?: string, @Query('pageSize') pageSize?: string) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.list(limit, offset);
   }
 
   /** Kullanıcının favori ilanları (vatandaş). :id'den ÖNCE tanımlı. */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Get('favoriler/my')
-  favorilerim(@CurrentUser() user: AuthenticatedUser | null) {
+  favorilerim(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
     if (!user) throw new NotFoundException('Kimlik doğrulanmış kullanıcı yok');
-    return this.service.listFavoriler(user.sub);
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.listFavoriler(user.sub, limit, offset);
   }
 
   /** Görsel stream (galeri <img> proxy'si). :id'den ÖNCE tanımlı. */
@@ -109,12 +172,19 @@ export class IlanController {
     );
   }
 
-  /** İlan detayı (public). */
-  @Unprotected()
+  /**
+   * İlan detayı (public). Vatandaş yalnızca YAYINDA/CANLI_ARTIRMA/SONUCLANDI VE
+   * ilan tarihi gelmiş ilanları görür — personel (TenantAdmin/Encümen/Superadmin)
+   * bu kapıyı atlar, her zaman tam veriyi görür.
+   */
+  @Unprotected(false)
   @Get(':id')
-  async get(@Param('id') id: string) {
+  async get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser | null) {
     const ilan = await this.service.get(id);
     if (!ilan) {
+      throw new NotFoundException('İlan bulunamadı');
+    }
+    if (!isPersonel(user) && !ilanCitizenGorunurMu(ilan.durum, ilan.baslangic_tarihi, new Date())) {
       throw new NotFoundException('İlan bulunamadı');
     }
     return ilan;
@@ -138,6 +208,11 @@ export class IlanController {
       varlikId: dto.varlikId,
       ihaleTipi: dto.ihaleTipi,
       baslangicFiyati: dto.baslangicFiyati,
+      ilanTarihi: dto.ilanTarihi,
+      ihaleTarihi: dto.ihaleTarihi,
+      sartnameUcretli: dto.sartnameUcretli,
+      sartnameTutari: dto.sartnameTutari,
+      katilimSartlari: dto.katilimSartlari,
     });
   }
 

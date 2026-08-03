@@ -41,10 +41,10 @@ export class RaporService {
     const qr = this.qr();
 
     const [ilanlar, teklifler, basvurular, varliklar, katilimcilar, gelirRows] = await Promise.all([
-      rawQuery<Record<string, string>>(qr, 'SELECT durum, COUNT(*)::text AS count FROM ilan GROUP BY durum'),
+      rawQuery<Record<string, string>>(qr, 'SELECT durum, COUNT(*)::text AS count FROM ilan WHERE deleted_at IS NULL GROUP BY durum'),
       rawQuery<Record<string, string>>(qr, 'SELECT COUNT(*)::text AS count FROM teklif WHERE kabul_edildi = true'),
       rawQuery<Record<string, string>>(qr, 'SELECT durum, COUNT(*)::text AS count FROM basvuru GROUP BY durum'),
-      rawQuery<Record<string, string>>(qr, 'SELECT tip, COUNT(*)::text AS count FROM varlik GROUP BY tip'),
+      rawQuery<Record<string, string>>(qr, 'SELECT tip, COUNT(*)::text AS count FROM varlik WHERE deleted_at IS NULL GROUP BY tip'),
       rawQuery<Record<string, string>>(
         qr,
         'SELECT COUNT(DISTINCT kullanici_id)::text AS count FROM basvuru',
@@ -53,7 +53,7 @@ export class RaporService {
       rawQuery<Record<string, string>>(
         qr,
         `SELECT COALESCE(SUM(kazanan_tutar), 0)::text AS gelir
-         FROM ilan WHERE durum = 'SONUCLANDI' AND kazanan_tutar IS NOT NULL`,
+         FROM ilan WHERE durum = 'SONUCLANDI' AND kazanan_tutar IS NOT NULL AND deleted_at IS NULL`,
       ),
     ]);
 

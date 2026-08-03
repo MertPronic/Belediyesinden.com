@@ -74,7 +74,13 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect,
       const { payload } = await jwtVerify(token, this.jwks, {
         issuer: `${KC_URL}/realms/${KC_REALM}`,
       });
-      const tenant = tenantFromGroups(payload['tenant_groups'] as string[] | undefined);
+      // Personel (TENANT_ADMIN/ENCUMEN) tenant_groups'tan çözülür. Vatandaş/yatırımcı
+      // hiçbir tenant grubuna bağlı DEĞİLDİR (bilerek) — bu yüzden query'den gelen
+      // ?tenant= ile fallback yapılır. Teklif verisi zaten tenant başına public'tir
+      // (GET /teklif/ilan/:id @Unprotected — bkz. teklif.controller.ts), o yüzden
+      // bu kanala hangi tenant'ın yayınına abone olunacağını client belirtebilir;
+      // asıl yetkilendirme (teklif verme) ayrıca ve her zaman backend'de doğrulanır.
+      const tenant = tenantFromGroups(payload['tenant_groups'] as string[] | undefined) ?? url.searchParams.get('tenant');
       const userId = payload['sub'] as string;
       if (!tenant || !userId) {
         client.close(4003, 'tenant/user çözümlenemedi');
@@ -97,7 +103,7 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect,
   broadcastTeklif(
     tenantSlug: string,
     ilanId: string,
-    teklif: { id: string; kullanici_id: string; tutar: string },
+    teklif: { id: string; kullanici_id: string; kullanici_ad?: string | null; tutar: string },
   ): void {
     const msg = JSON.stringify({ event: 'teklif', tenant: tenantSlug, ilanId, teklif });
     this.pubRedis?.publish(CHANNEL, msg);

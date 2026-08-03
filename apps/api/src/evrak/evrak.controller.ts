@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
@@ -9,10 +10,16 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
+import { IsEnum } from 'class-validator';
 import type { Response } from 'express';
 import { EvrakService } from './evrak.service';
 import { Roller, Unprotected } from '@belediyesinden/auth';
-import { KullaniciRolu } from '@belediyesinden/shared';
+import { EvrakTipi, KullaniciRolu } from '@belediyesinden/shared';
+
+class UploadEvrakDto {
+  @IsEnum(EvrakTipi)
+  tip!: EvrakTipi;
+}
 
 /** Multer yüklenen dosya (Express.Multer.File global augmentasyonu yerine yerel tip). */
 interface MulterFile {
@@ -37,11 +44,15 @@ export class EvrakController {
   @Roller(KullaniciRolu.TenantAdmin)
   @Post(':ilanId')
   @UseInterceptors(FileInterceptor('file'))
-  upload(@Param('ilanId') ilanId: string, @UploadedFile() file: MulterFile) {
+  upload(
+    @Param('ilanId') ilanId: string,
+    @Body() dto: UploadEvrakDto,
+    @UploadedFile() file: MulterFile,
+  ) {
     if (!file) {
       throw new BadRequestException('Dosya bulunamadı (multipart "file" alanı)');
     }
-    return this.service.upload(ilanId, {
+    return this.service.upload(ilanId, dto.tip, {
       originalname: file.originalname,
       buffer: file.buffer,
       mimetype: file.mimetype,

@@ -18,8 +18,12 @@ export class DuyuruService {
     return tenant.queryRunner;
   }
 
-  list(): Promise<Duyuru[]> {
-    return rawQuery<Duyuru>(this.qr(), 'SELECT * FROM duyuru ORDER BY created_at DESC');
+  list(limit: number, offset: number): Promise<Duyuru[]> {
+    return rawQuery<Duyuru>(
+      this.qr(),
+      'SELECT * FROM duyuru ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [limit, offset],
+    );
   }
 
   async create(baslik: string, icerik: string | null): Promise<Duyuru> {

@@ -11,8 +11,24 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
-  // HTTP güvenliği (#63).
-  app.use(helmet({ contentSecurityPolicy: false })); // CSP nginx katmanında; burada diğer korumalar
+  // HTTP güvenliği (#63). CSP nginx katmanında; crossOriginResourcePolicy gevşetiliyor —
+  // API tenant-web/portal gibi farklı origin'lerden <img>/<a> ile doğrudan tüketiliyor
+  // (ilan görselleri, evrak indirme); Helmet'in varsayılanı (same-origin) CORS'tan
+  // bağımsız bir katman olarak bu "no-cors" yüklemeleri tamamen engelliyordu.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  // Private Network Access (Chrome): tenant-web/portal (localhost:4200/4201) API'ye
+  // (localhost:3000) <img>/<a> gibi header taşıyamayan isteklerle erişirken tarayıcı
+  // bir PNA preflight'ı gönderir; `cors` paketi bu header'ı desteklemediği için
+  // elle ekleniyor — yoksa asıl istek tarayıcı tarafından sunucuya hiç ulaşmadan
+  // engellenir (ilan görselleri/evrak indirme linkleri bu yüzden kırık görünüyordu).
+  app.use((req: import('express').Request, res: import('express').Response, next: () => void) => {
+    if (req.headers['access-control-request-private-network']) {
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    next();
+  });
+
   app.enableCors({
     origin: process.env['CORS_ORIGINS']?.split(',') ?? true,
     credentials: true,

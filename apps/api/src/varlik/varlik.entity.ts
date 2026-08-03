@@ -25,6 +25,10 @@ export class Varlik {
   @Column({ type: 'varchar', length: 20, default: 'AKTIF' })
   durum!: string;
 
+  /** Soft delete — dolu ise silinmiş sayılır, sorgulardan filtrelenir. Hard DELETE yasak (CLAUDE.md). */
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

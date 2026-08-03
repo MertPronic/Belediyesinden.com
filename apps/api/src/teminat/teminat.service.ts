@@ -30,7 +30,7 @@ export class TeminatService {
   }
 
   /** Tenant'ın tüm teminatları (başvuru + ilan bağlamı ile, encümen/admin). */
-  async list(): Promise<
+  async list(limit: number, offset: number): Promise<
     Array<{
       id: string;
       basvuru_id: string;
@@ -50,7 +50,9 @@ export class TeminatService {
        FROM teminat t
        JOIN basvuru b ON b.id = t.basvuru_id
        JOIN ilan i ON i.id = b.ilan_id
-       ORDER BY t.created_at DESC`,
+       WHERE i.deleted_at IS NULL
+       ORDER BY t.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
     );
   }
 

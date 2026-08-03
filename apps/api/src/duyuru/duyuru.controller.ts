@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { Roller } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
+import { sayfalamaCoz } from '@belediyesinden/db';
 import { DuyuruService } from './duyuru.service';
 
 class CreateDuyuruDto {
@@ -21,8 +22,9 @@ export class DuyuruController {
 
   /** Tüm kimliği doğrulanmış tenant kullanıcıları duyuruları listeleyebilir. */
   @Get()
-  list() {
-    return this.service.list();
+  list(@Query('page') page?: string, @Query('pageSize') pageSize?: string) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.list(limit, offset);
   }
 
   /** Duyuru oluştur (tenant-scoped — aktif tenant'ın şemasına yazar). */

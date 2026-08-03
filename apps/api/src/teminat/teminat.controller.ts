@@ -1,7 +1,8 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
+import { sayfalamaCoz } from '@belediyesinden/db';
 import { TeminatService } from './teminat.service';
 
 interface MulterFile {
@@ -23,8 +24,9 @@ export class TeminatController {
   /** Tenant'ın tüm teminatları (başvuru + ilan bağlamı ile). Encümen/admin. */
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Get()
-  list() {
-    return this.service.list();
+  list(@Query('page') page?: string, @Query('pageSize') pageSize?: string) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.list(limit, offset);
   }
 
   /** E-dekont yükle → teminat kaydı (BEKLEMEDE). */

@@ -1,7 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Client } from '@opensearch-project/opensearch';
+import { ilanCitizenGorunurMu } from '@belediyesinden/ilan-core';
 
 const INDEX = 'ilanlar';
+/** Halka açık arama sonuçlarında gösterilebilecek durumlar (bkz. tenant-web/portal PUBLIC_DURUMLAR). */
+const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
 
 /** OpenSearch (ilan arama/filtreleme) servisi. İndeks: `ilanlar`, tenant_slug ile izole. */
 @Injectable()
@@ -25,6 +28,7 @@ export class OpenSearchService implements OnModuleInit {
                 baslik: { type: 'text', analyzer: 'standard' },
                 aciklama: { type: 'text', analyzer: 'standard' },
                 baslangic_fiyati: { type: 'double' },
+                baslangic_tarihi: { type: 'date' },
               },
             },
           },
@@ -39,7 +43,15 @@ export class OpenSearchService implements OnModuleInit {
   /** İlanı indeksle (yayında). tenant_slug dokümanda → arama izolasyonu. */
   async indexIlan(
     tenantSlug: string,
-    ilan: { id: string; baslik: string; aciklama: string | null; ihale_tipi: string; baslangic_fiyati: string; durum: string },
+    ilan: {
+      id: string;
+      baslik: string;
+      aciklama: string | null;
+      ihale_tipi: string;
+      baslangic_fiyati: string;
+      durum: string;
+      baslangic_tarihi?: Date | string | null;
+    },
   ): Promise<void> {
     await this.client.index({
       index: INDEX,
@@ -52,9 +64,14 @@ export class OpenSearchService implements OnModuleInit {
   /**
    * Arama. tenantSlug='central' (veya boş) ise tüm tenant'lar (merkezi portal);
    * aksi halde sadece o tenant'un ilanları. Her doküman tenant_slug taşır.
+   *
+   * `isPersonel=false` (vatandaş/kimliksiz — arama endpoint'inin gerçek çağıranı
+   * her zaman budur) ilan tarihi henüz gelmemiş sonuçları eler; personel bu
+   * kapıyı atlar (şu an arama personel tarafından kullanılmıyor ama tutarlılık
+   * için destekleniyor).
    */
-  async searchIlan(tenantSlug: string, query: string, tip?: string): Promise<unknown[]> {
-    const must: Record<string, unknown>[] = [];
+  async searchIlan(tenantSlug: string, query: string, tip?: string, isPersonel = false): Promise<unknown[]> {
+    const must: Record<string, unknown>[] = [{ terms: { durum: PUBLIC_DURUMLAR } }];
     if (tenantSlug && tenantSlug !== 'central') {
       must.push({ term: { tenant_slug: tenantSlug } });
     }
@@ -69,6 +86,11 @@ export class OpenSearchService implements OnModuleInit {
       body: { query: { bool: { must } } },
     });
     const hits = (result.body as { hits: { hits: Array<{ _source: unknown }> } }).hits.hits;
-    return hits.map((h) => h._source);
+    const kaynaklar = hits.map((h) => h._source as { durum: string; baslangic_tarihi?: string | null });
+    if (isPersonel) {
+      return kaynaklar;
+    }
+    const now = new Date();
+    return kaynaklar.filter((k) => ilanCitizenGorunurMu(k.durum, k.baslangic_tarihi ?? null, now));
   }
 }

@@ -13,6 +13,7 @@ import {
 import { IsEnum, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import { KullaniciRolu, VarlikTipi } from '@belediyesinden/shared';
 import { Roller } from '@belediyesinden/auth';
+import { sayfalamaCoz } from '@belediyesinden/db';
 import { VarlikService } from './varlik.service';
 
 class CreateVarlikDto {
@@ -48,8 +49,13 @@ export class VarlikController {
   constructor(private readonly service: VarlikService) {}
 
   @Get()
-  list(@Query('tip') tip?: string) {
-    return this.service.list(tip);
+  list(
+    @Query('tip') tip?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.service.list(limit, offset, tip);
   }
 
   @Get(':id')

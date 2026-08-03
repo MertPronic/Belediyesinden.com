@@ -18,6 +18,7 @@ import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
 import { TenantMigrationBootstrap } from '../tenancy-bootstrap/tenant-migration-bootstrap';
 import { VarlikModule } from '../varlik/varlik.module';
 import { IlanModule } from '../ilan/ilan.module';
+import { IlanKurallariModule } from '../ilan-kurallari/ilan-kurallari.module';
 import { EvrakModule } from '../evrak/evrak.module';
 import { BasvuruModule } from '../basvuru/basvuru.module';
 import { TeminatModule } from '../teminat/teminat.module';
@@ -70,6 +71,7 @@ import { SearchModule } from '../search/search.module';
     TenantThemeModule, // herkese açık tenant tema endpoint'i
     VarlikModule, // belediye varlık CRUD (tenant-scoped)
     IlanModule, // ihale ilanı + durum makinesi (tenant-scoped)
+    IlanKurallariModule, // ihale tipine göre tenant-özel parametreler (floor + override)
     EvrakModule, // şartname/evrak (MinIO + tenant-scoped)
     SearchModule, // OpenSearch ilan arama (global)
     BasvuruModule, // başvuru + KVKK (tenant-scoped)
