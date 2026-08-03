@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Building2, Handshake, Megaphone, Package, Pencil, Plus, Trash2 } from 'lucide-react';
 import { apiFetch } from '../../../lib/api';
+import { RequireTenantAdmin } from '../../../components/require-tenant-admin';
 import {
-  Alert,
   Button,
   Card,
   CardContent,
@@ -14,7 +14,9 @@ import {
   FieldLabel,
   Input,
   Select,
+  Skeleton,
   Textarea,
+  useToast,
 } from '@belediyesinden/ui';
 
 interface Varlik {
@@ -25,39 +27,74 @@ interface Varlik {
 }
 
 const TIPLER = [
-  { value: 'TASINIR', label: 'Taşınır' },
-  { value: 'TASINMAZ', label: 'Taşınmaz' },
-  { value: 'ISLETME_HAKKI', label: 'İşletme Hakkı' },
-  { value: 'REKLAM_ALANI', label: 'Reklam Alanı' },
-];
-const TIP_LABEL: Record<string, string> = Object.fromEntries(TIPLER.map((t) => [t.value, t.label]));
+  { value: 'TASINIR', label: 'Taşınır', icon: Package, renk: 'text-blue-600 bg-blue-50' },
+  { value: 'TASINMAZ', label: 'Taşınmaz', icon: Building2, renk: 'text-emerald-600 bg-emerald-50' },
+  { value: 'ISLETME_HAKKI', label: 'İşletme Hakkı', icon: Handshake, renk: 'text-amber-600 bg-amber-50' },
+  { value: 'REKLAM_ALANI', label: 'Reklam Alanı', icon: Megaphone, renk: 'text-purple-600 bg-purple-50' },
+] as const;
+const TIP_BILGI: Record<string, (typeof TIPLER)[number]> = Object.fromEntries(TIPLER.map((t) => [t.value, t]));
+
+function TipRozeti({ tip }: { tip: string }) {
+  const bilgi = TIP_BILGI[tip];
+  if (!bilgi) return <span className="text-gray-600">{tip}</span>;
+  const Icon = bilgi.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${bilgi.renk}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {bilgi.label}
+    </span>
+  );
+}
 
 export default function VarliklarPage() {
+  return (
+    <RequireTenantAdmin>
+      <VarliklarIcerik />
+    </RequireTenantAdmin>
+  );
+}
+
+function VarliklarIcerik() {
+  const toast = useToast();
   const [varliklar, setVarliklar] = useState<Varlik[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filtreTip, setFiltreTip] = useState('');
+
   const [ad, setAd] = useState('');
-  const [tip, setTip] = useState(TIPLER[0].value);
+  const [tip, setTip] = useState<string>(TIPLER[0].value);
   const [aciklama, setAciklama] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editAd, setEditAd] = useState('');
   const [editAciklama, setEditAciklama] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const yukle = () => apiFetch<Varlik[]>('/varlik').then(setVarliklar).catch(() => {});
-  useEffect(() => {
-    yukle();
+  const yukle = useCallback((tipFiltre: string) => {
+    setLoading(true);
+    const qs = tipFiltre ? `?tip=${tipFiltre}` : '';
+    return apiFetch<Varlik[]>(`/varlik${qs}`)
+      .then(setVarliklar)
+      .catch(() => setVarliklar([]))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    yukle(filtreTip);
+  }, [yukle, filtreTip]);
+
+  const istatistikler = useMemo(
+    () => TIPLER.map((t) => ({ ...t, sayi: varliklar.filter((v) => v.tip === t.value).length })),
+    [varliklar],
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!ad.trim()) {
-      setError('Ad zorunludur.');
+      toast.error('Ad zorunludur.');
       return;
     }
     setSubmitting(true);
-    setError(null);
     try {
       await apiFetch('/varlik', {
         method: 'POST',
@@ -65,9 +102,10 @@ export default function VarliklarPage() {
       });
       setAd('');
       setAciklama('');
-      await yukle();
+      toast.success('Varlık eklendi.');
+      await yukle(filtreTip);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Oluşturma başarısız.');
+      toast.error(err instanceof Error ? err.message : 'Oluşturma başarısız.');
     } finally {
       setSubmitting(false);
     }
@@ -81,16 +119,16 @@ export default function VarliklarPage() {
 
   async function kaydet(id: string) {
     setSaving(true);
-    setError(null);
     try {
       await apiFetch(`/varlik/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ ad: editAd.trim(), aciklama: editAciklama.trim() || null }),
       });
       setEditId(null);
-      await yukle();
+      toast.success('Varlık güncellendi.');
+      await yukle(filtreTip);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Güncelleme başarısız.');
+      toast.error(err instanceof Error ? err.message : 'Güncelleme başarısız.');
     } finally {
       setSaving(false);
     }
@@ -98,12 +136,12 @@ export default function VarliklarPage() {
 
   async function sil(id: string, ad: string) {
     if (!window.confirm(`"${ad}" varlığını silmek istediğinize emin misiniz?`)) return;
-    setError(null);
     try {
       await apiFetch(`/varlik/${id}`, { method: 'DELETE' });
-      await yukle();
+      toast.success('Varlık silindi.');
+      await yukle(filtreTip);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Silme başarısız.');
+      toast.error(err instanceof Error ? err.message : 'Silme başarısız.');
     }
   }
 
@@ -114,7 +152,19 @@ export default function VarliklarPage() {
         <p className="mt-1 text-sm text-gray-500">Belediye varlık envanteri</p>
       </div>
 
-      {error && <Alert variant="error">{error}</Alert>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {istatistikler.map((s) => (
+          <div key={s.value} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${s.renk}`}>
+              <s.icon className="h-4.5 w-4.5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-tight text-gray-900">{s.sayi}</p>
+              <p className="truncate text-xs text-gray-500">{s.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <Card>
         <CardHeader className="pb-3">
@@ -159,12 +209,36 @@ export default function VarliklarPage() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="flex-row items-center justify-between gap-3 pb-3">
           <CardTitle className="text-base">Varlık Listesi ({varliklar.length})</CardTitle>
+          <Select
+            value={filtreTip}
+            onChange={(e) => setFiltreTip(e.target.value)}
+            className="w-auto min-w-[9rem]"
+          >
+            <option value="">Tüm Tipler</option>
+            {TIPLER.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </Select>
         </CardHeader>
         <CardContent className="p-0">
-          {varliklar.length === 0 ? (
-            <EmptyState title="Kayıtlı varlık yok" description="Yukarıdaki formdan ilk varlığı ekleyin." />
+          {loading ? (
+            <div className="space-y-3 p-4">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : varliklar.length === 0 ? (
+            <EmptyState
+              icon={<Package />}
+              title="Kayıtlı varlık yok"
+              description={
+                filtreTip ? 'Bu tipte kayıtlı varlık bulunmuyor.' : 'Yukarıdaki formdan ilk varlığı ekleyin.'
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -184,7 +258,9 @@ export default function VarliklarPage() {
                           <td className="px-4 py-2">
                             <Input value={editAd} onChange={(e) => setEditAd(e.target.value)} />
                           </td>
-                          <td className="px-4 text-gray-500">{TIP_LABEL[v.tip] ?? v.tip}</td>
+                          <td className="px-4">
+                            <TipRozeti tip={v.tip} />
+                          </td>
                           <td className="px-4">
                             <Input
                               value={editAciklama}
@@ -203,7 +279,9 @@ export default function VarliklarPage() {
                       ) : (
                         <>
                           <td className="px-4 py-3 font-medium text-gray-900">{v.ad}</td>
-                          <td className="px-4 text-gray-600">{TIP_LABEL[v.tip] ?? v.tip}</td>
+                          <td className="px-4">
+                            <TipRozeti tip={v.tip} />
+                          </td>
                           <td className="px-4 text-gray-600">{v.aciklama ?? '—'}</td>
                           <td className="px-4 text-right">
                             <Button

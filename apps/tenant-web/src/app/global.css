@@ -60,3 +60,20 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+/* Canlı teklif akışı — yeni teklif satırı üstten "düşerek" belirir. */
+@keyframes bid-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    background-color: color-mix(in srgb, var(--renk) 16%, transparent);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    background-color: transparent;
+  }
+}
+.bid-drop-in {
+  animation: bid-drop-in 0.6s ease-out;
+}

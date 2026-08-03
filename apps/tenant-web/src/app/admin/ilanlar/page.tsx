@@ -1,10 +1,11 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Ban, CheckCircle2, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Ban, CheckCircle2, FileEdit, FileText, Gavel, Plus, Trophy } from 'lucide-react';
 import { apiFetch } from '../../../lib/api';
+import { RequireTenantAdmin } from '../../../components/require-tenant-admin';
 import {
-  Alert,
   Button,
   Card,
   CardContent,
@@ -16,6 +17,7 @@ import {
   FieldLabel,
   Input,
   Select,
+  useToast,
 } from '@belediyesinden/ui';
 
 interface Ilan {
@@ -37,15 +39,34 @@ const IHALE_TIP = [
   { value: 'KAPALI_TEKLIF', label: 'Kapalı Teklif' },
 ];
 
+const STAT_TANIMLARI = [
+  { durum: 'TASLAK', label: 'Taslak', icon: FileEdit, renk: 'text-gray-500 bg-gray-100' },
+  { durum: 'YAYINDA', label: 'Yayında', icon: Gavel, renk: 'text-emerald-600 bg-emerald-50' },
+  { durum: 'SONUCLANDI', label: 'Sonuçlandı', icon: Trophy, renk: 'text-amber-600 bg-amber-50' },
+  { durum: 'IPTAL', label: 'İptal', icon: Ban, renk: 'text-red-500 bg-red-50' },
+] as const;
+
 export default function AdminIlanlarPage() {
+  return (
+    <RequireTenantAdmin>
+      <AdminIlanlarIcerik />
+    </RequireTenantAdmin>
+  );
+}
+
+function AdminIlanlarIcerik() {
+  const toast = useToast();
+  const router = useRouter();
   const [ilanlar, setIlanlar] = useState<Ilan[]>([]);
   const [varliklar, setVarliklar] = useState<Varlik[]>([]);
   const [baslik, setBaslik] = useState('');
   const [varlikId, setVarlikId] = useState('');
   const [ihaleTipi, setIhaleTipi] = useState(IHALE_TIP[0].value);
   const [fiyat, setFiyat] = useState('');
+  const [ilanTarihi, setIlanTarihi] = useState('');
+  const [ihaleTarihi, setIhaleTarihi] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const yukle = useCallback(() => {
     Promise.all([
@@ -62,14 +83,18 @@ export default function AdminIlanlarPage() {
     yukle();
   }, [yukle]);
 
+  const istatistikler = useMemo(
+    () => STAT_TANIMLARI.map((s) => ({ ...s, sayi: ilanlar.filter((i) => i.durum === s.durum).length })),
+    [ilanlar],
+  );
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!baslik.trim() || !varlikId || !fiyat) {
-      setError('Başlık, varlık ve başlangıç fiyatı zorunludur.');
+      toast.error('Başlık, varlık ve başlangıç fiyatı zorunludur.');
       return;
     }
     setSubmitting(true);
-    setError(null);
     try {
       await apiFetch('/ilan', {
         method: 'POST',
@@ -78,25 +103,34 @@ export default function AdminIlanlarPage() {
           varlikId,
           ihaleTipi,
           baslangicFiyati: Number(fiyat),
+          ilanTarihi: ilanTarihi || undefined,
+          ihaleTarihi: ihaleTarihi || undefined,
         }),
       });
       setBaslik('');
       setFiyat('');
+      setIlanTarihi('');
+      setIhaleTarihi('');
+      toast.success('İlan oluşturuldu (taslak).');
       await yukle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Oluşturma başarısız.');
+      toast.error(err instanceof Error ? err.message : 'Oluşturma başarısız.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function durumDegistir(id: string, durum: string) {
-    setError(null);
+  async function durumDegistir(id: string, durum: string, onayMesaji: string) {
+    if (!window.confirm(onayMesaji)) return;
+    setBusyId(id);
     try {
       await apiFetch(`/ilan/${id}/durum`, { method: 'POST', body: JSON.stringify({ durum }) });
+      toast.success(durum === 'YAYINDA' ? 'İlan yayınlandı.' : 'İlan iptal edildi.');
       await yukle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Durum değişikliği başarısız.');
+      toast.error(err instanceof Error ? err.message : 'Durum değişikliği başarısız.');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -107,7 +141,19 @@ export default function AdminIlanlarPage() {
         <p className="mt-1 text-sm text-gray-500">İhale ilanlarını oluşturun ve yönetin</p>
       </div>
 
-      {error && <Alert variant="error">{error}</Alert>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {istatistikler.map((s) => (
+          <div key={s.durum} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${s.renk}`}>
+              <s.icon className="h-4.5 w-4.5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-tight text-gray-900">{s.sayi}</p>
+              <p className="truncate text-xs text-gray-500">{s.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <Card>
         <CardHeader className="pb-3">
@@ -115,9 +161,16 @@ export default function AdminIlanlarPage() {
         </CardHeader>
         <CardContent>
           {varliklar.length === 0 ? (
-            <Alert variant="warning">
-              Önce <Link href="/admin/varliklar" className="font-semibold underline">bir varlık</Link> oluşturmalısınız.
-            </Alert>
+            <EmptyState
+              icon={<FileText />}
+              title="Önce bir varlık gerekli"
+              description="İlan oluşturmadan önce belediye envanterine en az bir varlık eklenmeli."
+              action={
+                <Button size="sm" leftIcon={<Plus />} onClick={() => router.push('/admin/varliklar')}>
+                  Varlık Ekle
+                </Button>
+              }
+            />
           ) : (
             <form onSubmit={submit} className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
               <Field className="sm:col-span-2">
@@ -146,7 +199,17 @@ export default function AdminIlanlarPage() {
               </Field>
               <Field>
                 <FieldLabel required>Başlangıç Fiyatı (₺)</FieldLabel>
-                <Input type="number" value={fiyat} onChange={(e) => setFiyat(e.target.value)} />
+                <Input type="number" value={fiyat} onChange={(e) => setFiyat(e.target.value)} placeholder="Örn: 250000" />
+              </Field>
+              <Field>
+                <FieldLabel>İlan Tarihi</FieldLabel>
+                <Input type="date" value={ilanTarihi} onChange={(e) => setIlanTarihi(e.target.value)} />
+                <p className="mt-1 text-xs text-gray-400">Bugünden en az 10 gün sonrası seçilmeli.</p>
+              </Field>
+              <Field>
+                <FieldLabel>İhale Tarihi</FieldLabel>
+                <Input type="date" value={ihaleTarihi} onChange={(e) => setIhaleTarihi(e.target.value)} />
+                <p className="mt-1 text-xs text-gray-400">İlan tarihinden en az 10 gün sonrası seçilmeli.</p>
               </Field>
               <div className="mt-3 sm:col-span-2">
                 <Button type="submit" loading={submitting} leftIcon={<Plus />}>
@@ -164,7 +227,7 @@ export default function AdminIlanlarPage() {
         </CardHeader>
         <CardContent className="p-0">
           {ilanlar.length === 0 ? (
-            <EmptyState title="İlan yok" description="Yukarıdaki formdan ilk ilanı oluşturun." />
+            <EmptyState icon={<FileText />} title="İlan yok" description="Yukarıdaki formdan ilk ilanı oluşturun." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -195,8 +258,11 @@ export default function AdminIlanlarPage() {
                         {ilan.durum === 'TASLAK' && (
                           <Button
                             size="sm"
+                            loading={busyId === ilan.id}
                             leftIcon={<CheckCircle2 />}
-                            onClick={() => durumDegistir(ilan.id, 'YAYINDA')}
+                            onClick={() =>
+                              durumDegistir(ilan.id, 'YAYINDA', `"${ilan.baslik}" ilanını yayınlamak istediğinize emin misiniz?`)
+                            }
                           >
                             Yayınla
                           </Button>
@@ -205,9 +271,12 @@ export default function AdminIlanlarPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            loading={busyId === ilan.id}
                             leftIcon={<Ban />}
                             className="text-red-600"
-                            onClick={() => durumDegistir(ilan.id, 'IPTAL')}
+                            onClick={() =>
+                              durumDegistir(ilan.id, 'IPTAL', `"${ilan.baslik}" ilanını iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)
+                            }
                           >
                             İptal
                           </Button>

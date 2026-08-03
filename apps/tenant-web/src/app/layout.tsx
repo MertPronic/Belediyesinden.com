@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { Landmark } from 'lucide-react';
 import { serverApiFetch } from '../lib/api';
-import { Footer } from '@belediyesinden/ui';
+import { Footer, ToastProvider } from '@belediyesinden/ui';
 import { HeaderNav } from '../components/header-nav';
 
 export const metadata: Metadata = {
@@ -50,22 +50,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           } as React.CSSProperties
         }
       >
-        <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur">
-          <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
-            <a href="/" className="flex items-center gap-2.5">
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-lg shadow-sm"
-                style={{ background: renk }}
-              >
-                <Landmark className="h-5 w-5 text-white" />
-              </span>
-              <span className="text-base font-bold tracking-tight text-gray-900">{siteName}</span>
-            </a>
-            <HeaderNav />
-          </div>
-        </header>
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-        <Footer brand={siteName} />
+        <ToastProvider>
+          <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur">
+            <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
+              <a href="/" className="flex items-center gap-2.5">
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-lg shadow-sm"
+                  style={{ background: renk }}
+                >
+                  <Landmark className="h-5 w-5 text-white" />
+                </span>
+                <span className="text-base font-bold tracking-tight text-gray-900">{siteName}</span>
+              </a>
+              <HeaderNav />
+            </div>
+          </header>
+          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+          <Footer brand={siteName} />
+        </ToastProvider>
       </body>
     </html>
   );

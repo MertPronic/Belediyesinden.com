@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ChevronRight,
   Download,
+  Eye,
   FileText,
   Gavel,
   Hash,
@@ -20,9 +21,8 @@ import {
   Share2,
   ShieldCheck,
   TrendingUp,
-  Wallet,
 } from 'lucide-react';
-import { serverApiFetch } from '../../../lib/api';
+import { isPersonelViewer, serverApiFetch } from '../../../lib/api';
 import { FavoriButton } from '../../../components/favori-button';
 import {
   Alert,
@@ -54,6 +54,7 @@ interface Ilan {
   il: string | null;
   ilce: string | null;
   mahalle: string | null;
+  katilim_sartlari: string[] | null;
 }
 interface Evrak {
   id: string;
@@ -70,6 +71,15 @@ const TIP: Record<string, { label: string; icon: typeof Gavel }> = {
   ACIK_ARTIRMA: { label: 'Açık Artırma', icon: Gavel },
   ACIK_TEKLIF: { label: 'Açık Teklif', icon: FileText },
   KAPALI_TEKLIF: { label: 'Kapalı Teklif', icon: Lock },
+};
+
+const KATILIM_SARTI_LABEL: Record<string, string> = {
+  VERGI_BORCU_OLMAMA: 'Vergi borcu olmama',
+  SGK_BORCU_OLMAMA: 'SGK borcu olmama',
+  GECICI_TEMINAT_YATIRMA: 'Geçici teminat yatırma',
+  IHALEYE_KATILIM_YASAGI_OLMAMA: 'İhaleye katılım yasağı bulunmama',
+  TICARET_SICIL_KAYDI: 'Ticaret sicil kaydı',
+  IMZA_SIRKULERI_VEKALETNAME: 'İmza sirküleri / vekaletname',
 };
 
 async function getTenantSlug(): Promise<string> {
@@ -129,6 +139,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
     notFound();
   }
   if (!ilan || !PUBLIC_DURUMLAR.includes(ilan.durum)) notFound();
+  const personelOnizleme = await isPersonelViewer(slug);
   try {
     evraklar = await serverApiFetch<Evrak[]>(`/evrak/ilan/${id}`, slug);
   } catch {
@@ -137,27 +148,29 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
   const tip = TIP[ilan.ihale_tipi] ?? { label: ilan.ihale_tipi, icon: FileText };
   const TipIcon = tip.icon;
-  const canBid = ilan.durum === 'YAYINDA' || ilan.durum === 'CANLI_ARTIRMA';
+  const canBid = ilan.durum === 'CANLI_ARTIRMA';
   const baslangic = ilan.baslangic_tarihi ? new Date(ilan.baslangic_tarihi) : null;
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
   const minAdim = Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0;
   const fiyat = Number(ilan.baslangic_fiyati);
+  const katilimSartlari = ilan.katilim_sartlari ?? [];
 
   // Gerçek ilan görselleri (MinIO proxy); yoksa dummy placeholder.
   let gorseller: string[] = dummyGorseller(id, 15);
   try {
     const gorselRows = await serverApiFetch<{ id: string }[]>(`/ilan/${id}/gorsel`, slug);
     if (gorselRows.length > 0) {
-      gorseller = gorselRows.map((g) => `${API_URL}/ilan/gorsel/${g.id}`);
+      gorseller = gorselRows.map((g) => `${API_URL}/ilan/gorsel/${g.id}?tenant=${slug}`);
     }
   } catch {
     /* dummy fallback */
   }
 
-  // Konum: gerçek lat/lng varsa kullan, yoksa varsayılan (Talas/Kayseri).
-  const lat = ilan.lat ?? 38.6875;
-  const lng = ilan.lng ?? 35.425;
-  const konumMetni = [ilan.il, ilan.ilce, ilan.mahalle].filter(Boolean).join(', ') || 'Kayseri, Talas';
+  // Konum: yalnızca gerçekten girilmiş veri gösterilir — sahte varsayılan yok.
+  const konumMetni = [ilan.il, ilan.ilce, ilan.mahalle].filter(Boolean).join(', ') || 'Konum belirtilmedi';
+  const haritaVar = ilan.lat != null && ilan.lng != null;
+  const lat = ilan.lat ?? 0;
+  const lng = ilan.lng ?? 0;
 
   const tabs = [
     {
@@ -216,7 +229,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                       </div>
                     </div>
                     <a
-                      href={`${API_URL}/evrak/${ev.id}`}
+                      href={`${API_URL}/evrak/${ev.id}?tenant=${slug}`}
                       className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -243,25 +256,31 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
               <span className="flex items-center gap-1 text-gray-400"><MapPin className="h-4 w-4" /> Konum:</span>
               <span className="font-medium text-gray-900">{konumMetni}</span>
             </div>
-            {/* OpenStreetMap embed */}
-            <div className="overflow-hidden rounded-lg border border-gray-200">
-              <iframe
-                title="İlan konumu"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`}
-                className="h-72 w-full"
-                loading="lazy"
-              />
-            </div>
-            <a
-              href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
-              style={{ color: 'var(--renk)' }}
-            >
-              <MapPin className="h-4 w-4" />
-              Haritada aç (OpenStreetMap)
-            </a>
+            {haritaVar ? (
+              <>
+                {/* OpenStreetMap embed */}
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <iframe
+                    title="İlan konumu"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`}
+                    className="h-72 w-full"
+                    loading="lazy"
+                  />
+                </div>
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                  style={{ color: 'var(--renk)' }}
+                >
+                  <MapPin className="h-4 w-4" />
+                  Haritada aç (OpenStreetMap)
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">Bu ilan için harita konumu girilmemiş.</p>
+            )}
           </CardContent>
         </Card>
       ),
@@ -358,28 +377,52 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                 )}
               </div>
 
-              {canBid ? (
-                <Link
-                  href={`/teklif/${ilan.id}`}
-                  className="flex h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-                  style={{ background: 'var(--renk)' }}
-                >
-                  <Gavel className="h-4 w-4" />
-                  Teklif Ver
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+              {personelOnizleme ? (
+                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                    <Eye className="h-4 w-4" />
+                    Personel önizleme modu
+                  </p>
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    {baslangic && baslangic.getTime() > Date.now()
+                      ? `Bu ilan ${baslangic.toLocaleDateString('tr-TR')} tarihinde yayınlanacak.`
+                      : 'Belediye personeli olarak vatandaş görünümünü inceliyorsunuz.'}
+                  </p>
+                  <Link
+                    href={`/admin/ilanlar/${ilan.id}`}
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                    style={{ color: 'var(--renk)' }}
+                  >
+                    İlanı yönet
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              ) : canBid ? (
+                <Alert variant="info" icon={<Gavel />}>
+                  Bu ihale şu anda canlı. Katılım hakkınız varsa{' '}
+                  <Link href="/ihalelerim" className="font-semibold underline">
+                    İhalelerim
+                  </Link>{' '}
+                  sayfasından teklif verebilirsiniz.
+                </Alert>
+              ) : ilan.durum === 'YAYINDA' ? (
+                <Alert variant="info" icon={<Info />}>
+                  {bitis
+                    ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak.`
+                    : 'Bu ihale henüz başlamadı.'}
+                </Alert>
               ) : (
                 <Alert variant="info" icon={<Info />}>
                   Bu ihale sonuçlandırılmıştır.
                 </Alert>
               )}
 
-              <div className="flex gap-2">
-                <FavoriButton ilanId={id} />
-                <Button variant="outline" className="flex-1" leftIcon={<Share2 />}>Paylaş</Button>
-              </div>
-
-              <p className="text-center text-xs text-gray-400">Teklif için giriş + teminat gerekir.</p>
+              {!personelOnizleme && (
+                <div className="flex gap-2">
+                  <FavoriButton ilanId={id} />
+                  <Button variant="outline" className="flex-1" leftIcon={<Share2 />}>Paylaş</Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -391,15 +434,21 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2.5 text-sm text-gray-600">
-                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Keycloak ile giriş yapmak</li>
-                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> KVKK onayı ile başvuru</li>
-                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Teminat e-dekontu yükleme</li>
-                <li className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" /> Encümen teminat onayı</li>
-              </ul>
-              <Button variant="ghost" className="mt-3 w-full justify-start px-0 text-gray-600" leftIcon={<Wallet />}>
-                Detaylı bilgi
-              </Button>
+              {katilimSartlari.length > 0 ? (
+                <ul className="space-y-2.5 text-sm text-gray-600">
+                  {katilimSartlari.map((s) => (
+                    <li key={s} className="flex gap-2">
+                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" />
+                      {KATILIM_SARTI_LABEL[s] ?? s}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-400">Bu ilan için özel bir katılım şartı belirtilmemiş.</p>
+              )}
+              <p className="mt-3 text-xs text-gray-400">
+                Başvuru için giriş yapmanız ve teminatınızı yatırmanız gerekir.
+              </p>
             </CardContent>
           </Card>
         </aside>

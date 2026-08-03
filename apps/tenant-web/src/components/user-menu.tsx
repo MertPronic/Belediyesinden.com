@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { LogOut, Shield, User } from 'lucide-react';
+import { Gavel, LogOut, Shield, User } from 'lucide-react';
 import { useAuth, login, logout } from '../lib/use-auth';
+import { getTenantSlug } from '../lib/api';
 import { Avatar, Button } from '@belediyesinden/ui';
 
 const ADMIN_ROLLER = ['TENANT_ADMIN', 'ENCUMEN', 'SUPERADMIN'];
@@ -18,10 +19,19 @@ export function UserMenu() {
     return <Button size="sm" onClick={login}>Giriş</Button>;
   }
 
-  const isAdmin = user?.roller?.some((r) => ADMIN_ROLLER.includes(r));
+  const isSuperadmin = user?.roller?.includes('SUPERADMIN');
+  const tenantMismatch = !isSuperadmin && !!user?.tenantId && user.tenantId !== getTenantSlug();
+  const isAdmin = user?.roller?.some((r) => ADMIN_ROLLER.includes(r)) && !tenantMismatch;
 
   return (
     <div className="flex items-center gap-3">
+      <Link
+        href="/ihalelerim"
+        className="hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex"
+      >
+        <Gavel className="h-4 w-4" />
+        İhalelerim
+      </Link>
       <Link
         href="/profil"
         className="hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex"

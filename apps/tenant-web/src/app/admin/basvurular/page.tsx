@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { RequireTenantAdmin } from '../../../components/require-tenant-admin';
 import { Card, CardContent, CardHeader, CardTitle, Badge } from '@belediyesinden/ui';
 
 interface Teminat {
@@ -29,6 +30,14 @@ const DURUM_LABEL: Record<string, string> = {
 };
 
 export default function AdminBasvurularPage() {
+  return (
+    <RequireTenantAdmin>
+      <AdminBasvurularIcerik />
+    </RequireTenantAdmin>
+  );
+}
+
+function AdminBasvurularIcerik() {
   const [teminatlar, setTeminatlar] = useState<Teminat[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);

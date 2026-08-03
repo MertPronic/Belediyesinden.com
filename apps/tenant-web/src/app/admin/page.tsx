@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
+import { RequireTenantAdmin } from '../../components/require-tenant-admin';
 import {
   Card,
   CardContent,
@@ -96,6 +97,14 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
 }
 
 export default function AdminDashboard() {
+  return (
+    <RequireTenantAdmin superadminRedirect="/admin/tenantlar">
+      <AdminDashboardIcerik />
+    </RequireTenantAdmin>
+  );
+}
+
+function AdminDashboardIcerik() {
   const [ozet, setOzet] = useState<RaporOzet | null>(null);
   const [ilanlar, setIlanlar] = useState<Ilan[]>([]);
   const [loading, setLoading] = useState(true);

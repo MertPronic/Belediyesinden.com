@@ -56,15 +56,21 @@ export async function logout(): Promise<void> {
   await k.logout({ redirectUri: window.location.origin });
 }
 
-/** JWT'den çözülen kullanıcı bilgisi (sub, roller, tenant_id). */
+/**
+ * JWT'den çözülen kullanıcı bilgisi (sub, roller, tenantId).
+ * tenantId `tenant_<slug>` grup üyeliğinden türetilir (bkz. backend `extractUser`,
+ * libs/auth/token-extractor.ts) — ham `tenant_id` claim'i Keycloak'ta hiç set edilmiyor.
+ */
 export function getUserInfo() {
   const k = getKeycloak();
   const t = k.tokenParsed;
   if (!t) return null;
+  const groups = ((t['tenant_groups'] as string[]) ?? (t['groups'] as string[]) ?? []) as string[];
+  const tenantGroup = groups.find((g) => g.startsWith('tenant_'));
   return {
     sub: t['sub'] as string,
     ad: (t['preferred_username'] as string) ?? (t['name'] as string) ?? t['sub'],
     roller: ((t['realm_access']?.roles as string[]) ?? []) as string[],
-    tenantId: (t['tenant_id'] as string) ?? null,
+    tenantId: tenantGroup ? tenantGroup.slice('tenant_'.length) : ((t['tenant_id'] as string) ?? null),
   };
 }
