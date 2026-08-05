@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, Handshake, Megaphone, Package, Pencil, Plus, Trash2 } from 'lucide-react';
+import type { VarlikTipi } from '@belediyesinden/shared';
+import { varlikDetayAlanlari } from '@belediyesinden/varlik-core';
 import { apiFetch } from '../../../lib/api';
 import { RequireTenantAdmin } from '../../../components/require-tenant-admin';
 import {
@@ -63,7 +65,22 @@ function VarliklarIcerik() {
   const [ad, setAd] = useState('');
   const [tip, setTip] = useState<string>(TIPLER[0].value);
   const [aciklama, setAciklama] = useState('');
+  const [detay, setDetay] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  const detayAlanlari = useMemo(
+    () => varlikDetayAlanlari(tip as VarlikTipi, detay['cinsi']),
+    [tip, detay['cinsi']],
+  );
+
+  function tipDegisti(yeniTip: string) {
+    setTip(yeniTip);
+    setDetay({});
+  }
+
+  function detayAlanDegisti(key: string, value: string) {
+    setDetay((prev) => (key === 'cinsi' ? { cinsi: value } : { ...prev, [key]: value }));
+  }
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editAd, setEditAd] = useState('');
@@ -96,12 +113,21 @@ function VarliklarIcerik() {
     }
     setSubmitting(true);
     try {
+      const temizDetay = Object.fromEntries(
+        Object.entries(detay).filter(([, deger]) => deger.trim() !== ''),
+      );
       await apiFetch('/varlik', {
         method: 'POST',
-        body: JSON.stringify({ tip, ad: ad.trim(), aciklama: aciklama.trim() || undefined }),
+        body: JSON.stringify({
+          tip,
+          ad: ad.trim(),
+          aciklama: aciklama.trim() || undefined,
+          detay: Object.keys(temizDetay).length > 0 ? temizDetay : undefined,
+        }),
       });
       setAd('');
       setAciklama('');
+      setDetay({});
       toast.success('Varlık eklendi.');
       await yukle(filtreTip);
     } catch (err) {
@@ -174,7 +200,7 @@ function VarliklarIcerik() {
           <form onSubmit={submit} className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
             <Field>
               <FieldLabel>Tip</FieldLabel>
-              <Select value={tip} onChange={(e) => setTip(e.target.value)}>
+              <Select value={tip} onChange={(e) => tipDegisti(e.target.value)}>
                 {TIPLER.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -199,6 +225,34 @@ function VarliklarIcerik() {
                 placeholder="Varlık detayları..."
               />
             </Field>
+            {detayAlanlari.length > 0 && (
+              <div className="sm:col-span-2 grid gap-x-4 gap-y-1 border-t border-gray-100 pt-3 sm:grid-cols-2">
+                {detayAlanlari.map((alan) => (
+                  <Field key={alan.key}>
+                    <FieldLabel required={alan.zorunlu}>{alan.etiket}</FieldLabel>
+                    {alan.tip === 'select' ? (
+                      <Select
+                        value={detay[alan.key] ?? ''}
+                        onChange={(e) => detayAlanDegisti(alan.key, e.target.value)}
+                      >
+                        <option value="">Seçiniz</option>
+                        {alan.secenekler?.map((s) => (
+                          <option key={s.deger} value={s.deger}>
+                            {s.etiket}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input
+                        type={alan.tip === 'number' ? 'number' : 'text'}
+                        value={detay[alan.key] ?? ''}
+                        onChange={(e) => detayAlanDegisti(alan.key, e.target.value)}
+                      />
+                    )}
+                  </Field>
+                ))}
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Button type="submit" loading={submitting} leftIcon={<Plus />}>
                 Varlık Ekle

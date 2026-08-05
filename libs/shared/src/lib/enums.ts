@@ -35,6 +35,19 @@ export enum VarlikTipi {
   ReklamAlani = 'REKLAM_ALANI',
 }
 
+/** Taşınmaz varlığın alt-cinsi (varlık.detay.cinsi) — hangi ek alanların gösterileceğini belirler. */
+export enum TasinmazCinsi {
+  ArsaArazi = 'ARSA_ARAZI',
+  MustakilEvBina = 'MUSTAKIL_EV_BINA',
+  BagimsizBolum = 'BAGIMSIZ_BOLUM',
+}
+
+/** Taşınır varlığın alt-cinsi (varlık.detay.cinsi). */
+export enum TasinirCinsi {
+  Arac = 'ARAC',
+  Diger = 'DIGER',
+}
+
 /** Kullanıcı rolleri (Keycloak realm rolleriyle eşleşir). */
 export enum KullaniciRolu {
   Superadmin = 'SUPERADMIN',

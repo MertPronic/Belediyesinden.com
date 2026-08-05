@@ -14,6 +14,7 @@ import { IsEnum, IsObject, IsOptional, IsString, MaxLength } from 'class-validat
 import { KullaniciRolu, VarlikTipi } from '@belediyesinden/shared';
 import { Roller } from '@belediyesinden/auth';
 import { sayfalamaCoz } from '@belediyesinden/db';
+import { varlikDetayDogrula } from '@belediyesinden/varlik-core';
 import { VarlikService } from './varlik.service';
 
 class CreateVarlikDto {
@@ -72,6 +73,10 @@ export class VarlikController {
   create(@Body() dto: CreateVarlikDto) {
     if (!GECERLI_TIP.has(dto.tip)) {
       throw new BadRequestException('Geçersiz varlık tipi');
+    }
+    const detaySonuc = varlikDetayDogrula(dto.tip, dto.detay);
+    if (!detaySonuc.gecerli) {
+      throw new BadRequestException(detaySonuc.hata);
     }
     return this.service.create({
       tip: dto.tip,

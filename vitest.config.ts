@@ -18,6 +18,7 @@ export default defineConfig({
       '@belediyesinden/rule-engine': fileURLToPath(new URL('./libs/rule-engine/src/index.ts', import.meta.url)),
       '@belediyesinden/auction-core': fileURLToPath(new URL('./libs/auction-core/src/index.ts', import.meta.url)),
       '@belediyesinden/ilan-core': fileURLToPath(new URL('./libs/ilan-core/src/index.ts', import.meta.url)),
+      '@belediyesinden/varlik-core': fileURLToPath(new URL('./libs/varlik-core/src/index.ts', import.meta.url)),
     },
   },
 });

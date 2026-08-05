@@ -30,7 +30,8 @@
       "@belediyesinden/ui": ["./libs/ui/src/index.ts"],
       "@belediyesinden/rule-engine": ["./libs/rule-engine/src/index.ts"],
       "@belediyesinden/auction-core": ["./libs/auction-core/src/index.ts"],
-      "@belediyesinden/ilan-core": ["./libs/ilan-core/src/index.ts"]
+      "@belediyesinden/ilan-core": ["./libs/ilan-core/src/index.ts"],
+      "@belediyesinden/varlik-core": ["./libs/varlik-core/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
