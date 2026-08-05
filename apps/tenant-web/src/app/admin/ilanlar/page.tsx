@@ -24,6 +24,7 @@ interface Ilan {
   id: string;
   baslik: string;
   ihale_tipi: string;
+  islem_turu: string | null;
   durum: string;
   baslangic_fiyati: string;
 }
@@ -38,6 +39,13 @@ const IHALE_TIP = [
   { value: 'ACIK_TEKLIF', label: 'Açık Teklif' },
   { value: 'KAPALI_TEKLIF', label: 'Kapalı Teklif' },
 ];
+
+const ISLEM_TURU = [
+  { value: 'SATIS', label: 'Satış' },
+  { value: 'KIRALAMA', label: 'Kiralama' },
+  { value: 'ISLETME_HAKKI_DEVRI', label: 'İşletme Hakkı Devri' },
+];
+const ISLEM_TURU_ETIKET: Record<string, string> = Object.fromEntries(ISLEM_TURU.map((t) => [t.value, t.label]));
 
 const STAT_TANIMLARI = [
   { durum: 'TASLAK', label: 'Taslak', icon: FileEdit, renk: 'text-gray-500 bg-gray-100' },
@@ -62,6 +70,7 @@ function AdminIlanlarIcerik() {
   const [baslik, setBaslik] = useState('');
   const [varlikId, setVarlikId] = useState('');
   const [ihaleTipi, setIhaleTipi] = useState(IHALE_TIP[0].value);
+  const [islemTuru, setIslemTuru] = useState(ISLEM_TURU[0].value);
   const [fiyat, setFiyat] = useState('');
   const [ilanTarihi, setIlanTarihi] = useState('');
   const [ihaleTarihi, setIhaleTarihi] = useState('');
@@ -102,6 +111,7 @@ function AdminIlanlarIcerik() {
           baslik: baslik.trim(),
           varlikId,
           ihaleTipi,
+          islemTuru,
           baslangicFiyati: Number(fiyat),
           ilanTarihi: ilanTarihi || undefined,
           ihaleTarihi: ihaleTarihi || undefined,
@@ -198,6 +208,16 @@ function AdminIlanlarIcerik() {
                 </Select>
               </Field>
               <Field>
+                <FieldLabel required>İşlem Türü</FieldLabel>
+                <Select value={islemTuru} onChange={(e) => setIslemTuru(e.target.value)}>
+                  {ISLEM_TURU.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field>
                 <FieldLabel required>Başlangıç Fiyatı (₺)</FieldLabel>
                 <Input type="number" value={fiyat} onChange={(e) => setFiyat(e.target.value)} placeholder="Örn: 250000" />
               </Field>
@@ -246,7 +266,10 @@ function AdminIlanlarIcerik() {
                         <Link href={`/admin/ilanlar/${ilan.id}`} className="font-medium text-gray-900 hover:underline">
                           {ilan.baslik}
                         </Link>
-                        <span className="ml-2 text-xs text-gray-400">{ilan.ihale_tipi}</span>
+                        <span className="ml-2 text-xs text-gray-400">
+                          {ilan.ihale_tipi}
+                          {ilan.islem_turu && ` · ${ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}`}
+                        </span>
                       </td>
                       <td className="px-4">
                         <DurumBadge durum={ilan.durum} />

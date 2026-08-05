@@ -3,7 +3,7 @@ import { DataSource, type QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { appendAuditLog } from '@belediyesinden/audit';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
-import { EvrakTipi, IhaleTipi, IlanDurumu, KatilimSarti } from '@belediyesinden/shared';
+import { EvrakTipi, IhaleTipi, IlanDurumu, IslemTuru, KatilimSarti } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
 import { ihaleBaslatDogrula, ilanGecisGecerliMi, publishDogrula, yayinOnKosullariGecerliMi } from '@belediyesinden/ilan-core';
 import { rawQuery } from '@belediyesinden/db';
@@ -12,6 +12,7 @@ import { TeminatIadeService } from '../teminat/teminat-iade.service';
 import type { Ilan } from './ilan.entity';
 
 const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
+const GECERLI_ISLEM_TURU = new Set<string>(Object.values(IslemTuru));
 const GECERLI_DURUM = new Set<string>(Object.values(IlanDurumu));
 
 /** Tenant-scoped ilan servisi + durum makinesi. */
@@ -70,6 +71,7 @@ export class IlanService {
     aciklama?: string | null;
     varlikId: string;
     ihaleTipi: string;
+    islemTuru: string;
     baslangicFiyati: number;
     /** İlan (yayın) tarihi — opsiyonel, taslakta boş kalabilir (KK-20). Kolon: baslangic_tarihi. */
     ilanTarihi?: string;
@@ -85,15 +87,19 @@ export class IlanService {
     if (!GECERLI_TIP.has(data.ihaleTipi)) {
       throw new BadRequestException('Geçersiz ihale tipi');
     }
+    if (!GECERLI_ISLEM_TURU.has(data.islemTuru)) {
+      throw new BadRequestException('Geçersiz işlem türü');
+    }
     const rows = await rawQuery<Ilan>(
       this.qr(),
-      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, durum, baslangic_fiyati, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, islem_turu, durum, baslangic_fiyati, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         data.baslik,
         data.aciklama ?? null,
         data.varlikId,
         data.ihaleTipi,
+        data.islemTuru,
         IlanDurumu.Taslak,
         data.baslangicFiyati,
         data.ilanTarihi ?? null,
@@ -110,7 +116,7 @@ export class IlanService {
       action: 'ILAN_CREATE',
       entityType: 'ilan',
       entityId: ilan.id,
-      payload: { baslik: data.baslik, ihaleTipi: data.ihaleTipi },
+      payload: { baslik: data.baslik, ihaleTipi: data.ihaleTipi, islemTuru: data.islemTuru },
     }).catch(() => {});
     return ilan;
   }

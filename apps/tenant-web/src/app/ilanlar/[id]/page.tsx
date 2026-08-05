@@ -20,6 +20,7 @@ import {
   Minus,
   Share2,
   ShieldCheck,
+  Tag,
   TrendingUp,
 } from 'lucide-react';
 import { isPersonelViewer, serverApiFetch } from '../../../lib/api';
@@ -44,6 +45,7 @@ interface Ilan {
   baslik: string;
   aciklama: string | null;
   ihale_tipi: string;
+  islem_turu: string | null;
   durum: string;
   baslangic_fiyati: string;
   baslangic_tarihi: string | null;
@@ -71,6 +73,12 @@ const TIP: Record<string, { label: string; icon: typeof Gavel }> = {
   ACIK_ARTIRMA: { label: 'Açık Artırma', icon: Gavel },
   ACIK_TEKLIF: { label: 'Açık Teklif', icon: FileText },
   KAPALI_TEKLIF: { label: 'Kapalı Teklif', icon: Lock },
+};
+
+const ISLEM_TURU_LABEL: Record<string, string> = {
+  SATIS: 'Satış',
+  KIRALAMA: 'Kiralama',
+  ISLETME_HAKKI_DEVRI: 'İşletme Hakkı Devri',
 };
 
 const KATILIM_SARTI_LABEL: Record<string, string> = {
@@ -148,6 +156,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
   const tip = TIP[ilan.ihale_tipi] ?? { label: ilan.ihale_tipi, icon: FileText };
   const TipIcon = tip.icon;
+  const islemTuruLabel = ilan.islem_turu ? (ISLEM_TURU_LABEL[ilan.islem_turu] ?? ilan.islem_turu) : null;
   const canBid = ilan.durum === 'CANLI_ARTIRMA';
   const baslangic = ilan.baslangic_tarihi ? new Date(ilan.baslangic_tarihi) : null;
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
@@ -181,6 +190,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
           <CardContent className="grid gap-x-10 sm:grid-cols-2">
             <InfoRow icon={Hash} label="İlan No" value={<span className="font-mono text-xs">{ilan.id.slice(0, 8)}</span>} />
             <InfoRow icon={TipIcon} label="İhale Tipi" value={tip.label} />
+            {islemTuruLabel && <InfoRow icon={Tag} label="İşlem Türü" value={islemTuruLabel} />}
             <InfoRow icon={Info} label="Durum" value={<DurumBadge durum={ilan.durum} dot={false} />} />
             <InfoRow icon={TrendingUp} label="Min. Artırma" value={`${minAdim.toLocaleString('tr-TR')} ₺`} />
             {baslangic && (
@@ -333,6 +343,9 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="info" icon={<TipIcon className="h-3 w-3" />}>{tip.label}</Badge>
+              {islemTuruLabel && (
+                <Badge variant="default" icon={<Tag className="h-3 w-3" />}>{islemTuruLabel}</Badge>
+              )}
               <DurumBadge durum={ilan.durum} />
               <span className="flex items-center gap-1 text-sm text-gray-500">
                 <ShieldCheck className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />

@@ -8,6 +8,8 @@ export interface Ilan {
   aciklama: string | null;
   varlik_id: string;
   ihale_tipi: string;
+  /** Satış / Kiralama / İşletme Hakkı Devri — `ihale_tipi`den bağımsız (o, ihale usulünü tutar). Geriye dönük kayıtlarda null olabilir. */
+  islem_turu: string | null;
   durum: string;
   baslangic_fiyati: string; // NUMERIC → pg string döner
   /** İlan (yayın) tarihi — personel girdisi (KK-20). Geçmiş olabilir. */

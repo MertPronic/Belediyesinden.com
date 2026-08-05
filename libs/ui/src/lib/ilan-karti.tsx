@@ -11,7 +11,14 @@ export interface IlanKartiData {
   durum: string;
   baslangic_fiyati: string | number;
   bitis_tarihi?: string | null;
+  islem_turu?: string | null;
 }
+
+const ISLEM_TURU_ETIKET: Record<string, string> = {
+  SATIS: 'Satış',
+  KIRALAMA: 'Kiralama',
+  ISLETME_HAKKI_DEVRI: 'İşletme Hakkı Devri',
+};
 
 const TIP_ICON: Record<string, { icon: typeof Gavel; label: string }> = {
   ACAIK_ARTIRMA: { icon: Gavel, label: 'Açık Artırma' },
@@ -47,10 +54,17 @@ export function IlanKarti({
       <Card interactive className="h-full">
         <CardContent className="space-y-3 p-5">
           <div className="flex items-start justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-md accent-soft-bg px-2 py-1 text-xs font-medium text-gray-700">
-              <TipIcon className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
-              {tip.label}
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-md accent-soft-bg px-2 py-1 text-xs font-medium text-gray-700">
+                <TipIcon className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
+                {tip.label}
+              </span>
+              {ilan.islem_turu && (
+                <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
+                  {ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1.5">
               {extra}
               <DurumBadge durum={ilan.durum} />

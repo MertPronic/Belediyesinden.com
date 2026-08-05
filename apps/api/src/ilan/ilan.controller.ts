@@ -15,7 +15,7 @@ interface MulterFile {
   size: number;
 }
 import { CurrentUser, Roller, Unprotected, type AuthenticatedUser } from '@belediyesinden/auth';
-import { IhaleTipi, KatilimSarti, KullaniciRolu } from '@belediyesinden/shared';
+import { IhaleTipi, IslemTuru, KatilimSarti, KullaniciRolu } from '@belediyesinden/shared';
 import { sayfalamaCoz } from '@belediyesinden/db';
 import { ilanCitizenGorunurMu } from '@belediyesinden/ilan-core';
 
@@ -42,6 +42,9 @@ class CreateIlanDto {
 
   @IsEnum(IhaleTipi)
   ihaleTipi!: IhaleTipi;
+
+  @IsEnum(IslemTuru)
+  islemTuru!: IslemTuru;
 
   @IsNumber() @Min(0) @Max(1_000_000_000)
   baslangicFiyati!: number;
@@ -207,6 +210,7 @@ export class IlanController {
       aciklama: dto.aciklama,
       varlikId: dto.varlikId,
       ihaleTipi: dto.ihaleTipi,
+      islemTuru: dto.islemTuru,
       baslangicFiyati: dto.baslangicFiyati,
       ilanTarihi: dto.ilanTarihi,
       ihaleTarihi: dto.ihaleTarihi,

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DataSource } from 'typeorm';
 import { createDataSource } from '@belediyesinden/db';
 import { provisionTenant, tenantContext, tenantSchema } from '@belediyesinden/tenancy';
-import { EvrakTipi, IhaleTipi, IlanDurumu, KatilimSarti, VarlikTipi } from '@belediyesinden/shared';
+import { EvrakTipi, IhaleTipi, IlanDurumu, IslemTuru, KatilimSarti, VarlikTipi } from '@belediyesinden/shared';
 import { IlanService } from './ilan.service';
 import { VarlikService } from '../varlik/varlik.service';
 import type { OpenSearchService } from '../search/opensearch.service';
@@ -91,12 +91,14 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Test İlan',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikArtirma,
+        islemTuru: IslemTuru.Kiralama,
         baslangicFiyati: 1000,
         ilanTarihi: new Date(now).toISOString(),
         ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
         katilimSartlari: [KatilimSarti.GeciciTeminatYatirma],
       });
       expect(created.durum).toBe(IlanDurumu.Taslak);
+      expect(created.islem_turu).toBe(IslemTuru.Kiralama);
       await zorunluEvraklariYukle(created.id);
 
       const yayinda = await ilan.changeDurum(created.id, IlanDurumu.Yayinda);
@@ -115,6 +117,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Cross',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 500,
       });
       return created.id;
@@ -135,6 +138,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Gecis',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
       });
       await expect(ilan.changeDurum(created.id, IlanDurumu.Sonuclandi)).rejects.toThrow();
@@ -151,6 +155,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Tekrar',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
         ilanTarihi: new Date(now).toISOString(),
         ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
@@ -172,6 +177,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Kısa',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
         ilanTarihi: new Date(now).toISOString(),
         ihaleTarihi: new Date(now + 2 * GUN_MS).toISOString(), // minIlanIhaleAraligiGun=10'un altında
@@ -188,6 +194,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Tarihsiz',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
       });
       await expect(ilan.changeDurum(created.id, IlanDurumu.Yayinda)).rejects.toThrow(/tarih/);
@@ -204,6 +211,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Evraksiz',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
         ilanTarihi: new Date(now).toISOString(),
         ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
@@ -233,6 +241,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Sartsiz',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
         ilanTarihi: new Date(now).toISOString(),
         ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
@@ -251,6 +260,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
         baslik: 'Silinecek Ilan',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
+        islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
       });
 
@@ -265,6 +275,22 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
       const varlikRow = await qr.query('SELECT deleted_at FROM varlik WHERE id = $1', [v.id]);
       expect(ilanRow[0]?.deleted_at).not.toBeNull();
       expect(varlikRow[0]?.deleted_at).not.toBeNull();
+    });
+  });
+
+  it('geçersiz işlem türü reddedilir', async () => {
+    await runAsTenant(rootDs, slugA, async () => {
+      const { ilan, varlik } = services(rootDs);
+      const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Gecersiz Islem Turu' });
+      await expect(
+        ilan.create({
+          baslik: 'Gecersiz',
+          varlikId: v.id,
+          ihaleTipi: IhaleTipi.AcikTeklif,
+          islemTuru: 'GECERSIZ' as IslemTuru,
+          baslangicFiyati: 100,
+        }),
+      ).rejects.toThrow(/işlem türü/);
     });
   });
 });

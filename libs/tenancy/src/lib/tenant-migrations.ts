@@ -400,6 +400,23 @@ class TeklifKullaniciAd1740000017000 extends TenantMigration {
   }
 }
 
+/**
+ * 0018 — ilan işlem türü (Satış/Kiralama/İşletme Hakkı Devri). `ihale_tipi`den
+ * ayrı — o ihale usulünü (2886) tutar, bu ilanın niteliğini tutar. Var olan
+ * ilan kayıtları geriye dönük NULL kalır (backfill gerektirmiyor, POC).
+ */
+class AddIlanIslemTuru1740000018000 extends TenantMigration {
+  name = 'AddIlanIslemTuru1740000018000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS islem_turu VARCHAR(20)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS islem_turu`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -418,4 +435,5 @@ export const tenantMigrations = [
   IlanVermeSaglamlastirma1740000015000,
   SoftDeleteVarlikIlan1740000016000,
   TeklifKullaniciAd1740000017000,
+  AddIlanIslemTuru1740000018000,
 ];

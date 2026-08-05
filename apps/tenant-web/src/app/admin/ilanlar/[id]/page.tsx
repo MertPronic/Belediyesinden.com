@@ -27,6 +27,7 @@ interface Ilan {
   baslik: string;
   aciklama: string | null;
   ihale_tipi: string;
+  islem_turu: string | null;
   durum: string;
   baslangic_fiyati: string;
   baslangic_tarihi: string | null;
@@ -57,6 +58,12 @@ const EVRAK_TIPI_ETIKET: Record<string, string> = Object.fromEntries(
   EVRAK_TIPLERI.map((t) => [t.value, t.label]),
 );
 const ZORUNLU_EVRAK_TIPLERI = ['IDARI_SARTNAME', 'TEKNIK_SARTNAME', 'IHALE_DOSYASI'];
+
+const ISLEM_TURU_ETIKET: Record<string, string> = {
+  SATIS: 'Satış',
+  KIRALAMA: 'Kiralama',
+  ISLETME_HAKKI_DEVRI: 'İşletme Hakkı Devri',
+};
 
 /** Katılım şartları — taslak liste, Harun (PO) ile teyit edilecek. */
 const KATILIM_SARTLARI = [
@@ -267,7 +274,10 @@ function AdminIlanDetayIcerik() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="text-2xl">{ilan.baslik}</CardTitle>
-              <p className="mt-1 text-sm text-gray-500">{ilan.ihale_tipi}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {ilan.ihale_tipi}
+                {ilan.islem_turu && ` · ${ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}`}
+              </p>
             </div>
             <DurumBadge durum={ilan.durum} />
           </div>

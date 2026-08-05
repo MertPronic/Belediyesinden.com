@@ -19,6 +19,13 @@ export enum IhaleTipi {
   KapaliTeklif = 'KAPALI_TEKLIF',
 }
 
+/** İşlem türü — ilanın satış mı, kiralama mı, işletme hakkı devri mi olduğu. `ihaleTipi`den bağımsız (o, ihale usulünü tutar). */
+export enum IslemTuru {
+  Satis = 'SATIS',
+  Kiralama = 'KIRALAMA',
+  IsletmeHakkiDevri = 'ISLETME_HAKKI_DEVRI',
+}
+
 /** Belediye (tenant) kayıt durumu. */
 export enum TenantDurumu {
   Provisioning = 'PROVISIONING',
