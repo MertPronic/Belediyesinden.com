@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CalendarDays,
   ChevronRight,
+  ClipboardCheck,
   Download,
   Eye,
   FileText,
@@ -423,11 +424,22 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                   sayfasından teklif verebilirsiniz.
                 </Alert>
               ) : ilan.durum === 'YAYINDA' ? (
-                <Alert variant="info" icon={<Info />}>
-                  {bitis
-                    ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak.`
-                    : 'Bu ihale henüz başlamadı.'}
-                </Alert>
+                <>
+                  <Alert variant="info" icon={<Info />}>
+                    {bitis
+                      ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak.`
+                      : 'Bu ihale henüz başlamadı.'}
+                  </Alert>
+                  <Link
+                    href={`/basvuru/${ilan.id}`}
+                    className="flex h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+                    style={{ background: 'var(--renk)' }}
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    Başvur
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </>
               ) : (
                 <Alert variant="info" icon={<Info />}>
                   Bu ihale sonuçlandırılmıştır.
