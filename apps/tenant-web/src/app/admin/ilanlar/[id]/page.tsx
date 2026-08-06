@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Ban, Check, CheckCircle2, FileText, Gavel, Trophy, Upload, X } from 'lucide-react';
-import { apiFetch, downloadFile } from '../../../../lib/api';
+import { apiFetch, downloadFile, getTenantSlug } from '../../../../lib/api';
 import { RequireTenantAdmin } from '../../../../components/require-tenant-admin';
 import {
   Badge,
@@ -35,8 +35,11 @@ interface Ilan {
   sartname_ucretli: boolean;
   sartname_tutari: string | null;
   katilim_sartlari: string[];
+  /** Varlıktan oluşturma anında kopyalanır — ilan seviyesinde düzenlenemez (KK-24). */
   il: string | null;
   ilce: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 interface Evrak {
@@ -47,6 +50,13 @@ interface Evrak {
   tip: string;
   created_at: string;
 }
+
+interface Gorsel {
+  id: string;
+  dosya_adi: string;
+}
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 
 const EVRAK_TIPLERI = [
   { value: 'IDARI_SARTNAME', label: 'İdari Şartname' },
@@ -98,36 +108,42 @@ function AdminIlanDetayIcerik() {
   const [uploading, setUploading] = useState(false);
   const [gorselFiles, setGorselFiles] = useState<FileList | null>(null);
   const [gorselUploading, setGorselUploading] = useState(false);
+  const [gorseller, setGorseller] = useState<Gorsel[]>([]);
   const [busy, setBusy] = useState(false);
   const [yukleniyor, setYukleniyor] = useState(true);
 
   // TASLAK düzenleme formu (yayınlama ön koşulları).
+  const [aciklama, setAciklama] = useState('');
   const [ilanTarihi, setIlanTarihi] = useState('');
   const [ihaleTarihi, setIhaleTarihi] = useState('');
   const [sartnameUcretli, setSartnameUcretli] = useState(false);
   const [sartnameTutari, setSartnameTutari] = useState('');
   const [katilimSartlari, setKatilimSartlari] = useState<string[]>([]);
-  const [il, setIl] = useState('');
-  const [ilce, setIlce] = useState('');
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
   const [taslakSaving, setTaslakSaving] = useState(false);
 
   const yukle = useCallback(() => {
     apiFetch<Ilan>(`/ilan/${params.id}`)
       .then((i) => {
         setIlan(i);
+        setAciklama(i.aciklama ?? '');
         setIlanTarihi(tarihInputDegeri(i.baslangic_tarihi));
         setIhaleTarihi(tarihInputDegeri(i.bitis_tarihi));
         setSartnameUcretli(i.sartname_ucretli);
         setSartnameTutari(i.sartname_tutari ?? '');
         setKatilimSartlari(i.katilim_sartlari ?? []);
-        setIl(i.il ?? '');
-        setIlce(i.ilce ?? '');
+        setLat(i.lat != null ? String(i.lat) : '');
+        setLng(i.lng != null ? String(i.lng) : '');
       })
       .catch(() => toast.error('İlan yüklenemedi.'))
       .finally(() => setYukleniyor(false));
     apiFetch<Evrak[]>(`/evrak/ilan/${params.id}`)
       .then(setEvraklar)
       .catch(() => setEvraklar([]));
+    apiFetch<Gorsel[]>(`/ilan/${params.id}/gorsel`)
+      .then(setGorseller)
+      .catch(() => setGorseller([]));
   }, [params.id]);
 
   useEffect(() => {
@@ -146,18 +162,23 @@ function AdminIlanDetayIcerik() {
       toast.error("Şartname ücretliyse tutar girilmeli (0'dan büyük).");
       return;
     }
+    if ((lat.trim() !== '') !== (lng.trim() !== '')) {
+      toast.error('Harita konumu için enlem ve boylam birlikte girilmeli.');
+      return;
+    }
     setTaslakSaving(true);
     try {
       await apiFetch(`/ilan/${params.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
+          aciklama: aciklama.trim() || null,
           ilanTarihi: ilanTarihi || undefined,
           ihaleTarihi: ihaleTarihi || undefined,
           sartnameUcretli,
           sartnameTutari: sartnameUcretli ? Number(sartnameTutari) : undefined,
           katilimSartlari,
-          il: il.trim() || undefined,
-          ilce: ilce.trim() || undefined,
+          lat: lat.trim() ? Number(lat) : undefined,
+          lng: lng.trim() ? Number(lng) : undefined,
         }),
       });
       toast.success('Taslak kaydedildi.');
@@ -238,6 +259,9 @@ function AdminIlanDetayIcerik() {
       const adet = gorselFiles.length;
       setGorselFiles(null);
       toast.success(`${adet} görsel yüklendi.`);
+      apiFetch<Gorsel[]>(`/ilan/${params.id}/gorsel`)
+        .then(setGorseller)
+        .catch(() => {});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Görsel yükleme başarısız.');
     } finally {
@@ -287,6 +311,11 @@ function AdminIlanDetayIcerik() {
           <p className="text-sm">
             Başlangıç: <strong className="text-gray-900">{Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺</strong>
           </p>
+          {(ilan.il || ilan.ilce) && (
+            <p className="mt-1 text-sm text-gray-500">
+              Konum: {[ilan.il, ilan.ilce].filter(Boolean).join(', ')}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -296,6 +325,17 @@ function AdminIlanDetayIcerik() {
             <CardTitle className="text-base">Taslak Düzenle (yayınlama ön koşulları)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Field>
+              <FieldLabel>Açıklama</FieldLabel>
+              <textarea
+                value={aciklama}
+                onChange={(e) => setAciklama(e.target.value)}
+                rows={4}
+                placeholder="İlan açıklaması — vatandaşa gösterilir."
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--renk,#2563eb)] focus:outline-none"
+              />
+            </Field>
+
             <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
               <Field>
                 <FieldLabel required>İlan Tarihi</FieldLabel>
@@ -308,13 +348,13 @@ function AdminIlanDetayIcerik() {
                 <p className="mt-1 text-xs text-gray-400">İlan tarihinden en az 10 gün sonrası olmalı.</p>
               </Field>
               <Field>
-                <FieldLabel>İl</FieldLabel>
-                <Input value={il} onChange={(e) => setIl(e.target.value)} placeholder="Örn: Kayseri" />
+                <FieldLabel>Enlem (lat)</FieldLabel>
+                <Input type="number" step="0.000001" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Örn: 38.7205" />
               </Field>
               <Field>
-                <FieldLabel>İlçe</FieldLabel>
-                <Input value={ilce} onChange={(e) => setIlce(e.target.value)} placeholder="Örn: Talas" />
-                <p className="mt-1 text-xs text-gray-400">İsteğe bağlı — vatandaş sayfasında konum olarak gösterilir.</p>
+                <FieldLabel>Boylam (lng)</FieldLabel>
+                <Input type="number" step="0.000001" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Örn: 35.4826" />
+                <p className="mt-1 text-xs text-gray-400">İsteğe bağlı — vatandaş sayfasında harita gösterir.</p>
               </Field>
             </div>
 
@@ -380,66 +420,6 @@ function AdminIlanDetayIcerik() {
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Durum Yönetimi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {ilan.durum === 'TASLAK' && (
-            <Button loading={busy} leftIcon={<CheckCircle2 />} onClick={() => durumDegistir('YAYINDA', 'İlanı yayınlamak istediğinize emin misiniz?')}>
-              Yayınla
-            </Button>
-          )}
-          {ilan.durum === 'YAYINDA' && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                loading={busy}
-                leftIcon={<Gavel />}
-                onClick={() => durumDegistir('CANLI_ARTIRMA', 'İhaleyi başlatmak istediğinize emin misiniz? Başlatıldıktan sonra teklif kabul edilmeye başlanır.')}
-              >
-                İhaleyi Başlat
-              </Button>
-              <Button
-                variant="outline"
-                loading={busy}
-                leftIcon={<Ban />}
-                className="text-red-600"
-                onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
-              >
-                İptal Et
-              </Button>
-            </div>
-          )}
-          {ilan.durum === 'YAYINDA' && (
-            <p className="mt-2 text-xs text-gray-400">
-              İhale tarihi gelmeden ihale başlatılamaz — tarih gelmeden denerseniz backend reddeder.
-            </p>
-          )}
-          {ilan.durum === 'CANLI_ARTIRMA' && (
-            <div className="flex flex-wrap gap-2">
-              <Button loading={busy} leftIcon={<Trophy />} onClick={sonuclandir}>
-                Sonuçlandır
-              </Button>
-              <Button
-                variant="outline"
-                loading={busy}
-                leftIcon={<Ban />}
-                className="text-red-600"
-                onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
-              >
-                İptal Et
-              </Button>
-            </div>
-          )}
-          {ilan.durum === 'IPTAL' && (
-            <EmptyState icon={<Ban />} title="Bu ilan iptal edilmiş" description="İptal edilen ilanlar üzerinde başka bir işlem yapılamaz." />
-          )}
-          {ilan.durum === 'SONUCLANDI' && (
-            <EmptyState icon={<Trophy />} title="İhale sonuçlandı" description="Kazanan belirlendi, bu ilan üzerinde başka bir işlem yapılamaz." />
-          )}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="pb-3">
@@ -518,6 +498,18 @@ function AdminIlanDetayIcerik() {
           <CardTitle className="text-base">İlan Görselleri (galeri)</CardTitle>
         </CardHeader>
         <CardContent>
+          {gorseller.length > 0 && (
+            <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {gorseller.map((g) => (
+                <img
+                  key={g.id}
+                  src={`${API_URL}/ilan/gorsel/${g.id}?tenant=${getTenantSlug()}`}
+                  alt={g.dosya_adi}
+                  className="aspect-square w-full rounded-lg border border-gray-100 object-cover"
+                />
+              ))}
+            </div>
+          )}
           <form onSubmit={gorselYukle} className="space-y-3">
             <input
               type="file"
@@ -531,6 +523,66 @@ function AdminIlanDetayIcerik() {
               Görselleri Yükle (max 15)
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Durum Yönetimi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ilan.durum === 'TASLAK' && (
+            <Button loading={busy} leftIcon={<CheckCircle2 />} onClick={() => durumDegistir('YAYINDA', 'İlanı yayınlamak istediğinize emin misiniz?')}>
+              Yayınla
+            </Button>
+          )}
+          {ilan.durum === 'YAYINDA' && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                loading={busy}
+                leftIcon={<Gavel />}
+                onClick={() => durumDegistir('CANLI_ARTIRMA', 'İhaleyi başlatmak istediğinize emin misiniz? Başlatıldıktan sonra teklif kabul edilmeye başlanır.')}
+              >
+                İhaleyi Başlat
+              </Button>
+              <Button
+                variant="outline"
+                loading={busy}
+                leftIcon={<Ban />}
+                className="text-red-600"
+                onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
+              >
+                İptal Et
+              </Button>
+            </div>
+          )}
+          {ilan.durum === 'YAYINDA' && (
+            <p className="mt-2 text-xs text-gray-400">
+              İhale tarihi gelmeden ihale başlatılamaz — tarih gelmeden denerseniz backend reddeder.
+            </p>
+          )}
+          {ilan.durum === 'CANLI_ARTIRMA' && (
+            <div className="flex flex-wrap gap-2">
+              <Button loading={busy} leftIcon={<Trophy />} onClick={sonuclandir}>
+                Sonuçlandır
+              </Button>
+              <Button
+                variant="outline"
+                loading={busy}
+                leftIcon={<Ban />}
+                className="text-red-600"
+                onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
+              >
+                İptal Et
+              </Button>
+            </div>
+          )}
+          {ilan.durum === 'IPTAL' && (
+            <EmptyState icon={<Ban />} title="Bu ilan iptal edilmiş" description="İptal edilen ilanlar üzerinde başka bir işlem yapılamaz." />
+          )}
+          {ilan.durum === 'SONUCLANDI' && (
+            <EmptyState icon={<Trophy />} title="İhale sonuçlandı" description="Kazanan belirlendi, bu ilan üzerinde başka bir işlem yapılamaz." />
+          )}
         </CardContent>
       </Card>
     </div>

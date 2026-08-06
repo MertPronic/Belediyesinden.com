@@ -49,13 +49,13 @@ class CreateIlanDto {
   @IsNumber() @Min(0) @Max(1_000_000_000)
   baslangicFiyati!: number;
 
-  /** İlan (yayın) tarihi — opsiyonel; taslakta boş bırakılıp `update` ile de girilebilir. */
-  @IsOptional() @IsISO8601()
-  ilanTarihi?: string;
+  /** İlan (yayın) tarihi — zorunlu; oluşturma anında `publishDogrula` ile doğrulanır (KK-23). */
+  @IsISO8601()
+  ilanTarihi!: string;
 
-  /** İhale tarihi — opsiyonel; yayınlamadan önce dolu olmalı (bkz. `IlanService.changeDurum`). */
-  @IsOptional() @IsISO8601()
-  ihaleTarihi?: string;
+  /** İhale tarihi — zorunlu; oluşturma anında `publishDogrula` ile doğrulanır (KK-23). */
+  @IsISO8601()
+  ihaleTarihi!: string;
 
   /** Şartname bedeli ücretli mi (ilan başına tek bedel). */
   @IsOptional() @IsBoolean()
@@ -101,13 +101,12 @@ class UpdateIlanDto {
   @IsOptional() @IsArray() @IsEnum(KatilimSarti, { each: true })
   katilimSartlari?: KatilimSarti[];
 
-  /** İl (citizen sayfasında konum gösterimi için). */
-  @IsOptional() @IsString() @MaxLength(100)
-  il?: string;
+  /** Harita konumu — vatandaş sayfasında OpenStreetMap gömülü haritası için. */
+  @IsOptional() @IsNumber() @Min(-90) @Max(90)
+  lat?: number;
 
-  /** İlçe. */
-  @IsOptional() @IsString() @MaxLength(100)
-  ilce?: string;
+  @IsOptional() @IsNumber() @Min(-180) @Max(180)
+  lng?: number;
 }
 
 class SonuclandirDto {

@@ -9,6 +9,7 @@ import { ihaleBaslatDogrula, ilanGecisGecerliMi, publishDogrula, yayinOnKosullar
 import { rawQuery } from '@belediyesinden/db';
 import { OpenSearchService } from '../search/opensearch.service';
 import { TeminatIadeService } from '../teminat/teminat-iade.service';
+import { VarlikService } from '../varlik/varlik.service';
 import type { Ilan } from './ilan.entity';
 
 const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
@@ -22,6 +23,7 @@ export class IlanService {
     private readonly os: OpenSearchService,
     @InjectDataSource() private readonly ds: DataSource,
     private readonly iadeService: TeminatIadeService,
+    private readonly varlikService: VarlikService,
   ) {}
 
   /** Arama indeksini ilanın güncel durumuyla senkronlar (yayınla/iptal/sonuçlandır sonrası). */
@@ -73,10 +75,10 @@ export class IlanService {
     ihaleTipi: string;
     islemTuru: string;
     baslangicFiyati: number;
-    /** İlan (yayın) tarihi — opsiyonel, taslakta boş kalabilir (KK-20). Kolon: baslangic_tarihi. */
-    ilanTarihi?: string;
-    /** İhale tarihi — opsiyonel, taslakta boş kalabilir (KK-20). Kolon: bitis_tarihi. */
-    ihaleTarihi?: string;
+    /** İlan (yayın) tarihi — zorunlu, oluşturma anında `publishDogrula` ile doğrulanır (KK-23). Kolon: baslangic_tarihi. */
+    ilanTarihi: string;
+    /** İhale tarihi — zorunlu, oluşturma anında `publishDogrula` ile doğrulanır (KK-23). Kolon: bitis_tarihi. */
+    ihaleTarihi: string;
     /** Şartname bedeli ücretli mi (ilan başına tek bedel). */
     sartnameUcretli?: boolean;
     /** Ücretliyse tutar (controller `sartnameUcretli:true` ile birlikte zorunlu kılar). */
@@ -90,10 +92,28 @@ export class IlanService {
     if (!GECERLI_ISLEM_TURU.has(data.islemTuru)) {
       throw new BadRequestException('Geçersiz işlem türü');
     }
+    const varlik = await this.varlikService.get(data.varlikId);
+    if (!varlik) {
+      throw new BadRequestException('Varlık bulunamadı');
+    }
+    const kurallar = await getIlanKurallari(this.qr(), data.ihaleTipi as IhaleTipi);
+    const sonuc = publishDogrula(
+      new Date(data.ilanTarihi),
+      new Date(data.ihaleTarihi),
+      kurallar.minIlanIhaleAraligiGun,
+      kurallar.minSimdiIlanAraligiGun,
+      new Date(),
+    );
+    if (!sonuc.gecerli) {
+      throw new BadRequestException(sonuc.hata ?? 'İlan/ihale tarihleri kural motoruna uymuyor');
+    }
+    // Konum artık ilan seviyesinde girilmez — varlığın detayından tek seferde kopyalanır (KK-24).
+    const il = typeof varlik.detay?.['il'] === 'string' ? (varlik.detay['il'] as string) : null;
+    const ilce = typeof varlik.detay?.['ilce'] === 'string' ? (varlik.detay['ilce'] as string) : null;
     const rows = await rawQuery<Ilan>(
       this.qr(),
-      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, islem_turu, durum, baslangic_fiyati, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, islem_turu, durum, baslangic_fiyati, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari, il, ilce)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [
         data.baslik,
         data.aciklama ?? null,
@@ -102,11 +122,13 @@ export class IlanService {
         data.islemTuru,
         IlanDurumu.Taslak,
         data.baslangicFiyati,
-        data.ilanTarihi ?? null,
-        data.ihaleTarihi ?? null,
+        data.ilanTarihi,
+        data.ihaleTarihi,
         data.sartnameUcretli ?? false,
         data.sartnameTutari ?? null,
         JSON.stringify(data.katilimSartlari ?? []),
+        il,
+        ilce,
       ],
     );
     const ilan = rows[0];
@@ -133,14 +155,32 @@ export class IlanService {
       sartnameUcretli?: boolean;
       sartnameTutari?: number;
       katilimSartlari?: KatilimSarti[];
-      il?: string;
-      ilce?: string;
+      lat?: number;
+      lng?: number;
     },
   ): Promise<Ilan> {
     const ilan = await this.get(id);
     if (!ilan) throw new NotFoundException('İlan bulunamadı');
     if (ilan.durum !== IlanDurumu.Taslak) {
       throw new BadRequestException('Sadece taslak ilanlar güncellenebilir');
+    }
+    if (data.ilanTarihi !== undefined || data.ihaleTarihi !== undefined) {
+      const nihaiIlanTarihi = data.ilanTarihi !== undefined ? new Date(data.ilanTarihi) : ilan.baslangic_tarihi;
+      const nihaiIhaleTarihi = data.ihaleTarihi !== undefined ? new Date(data.ihaleTarihi) : ilan.bitis_tarihi;
+      if (!nihaiIlanTarihi || !nihaiIhaleTarihi) {
+        throw new BadRequestException('İlan tarihi ve ihale tarihi birlikte dolu olmalı');
+      }
+      const kurallar = await getIlanKurallari(this.qr(), ilan.ihale_tipi as IhaleTipi);
+      const sonuc = publishDogrula(
+        nihaiIlanTarihi,
+        nihaiIhaleTarihi,
+        kurallar.minIlanIhaleAraligiGun,
+        kurallar.minSimdiIlanAraligiGun,
+        new Date(),
+      );
+      if (!sonuc.gecerli) {
+        throw new BadRequestException(sonuc.hata ?? 'İlan/ihale tarihleri kural motoruna uymuyor');
+      }
     }
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -153,8 +193,8 @@ export class IlanService {
     if (data.sartnameUcretli !== undefined) { sets.push(`sartname_ucretli = $${i++}`); vals.push(data.sartnameUcretli); }
     if (data.sartnameTutari !== undefined) { sets.push(`sartname_tutari = $${i++}`); vals.push(data.sartnameTutari); }
     if (data.katilimSartlari !== undefined) { sets.push(`katilim_sartlari = $${i++}`); vals.push(JSON.stringify(data.katilimSartlari)); }
-    if (data.il !== undefined) { sets.push(`il = $${i++}`); vals.push(data.il); }
-    if (data.ilce !== undefined) { sets.push(`ilce = $${i++}`); vals.push(data.ilce); }
+    if (data.lat !== undefined) { sets.push(`lat = $${i++}`); vals.push(data.lat); }
+    if (data.lng !== undefined) { sets.push(`lng = $${i++}`); vals.push(data.lng); }
     if (sets.length === 0) return ilan;
     vals.push(id);
     const rows = await rawQuery<Ilan>(

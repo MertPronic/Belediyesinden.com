@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Building2, Handshake, Megaphone, Package, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { VarlikTipi } from '@belediyesinden/shared';
 import { varlikDetayAlanlari } from '@belediyesinden/varlik-core';
@@ -82,11 +83,6 @@ function VarliklarIcerik() {
     setDetay((prev) => (key === 'cinsi' ? { cinsi: value } : { ...prev, [key]: value }));
   }
 
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editAd, setEditAd] = useState('');
-  const [editAciklama, setEditAciklama] = useState('');
-  const [saving, setSaving] = useState(false);
-
   const yukle = useCallback((tipFiltre: string) => {
     setLoading(true);
     const qs = tipFiltre ? `?tip=${tipFiltre}` : '';
@@ -134,29 +130,6 @@ function VarliklarIcerik() {
       toast.error(err instanceof Error ? err.message : 'Oluşturma başarısız.');
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  function duzenleBasla(v: Varlik) {
-    setEditId(v.id);
-    setEditAd(v.ad);
-    setEditAciklama(v.aciklama ?? '');
-  }
-
-  async function kaydet(id: string) {
-    setSaving(true);
-    try {
-      await apiFetch(`/varlik/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ ad: editAd.trim(), aciklama: editAciklama.trim() || null }),
-      });
-      setEditId(null);
-      toast.success('Varlık güncellendi.');
-      await yukle(filtreTip);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Güncelleme başarısız.');
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -307,57 +280,27 @@ function VarliklarIcerik() {
                 <tbody>
                   {varliklar.map((v) => (
                     <tr key={v.id} className="border-b border-gray-100 align-middle hover:bg-gray-50/60">
-                      {editId === v.id ? (
-                        <>
-                          <td className="px-4 py-2">
-                            <Input value={editAd} onChange={(e) => setEditAd(e.target.value)} />
-                          </td>
-                          <td className="px-4">
-                            <TipRozeti tip={v.tip} />
-                          </td>
-                          <td className="px-4">
-                            <Input
-                              value={editAciklama}
-                              onChange={(e) => setEditAciklama(e.target.value)}
-                            />
-                          </td>
-                          <td className="px-4 text-right">
-                            <Button size="sm" loading={saving} onClick={() => kaydet(v.id)}>
-                              Kaydet
-                            </Button>
-                            <Button size="sm" variant="ghost" className="ml-1" onClick={() => setEditId(null)}>
-                              İptal
-                            </Button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-4 py-3 font-medium text-gray-900">{v.ad}</td>
-                          <td className="px-4">
-                            <TipRozeti tip={v.tip} />
-                          </td>
-                          <td className="px-4 text-gray-600">{v.aciklama ?? '—'}</td>
-                          <td className="px-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              leftIcon={<Pencil />}
-                              onClick={() => duzenleBasla(v)}
-                            >
-                              Düzenle
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="ml-1 text-red-600 hover:bg-red-50"
-                              leftIcon={<Trash2 />}
-                              onClick={() => sil(v.id, v.ad)}
-                            >
-                              Sil
-                            </Button>
-                          </td>
-                        </>
-                      )}
+                      <td className="px-4 py-3 font-medium text-gray-900">{v.ad}</td>
+                      <td className="px-4">
+                        <TipRozeti tip={v.tip} />
+                      </td>
+                      <td className="px-4 text-gray-600">{v.aciklama ?? '—'}</td>
+                      <td className="px-4 text-right">
+                        <Link href={`/admin/varliklar/${v.id}`}>
+                          <Button size="sm" variant="outline" leftIcon={<Pencil />}>
+                            Düzenle
+                          </Button>
+                        </Link>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="ml-1 text-red-600 hover:bg-red-50"
+                          leftIcon={<Trash2 />}
+                          onClick={() => sil(v.id, v.ad)}
+                        >
+                          Sil
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

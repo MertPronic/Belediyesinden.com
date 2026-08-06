@@ -7,10 +7,9 @@ function keys(tip: VarlikTipi, cinsi?: string): string[] {
 }
 
 describe('varlikDetayAlanlari — Taşınmaz', () => {
-  it('cinsi seçilmemiş → sadece cinsi seçici döner', () => {
+  it('cinsi seçilmemiş → cinsi seçici + il/ilçe döner', () => {
     const alanlar = varlikDetayAlanlari(VarlikTipi.Tasinmaz);
-    expect(alanlar).toHaveLength(1);
-    expect(alanlar[0].key).toBe('cinsi');
+    expect(alanlar.map((a) => a.key)).toEqual(['cinsi', 'il', 'ilce']);
     expect(alanlar[0].zorunlu).toBe(true);
     expect(alanlar[0].secenekler?.map((s) => s.deger)).toEqual([
       TasinmazCinsi.ArsaArazi,
@@ -23,6 +22,7 @@ describe('varlikDetayAlanlari — Taşınmaz', () => {
     const k = keys(VarlikTipi.Tasinmaz, TasinmazCinsi.ArsaArazi);
     expect(k).toEqual([
       'cinsi',
+      'il',
       'ilce',
       'mahalle',
       'paftaNo',
@@ -64,39 +64,39 @@ describe('varlikDetayAlanlari — Taşınmaz', () => {
     expect(nitelik?.secenekler?.map((s) => s.deger)).toEqual(['MESKEN', 'ISYERI']);
   });
 
-  it('geçersiz cinsi → sadece temel (cinsi seçici) alanlar döner, çökmez', () => {
+  it('geçersiz cinsi → sadece temel (cinsi + il/ilçe) alanlar döner, çökmez', () => {
     const k = keys(VarlikTipi.Tasinmaz, 'BILINMEYEN_DEGER');
-    expect(k).toEqual(['cinsi']);
+    expect(k).toEqual(['cinsi', 'il', 'ilce']);
   });
 });
 
 describe('varlikDetayAlanlari — Taşınır', () => {
-  it('cinsi seçilmemiş → cinsi seçici + ortak konum alanı döner', () => {
+  it('cinsi seçilmemiş → cinsi seçici + il/ilçe alanları döner', () => {
     const alanlar = varlikDetayAlanlari(VarlikTipi.Tasinir);
-    expect(alanlar.map((a) => a.key)).toEqual(['cinsi', 'konum']);
+    expect(alanlar.map((a) => a.key)).toEqual(['cinsi', 'il', 'ilce']);
     expect(alanlar[0].secenekler?.map((s) => s.deger)).toEqual([TasinirCinsi.Arac, TasinirCinsi.Diger]);
   });
 
   it('Araç → plaka/marka-model/renk/şase/durum alanları eklenir', () => {
     const k = keys(VarlikTipi.Tasinir, TasinirCinsi.Arac);
-    expect(k).toEqual(['cinsi', 'konum', 'plakaNo', 'markaModel', 'renk', 'saseNo', 'durumu']);
+    expect(k).toEqual(['cinsi', 'il', 'ilce', 'plakaNo', 'markaModel', 'renk', 'saseNo', 'durumu']);
   });
 
   it('Diğer → miktar/özel durum alanları eklenir, araç alanları yok', () => {
     const k = keys(VarlikTipi.Tasinir, TasinirCinsi.Diger);
-    expect(k).toEqual(['cinsi', 'konum', 'miktar', 'ozelDurum']);
+    expect(k).toEqual(['cinsi', 'il', 'ilce', 'miktar', 'ozelDurum']);
   });
 });
 
 describe('varlikDetayAlanlari — İşletme Hakkı ve Reklam Alanı (cinsi yok, sabit liste)', () => {
-  it('İşletme Hakkı → konum, faaliyet konusu, alan', () => {
+  it('İşletme Hakkı → il/ilçe, faaliyet konusu, alan', () => {
     const k = keys(VarlikTipi.IsletmeHakki);
-    expect(k).toEqual(['konum', 'faaliyetKonusu', 'alan']);
+    expect(k).toEqual(['il', 'ilce', 'faaliyetKonusu', 'alan']);
   });
 
-  it('Reklam Alanı → konum, pano tipi, ölçü', () => {
+  it('Reklam Alanı → il/ilçe, pano tipi, ölçü', () => {
     const k = keys(VarlikTipi.ReklamAlani);
-    expect(k).toEqual(['konum', 'panoTipi', 'olcu']);
+    expect(k).toEqual(['il', 'ilce', 'panoTipi', 'olcu']);
   });
 
   it('İşletme Hakkı — cinsi parametresi verilse de yok sayılır', () => {

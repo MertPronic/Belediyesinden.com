@@ -44,9 +44,10 @@ async function runAsTenant<T>(rootDs: DataSource, slug: string, fn: () => Promis
 }
 
 function services(rootDs: DataSource) {
+  const varlik = new VarlikService(rootDs);
   return {
-    ilan: new IlanService(fakeOpenSearch, rootDs, fakeIadeService),
-    varlik: new VarlikService(rootDs),
+    ilan: new IlanService(fakeOpenSearch, rootDs, fakeIadeService, varlik),
+    varlik,
   };
 }
 
@@ -113,12 +114,15 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
     const ilanId = await runAsTenant(rootDs, slugA, async () => {
       const { ilan, varlik } = services(rootDs);
       const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Cross Test' });
+      const now = Date.now() + 15 * GUN_MS;
       const created = await ilan.create({
         baslik: 'Cross',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
         islemTuru: IslemTuru.Satis,
         baslangicFiyati: 500,
+        ilanTarihi: new Date(now).toISOString(),
+        ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
       });
       return created.id;
     });
@@ -134,12 +138,15 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
     await runAsTenant(rootDs, slugA, async () => {
       const { ilan, varlik } = services(rootDs);
       const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Gecis Test' });
+      const now = Date.now() + 15 * GUN_MS;
       const created = await ilan.create({
         baslik: 'Gecis',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
         islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
+        ilanTarihi: new Date(now).toISOString(),
+        ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
       });
       await expect(ilan.changeDurum(created.id, IlanDurumu.Sonuclandi)).rejects.toThrow();
     });
@@ -167,37 +174,68 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
     });
   });
 
-  it('yetersiz ilan-ihale aralığı → publish reddedilir', async () => {
+  it('yetersiz ilan-ihale aralığı → oluşturma reddedilir (KK-23: artık create anında doğrulanıyor)', async () => {
     await runAsTenant(rootDs, slugA, async () => {
       const { ilan, varlik } = services(rootDs);
       const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Kisa Aralik' });
       // min şimdi-ilan (10 gün) kuralını rahatça karşılayan taban tarih.
       const now = Date.now() + 15 * GUN_MS;
+      await expect(
+        ilan.create({
+          baslik: 'Kısa',
+          varlikId: v.id,
+          ihaleTipi: IhaleTipi.AcikTeklif,
+          islemTuru: IslemTuru.Satis,
+          baslangicFiyati: 100,
+          ilanTarihi: new Date(now).toISOString(),
+          ihaleTarihi: new Date(now + 2 * GUN_MS).toISOString(), // minIlanIhaleAraligiGun=10'un altında
+        }),
+      ).rejects.toThrow(/gün/);
+    });
+  });
+
+  it('ilan tarihi bugüne çok yakınsa oluşturma reddedilir (KK-21/KK-23)', async () => {
+    await runAsTenant(rootDs, slugA, async () => {
+      const { ilan, varlik } = services(rootDs);
+      const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Yakin Tarih' });
+      const now = Date.now() + 1 * GUN_MS; // minSimdiIlanAraligiGun=10'un altında
+      await expect(
+        ilan.create({
+          baslik: 'Yakın',
+          varlikId: v.id,
+          ihaleTipi: IhaleTipi.AcikTeklif,
+          islemTuru: IslemTuru.Satis,
+          baslangicFiyati: 100,
+          ilanTarihi: new Date(now).toISOString(),
+          ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
+        }),
+      ).rejects.toThrow(/tarih/);
+    });
+  });
+
+  it('taslakta tarihleri güncellemek: geçerli değer kabul edilir, kısa aralık reddedilir', async () => {
+    await runAsTenant(rootDs, slugA, async () => {
+      const { ilan, varlik } = services(rootDs);
+      const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Tarih Guncelle' });
+      const now = Date.now() + 15 * GUN_MS;
       const created = await ilan.create({
-        baslik: 'Kısa',
+        baslik: 'Tarih Guncelle',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
         islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
         ilanTarihi: new Date(now).toISOString(),
-        ihaleTarihi: new Date(now + 2 * GUN_MS).toISOString(), // minIlanIhaleAraligiGun=10'un altında
+        ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
       });
-      await expect(ilan.changeDurum(created.id, IlanDurumu.Yayinda)).rejects.toThrow(/gün/);
-    });
-  });
 
-  it('tarih girilmeden yayınlanamaz', async () => {
-    await runAsTenant(rootDs, slugA, async () => {
-      const { ilan, varlik } = services(rootDs);
-      const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Tarihsiz' });
-      const created = await ilan.create({
-        baslik: 'Tarihsiz',
-        varlikId: v.id,
-        ihaleTipi: IhaleTipi.AcikTeklif,
-        islemTuru: IslemTuru.Satis,
-        baslangicFiyati: 100,
+      const guncellendi = await ilan.update(created.id, {
+        ihaleTarihi: new Date(now + 20 * GUN_MS).toISOString(),
       });
-      await expect(ilan.changeDurum(created.id, IlanDurumu.Yayinda)).rejects.toThrow(/tarih/);
+      expect(guncellendi.bitis_tarihi).not.toBeNull();
+
+      await expect(
+        ilan.update(created.id, { ihaleTarihi: new Date(now + 2 * GUN_MS).toISOString() }),
+      ).rejects.toThrow(/gün/);
     });
   });
 
@@ -256,12 +294,15 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
     await runAsTenant(rootDs, slugA, async () => {
       const { ilan, varlik } = services(rootDs);
       const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Silinecek Varlik' });
+      const now = Date.now() + 15 * GUN_MS;
       const created = await ilan.create({
         baslik: 'Silinecek Ilan',
         varlikId: v.id,
         ihaleTipi: IhaleTipi.AcikTeklif,
         islemTuru: IslemTuru.Satis,
         baslangicFiyati: 100,
+        ilanTarihi: new Date(now).toISOString(),
+        ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
       });
 
       await ilan.remove(created.id);
@@ -282,6 +323,7 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
     await runAsTenant(rootDs, slugA, async () => {
       const { ilan, varlik } = services(rootDs);
       const v = await varlik.create({ tip: VarlikTipi.Tasinir, ad: 'Gecersiz Islem Turu' });
+      const now = Date.now() + 15 * GUN_MS;
       await expect(
         ilan.create({
           baslik: 'Gecersiz',
@@ -289,6 +331,8 @@ describe('IlanService — entegrasyon (gerçek Postgres, iki tenant)', () => {
           ihaleTipi: IhaleTipi.AcikTeklif,
           islemTuru: 'GECERSIZ' as IslemTuru,
           baslangicFiyati: 100,
+          ilanTarihi: new Date(now).toISOString(),
+          ihaleTarihi: new Date(now + 15 * GUN_MS).toISOString(),
         }),
       ).rejects.toThrow(/işlem türü/);
     });

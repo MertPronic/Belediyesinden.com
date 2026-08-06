@@ -6,5 +6,6 @@ import { VarlikService } from './varlik.service';
 @Module({
   controllers: [VarlikController],
   providers: [VarlikService],
+  exports: [VarlikService],
 })
 export class VarlikModule {}

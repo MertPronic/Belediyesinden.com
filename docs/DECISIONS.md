@@ -104,3 +104,46 @@
 - **Bağlam:** `package.json`'da hem `nest-keycloak-connect` hem elle `jose` doğrulaması var; gateway `jose`, HTTP tarafı muhtemelen connect.
 - **Karar (öneri):** Tek mekanizmada sadeleş (WS'de `jose` zorunlu; HTTP'de de aynı JWKS doğrulamasına yaslanmak tutarlılık verir). Karar kodun tamamı görülünce netleşir.
 - **Durum:** ⬜ Düşük öncelik; teknik borç notu.
+
+## KK-20 · İlan tarihleri personel girdisi + minimum ilan-ihale aralığı kuraldan · ✅
+- **Bağlam:** Kod publish anında tarihleri otomatik hesaplıyordu (`baslangic=now()`, `bitis=now()+ihaleSuresiGun`). Harun (PO) kararı: **personel iki tarihi kendisi girer.**
+- **Karar (Harun onayı):**
+  - İlan (yayın) tarihi + ihale tarihi = **kullanıcı girdisi** (create/update DTO'suna eklenir); otomatik `now()` hesabı kalkar.
+  - **Minimum ilan-ihale aralığı** bir kural: `ihale_tarihi - ilan_tarihi >= minIlanIhaleAraligiGun`. **Maksimum yok** ("uzun süre ilanda kalabilir"). Alan kural motorunda (`rule-engine` / `ilan_kurallari` JSONB), belediye/ihale tipine göre değişebilir.
+  - `ihaleSuresiGun` bu akışta kullanımdan kalkar (silinmez, publish artık kullanmaz).
+- **Geçici varsayılan:** `minIlanIhaleAraligiGun = 10` (üç ihale tipi için; Harun kesin rakamı verince kural motorundan güncellenir, kod değişmez).
+- **Adlandırma notu:** Harun "minimum süre" dedi; kodda `minIlanIhaleAraligiGun` (2886 resmî terimi "ilan süresi" olabilir; PO diliyle kaydedildi, gerekirse yeniden adlandırılır).
+- **Kod etkisi:** Publish doğrulaması saf fonksiyona çıkar (`libs/ilan-core`); `changeDurum` bunu kullanır → KK-16 ile kesişir.
+- **Durum:** ✅ Karar verildi, Adım 3'te uygulanacak.
+
+## KK-21 · KK-20'yi kısmen geçersiz kılar — geçmiş ilan tarihi artık meşru değil, asgari duyuru süresi eklendi · ✅
+- **Bağlam:** KK-20 "geçmiş ilan tarihi meşrudur" diyordu (personel geriye dönük ilan girebilir). Gerçek süreçte bu yasal değil — ilan yayınlanmadan önce asgari bir duyuru/bildirim süresi geçmesi gerekiyor (kullanıcı: "en az belirli bir süre sonra yayınlanabilir gibi bir süre sınırı var").
+- **Karar:** `publishDogrula`'ya yeni bir kural: `ilan_tarihi >= now() + minSimdiIlanAraligiGun` (geçici varsayılan 10 gün, `rule-engine`'de `minIlanIhaleAraligiGun` ile aynı desende, tenant/ihale-tipi bazında özelleştirilebilir). Bu, KK-20'nin "geçmiş tarih meşru" kısmını fiilen geçersiz kılar — ilan tarihi artık her zaman gelecekte ve bugünden en az bu kadar uzakta olmalı.
+- **Yan etki (sadeleştirme):** Bu kural + "ihale tarihi > ilan tarihi" kuralı birlikte "ihale tarihi geçmişte olamaz" kontrolünü matematiksel olarak gereksiz kıldığı için o ayrı kontrol kaldırıldı.
+- **Durum:** ✅ `libs/ilan-core/src/lib/publish-dogrula.ts`'te uygulandı, testli.
+
+## KK-22 · POC kapsamı netleşti — üretim sürümü ayrı, sıfırdan yazılacak · ✅
+- **Bağlam:** Murat bey (şirket sahibi) ile netleşti: birincil amaç işin yapılabilirliğini kanıtlamak (POC). Kabul alınırsa üretim sürümü bu kod tabanı üzerine inşa edilmeyecek, ayrı bir projede sıfırdan yazılacak.
+- **Karar:** Bu oturumda başlattığımız "kod kalitesi disiplini" retrofit'i (sayfalama, soft-delete, no-any — tamamlandı, kalıyor) durduruldu. API response zarfı (Task 15) rafa kaldırıldı — üretim-ölçeği yatırım, POC'a katkısı yok.
+- **Durum:** ✅ Enerji demo edilebilirliğe (`ilan-cikma-kesiti.md` "kesit bitti sayılır" kriterleri) yönlendirilecek. Detay: `CLAUDE.md` → "POC Mühendislik Disiplini".
+
+## KK-23 · KK-20'yi kısmen geçersiz kılar — ilan/ihale tarihleri artık oluşturma anında zorunlu ve doğrulanıyor · ✅
+- **Bağlam:** KK-20 "taslakta tarihler boş bırakılabilir, `update` ile sonradan girilebilir" diyordu. Pratikte admin formu (`admin/ilanlar/page.tsx`) kullanıcıya "en az 10 gün sonrası seçilmeli" ipucu gösteriyordu ama `IlanService.create()` tarihleri hiç doğrulamıyordu — kural ihlal edilse bile taslak sessizce oluşuyor, hata ancak "Yayınla"ya basınca çıkıyordu (Mert tespit etti, kafa karıştırıcı/demoyu zedeleyen UX).
+- **Karar (Mert — teknik lider):**
+  - `ilanTarihi`/`ihaleTarihi` artık `CreateIlanDto`'da **zorunlu** (opsiyonel değil).
+  - `IlanService.create()` insert'ten önce `getIlanKurallari` + `publishDogrula` ile aynı kuralı (min şimdi-ilan, min ilan-ihale aralığı) çalıştırır; geçersizse oluşturma reddedilir.
+  - `IlanService.update()` da `ilanTarihi`/`ihaleTarihi` alanlarından biri değişirse (mevcut kayıttaki diğer tarihle birleştirip) aynı kontrolden geçirir.
+  - `changeDurum` (TASLAK→YAYINDA) içindeki publish-anı kontrolü **kaldırılmadı** — taslak oluşturulduktan uzun süre sonra yayınlanırsa "şimdi" ile ilan tarihi arasındaki süre yeniden daralmış olabilir; bu ayrı ve gerçek bir savunma katmanı.
+- **Kod etkisi:** `publishDogrula` (saf fonksiyon, `libs/ilan-core`) değişmedi — sadece `create()` ve `update()`'ten de çağrılıyor.
+- **Durum:** ✅ Uygulandı (`apps/api/src/ilan/ilan.controller.ts`, `ilan.service.ts`), testli.
+
+## KK-24 · Konum artık tek kaynak: varlık — ilan seviyesinde ayrıca sorulmuyor · ✅
+- **Bağlam:** Admin, varlık oluştururken zaten konum/il/ilçe giriyordu (`varlik.detay`, serbest metin, tipe göre tutarsız); ilan düzenleme ekranı ayrıca yapılandırılmış İl/İlçe soruyordu (`ilan.il`/`ilan.ilce`, migration 0012). Mert: aynı bilginin iki kez, iki farklı şekilde sorulması admin için anlamsız — konum varlığa ait, ilana değil.
+- **Karar (Mert — teknik lider):**
+  - `varlikDetayAlanlari` (`libs/varlik-core`): serbest metin "Konum / Bulunduğu Yer" alanı kalktı; **tüm varlık tiplerinde** tutarlı, yapılandırılmış **İl + İlçe** text alanları geldi (Taşınmaz'daki tekil "İlçe" de bu çifte katıldı).
+  - `IlanService.create()`: `il`/`ilce` artık admin girdisi değil — seçilen varlığın `detay.il`/`detay.ilce`'sinden **oluşturma anında bir kez** kopyalanır (`VarlikModule` → `IlanModule`'e enjekte edildi).
+  - `IlanService.update()` / `UpdateIlanDto`: `il`/`ilce` parametreleri tamamen kaldırıldı — ilan seviyesinde artık hiç düzenlenemez.
+  - Admin ilan ekranı: İl/İlçe input'ları kalktı, yerine salt-okunur (sönük) konum gösterimi geldi.
+  - Vatandaş ilan sayfası (`apps/tenant-web/.../ilanlar/[id]/page.tsx`) **değişmedi** — zaten `ilan.il`/`ilan.ilce`'den okuyor, sadece artık bu değerler varlıktan geliyor.
+- **Kod etkisi:** `ilan.il`/`ilan.ilce` kolonları (migration 0012) aynen kalıyor — sadece kim yazıyor değişti (admin → varlık üzerinden otomatik kopya). Migration geri alınmadı, yeni migration da gerekmedi.
+- **Durum:** ✅ Uygulandı, testli.

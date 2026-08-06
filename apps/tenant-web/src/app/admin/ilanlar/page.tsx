@@ -103,9 +103,13 @@ function AdminIlanlarIcerik() {
       toast.error('Başlık, varlık ve başlangıç fiyatı zorunludur.');
       return;
     }
+    if (!ilanTarihi || !ihaleTarihi) {
+      toast.error('İlan tarihi ve ihale tarihi zorunludur.');
+      return;
+    }
     setSubmitting(true);
     try {
-      await apiFetch('/ilan', {
+      const created = await apiFetch<{ id: string }>('/ilan', {
         method: 'POST',
         body: JSON.stringify({
           baslik: baslik.trim(),
@@ -113,16 +117,12 @@ function AdminIlanlarIcerik() {
           ihaleTipi,
           islemTuru,
           baslangicFiyati: Number(fiyat),
-          ilanTarihi: ilanTarihi || undefined,
-          ihaleTarihi: ihaleTarihi || undefined,
+          ilanTarihi,
+          ihaleTarihi,
         }),
       });
-      setBaslik('');
-      setFiyat('');
-      setIlanTarihi('');
-      setIhaleTarihi('');
-      toast.success('İlan oluşturuldu (taslak).');
-      await yukle();
+      toast.success('İlan oluşturuldu (taslak) — fotoğraf ve evrak eklemeye devam edin.');
+      router.push(`/admin/ilanlar/${created.id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Oluşturma başarısız.');
     } finally {
@@ -222,12 +222,12 @@ function AdminIlanlarIcerik() {
                 <Input type="number" value={fiyat} onChange={(e) => setFiyat(e.target.value)} placeholder="Örn: 250000" />
               </Field>
               <Field>
-                <FieldLabel>İlan Tarihi</FieldLabel>
+                <FieldLabel required>İlan Tarihi</FieldLabel>
                 <Input type="date" value={ilanTarihi} onChange={(e) => setIlanTarihi(e.target.value)} />
                 <p className="mt-1 text-xs text-gray-400">Bugünden en az 10 gün sonrası seçilmeli.</p>
               </Field>
               <Field>
-                <FieldLabel>İhale Tarihi</FieldLabel>
+                <FieldLabel required>İhale Tarihi</FieldLabel>
                 <Input type="date" value={ihaleTarihi} onChange={(e) => setIhaleTarihi(e.target.value)} />
                 <p className="mt-1 text-xs text-gray-400">İlan tarihinden en az 10 gün sonrası seçilmeli.</p>
               </Field>

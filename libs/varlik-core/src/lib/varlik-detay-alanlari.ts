@@ -15,12 +15,16 @@ export interface VarlikDetayAlanTanimi {
   secenekler?: VarlikDetaySecenek[];
 }
 
-const ORTAK_KONUM_ALANI: VarlikDetayAlanTanimi = {
-  key: 'konum',
-  etiket: 'Konum / Bulunduğu Yer',
-  tip: 'text',
-  zorunlu: false,
-};
+/**
+ * Tüm varlık tiplerinde tutarlı, yapılandırılmış konum çifti — ilan oluşturulurken
+ * buradan otomatik kopyalanır (bkz. `IlanService.create`, KK-24). Serbest metin
+ * "Konum" alanının yerini alır; admin artık aynı bilgiyi ilan aşamasında tekrar
+ * girmez.
+ */
+const ORTAK_IL_ILCE_ALANLARI: VarlikDetayAlanTanimi[] = [
+  { key: 'il', etiket: 'İl', tip: 'text', zorunlu: false },
+  { key: 'ilce', etiket: 'İlçe', tip: 'text', zorunlu: false },
+];
 
 const TASINMAZ_CINSI_ALANI: VarlikDetayAlanTanimi = {
   key: 'cinsi',
@@ -35,7 +39,6 @@ const TASINMAZ_CINSI_ALANI: VarlikDetayAlanTanimi = {
 };
 
 const TASINMAZ_ARAZI_ALANLARI: VarlikDetayAlanTanimi[] = [
-  { key: 'ilce', etiket: 'İlçe', tip: 'text', zorunlu: false },
   { key: 'mahalle', etiket: 'Mahalle', tip: 'text', zorunlu: false },
   { key: 'paftaNo', etiket: 'Pafta No', tip: 'text', zorunlu: false },
   { key: 'adaNo', etiket: 'Ada No', tip: 'text', zorunlu: false },
@@ -67,7 +70,7 @@ const TASINMAZ_BAGIMSIZ_BOLUM_ALANLARI: VarlikDetayAlanTanimi[] = [
 
 /** Cinsi'ye göre arazi/yapı/bağımsız-bölüm alanları kademeli eklenir — bkz. DECISIONS. */
 function tasinmazAlanlari(cinsi?: string): VarlikDetayAlanTanimi[] {
-  const temel = [TASINMAZ_CINSI_ALANI];
+  const temel = [TASINMAZ_CINSI_ALANI, ...ORTAK_IL_ILCE_ALANLARI];
   switch (cinsi) {
     case TasinmazCinsi.ArsaArazi:
       return [...temel, ...TASINMAZ_ARAZI_ALANLARI];
@@ -105,7 +108,7 @@ const TASINIR_DIGER_ALANLARI: VarlikDetayAlanTanimi[] = [
 ];
 
 function tasinirAlanlari(cinsi?: string): VarlikDetayAlanTanimi[] {
-  const temel = [TASINIR_CINSI_ALANI, ORTAK_KONUM_ALANI];
+  const temel = [TASINIR_CINSI_ALANI, ...ORTAK_IL_ILCE_ALANLARI];
   switch (cinsi) {
     case TasinirCinsi.Arac:
       return [...temel, ...TASINIR_ARAC_ALANLARI];
@@ -117,7 +120,7 @@ function tasinirAlanlari(cinsi?: string): VarlikDetayAlanTanimi[] {
 }
 
 const ISLETME_HAKKI_ALANLARI: VarlikDetayAlanTanimi[] = [
-  ORTAK_KONUM_ALANI,
+  ...ORTAK_IL_ILCE_ALANLARI,
   {
     key: 'faaliyetKonusu',
     etiket: 'Faaliyet Konusu',
@@ -135,7 +138,7 @@ const ISLETME_HAKKI_ALANLARI: VarlikDetayAlanTanimi[] = [
 ];
 
 const REKLAM_ALANI_ALANLARI: VarlikDetayAlanTanimi[] = [
-  ORTAK_KONUM_ALANI,
+  ...ORTAK_IL_ILCE_ALANLARI,
   {
     key: 'panoTipi',
     etiket: 'Pano Tipi',
