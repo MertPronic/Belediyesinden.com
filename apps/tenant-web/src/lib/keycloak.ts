@@ -35,7 +35,9 @@ export function initKeycloak(): Promise<Keycloak> {
 export async function ensureAuth(): Promise<Keycloak> {
   const k = await initKeycloak();
   if (!k.authenticated) {
-    await k.login({ redirectUri: window.location.href });
+    // prompt:'login' — tarayıcıda başka bir kullanıcının SSO oturumu kalmış olsa bile
+    // sessizce ona bağlanmasın, her zaman gerçek bir kimlik doğrulama ekranı göstersin.
+    await k.login({ redirectUri: window.location.href, prompt: 'login' });
   }
   return k;
 }

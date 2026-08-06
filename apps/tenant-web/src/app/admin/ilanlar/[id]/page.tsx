@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Ban, Check, CheckCircle2, FileText, Gavel, Trophy, Upload, X } from 'lucide-react';
+import { ArrowLeft, Ban, Check, CheckCircle2, FileText, Gavel, MapPin, Trophy, Upload, X } from 'lucide-react';
 import { apiFetch, downloadFile, getTenantSlug } from '../../../../lib/api';
 import { RequireTenantAdmin } from '../../../../components/require-tenant-admin';
 import {
@@ -84,6 +84,15 @@ const KATILIM_SARTLARI = [
   { value: 'TICARET_SICIL_KAYDI', label: 'Ticaret sicil kaydı' },
   { value: 'IMZA_SIRKULERI_VEKALETNAME', label: 'İmza sirküleri / vekaletname' },
 ];
+
+/** Durum makinesinin ilerleme sırası — stepper bundan türetilir, IPTAL akış dışı terminal olduğu için ayrı ele alınır. */
+const DURUM_SIRASI = ['TASLAK', 'YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
+const DURUM_ETIKET: Record<string, string> = {
+  TASLAK: 'Taslak',
+  YAYINDA: 'Yayında',
+  CANLI_ARTIRMA: 'Canlı Artırma',
+  SONUCLANDI: 'Sonuçlandı',
+};
 
 /** ISO tarih/datetime'ı <input type="date"> için YYYY-MM-DD'ye kırpar. */
 function tarihInputDegeri(iso: string | null): string {
@@ -283,6 +292,8 @@ function AdminIlanDetayIcerik() {
     return <EmptyState icon={<FileText />} title="İlan bulunamadı" description="Bu ilan silinmiş ya da hiç var olmamış olabilir." />;
   }
 
+  const durumSiraIndex = DURUM_SIRASI.indexOf(ilan.durum);
+
   return (
     <div className="space-y-6">
       <Link
@@ -293,298 +304,396 @@ function AdminIlanDetayIcerik() {
         İlanlara dön
       </Link>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-2xl">{ilan.baslik}</CardTitle>
-              <p className="mt-1 text-sm text-gray-500">
-                {ilan.ihale_tipi}
-                {ilan.islem_turu && ` · ${ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}`}
-              </p>
-            </div>
-            <DurumBadge durum={ilan.durum} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {ilan.aciklama && <p className="mb-4 text-gray-700">{ilan.aciklama}</p>}
-          <p className="text-sm">
-            Başlangıç: <strong className="text-gray-900">{Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺</strong>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">{ilan.baslik}</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {ilan.ihale_tipi}
+            {ilan.islem_turu && ` · ${ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}`}
           </p>
-          {(ilan.il || ilan.ilce) && (
-            <p className="mt-1 text-sm text-gray-500">
-              Konum: {[ilan.il, ilan.ilce].filter(Boolean).join(', ')}
-            </p>
+        </div>
+        <DurumBadge durum={ilan.durum} />
+      </div>
+
+      <div className="grid items-start gap-[22px] lg:grid-cols-[minmax(0,1fr)_336px]">
+        {/* Ana sütun */}
+        <div className="flex min-w-0 flex-col gap-[22px]">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--renk,#2563eb)]">
+                    Başlangıç Bedeli
+                  </p>
+                  <p className="text-2xl font-bold tracking-tight text-gray-900">
+                    {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+                  </p>
+                </div>
+                {(ilan.il || ilan.ilce) && (
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--renk,#2563eb)]">
+                      Konum
+                    </p>
+                    <p className="flex items-center gap-1.5 pt-0.5 text-base text-gray-900">
+                      <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                      {[ilan.il, ilan.ilce].filter(Boolean).join(', ')}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {ilan.aciklama && (
+                <>
+                  <hr className="my-5 border-gray-100" />
+                  <p className="text-sm leading-relaxed text-gray-700">{ilan.aciklama}</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {ilan.durum === 'TASLAK' && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Taslak Düzenle</CardTitle>
+                <p className="mt-0.5 text-xs text-gray-500">Yayınlama ön koşulları — kaydedip yayına alabilirsiniz.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field>
+                  <FieldLabel>Açıklama</FieldLabel>
+                  <textarea
+                    value={aciklama}
+                    onChange={(e) => setAciklama(e.target.value)}
+                    rows={4}
+                    placeholder="İlan açıklaması — vatandaşa gösterilir."
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--renk,#2563eb)] focus:outline-none"
+                  />
+                </Field>
+
+                <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel required>İlan Tarihi</FieldLabel>
+                    <Input type="date" value={ilanTarihi} onChange={(e) => setIlanTarihi(e.target.value)} />
+                    <p className="mt-1 text-xs text-gray-400">Bugünden en az 10 gün sonrası olmalı.</p>
+                  </Field>
+                  <Field>
+                    <FieldLabel required>İhale Tarihi</FieldLabel>
+                    <Input type="date" value={ihaleTarihi} onChange={(e) => setIhaleTarihi(e.target.value)} />
+                    <p className="mt-1 text-xs text-gray-400">İlan tarihinden en az 10 gün sonrası olmalı.</p>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Enlem (lat)</FieldLabel>
+                    <Input type="number" step="0.000001" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Örn: 38.7205" />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Boylam (lng)</FieldLabel>
+                    <Input type="number" step="0.000001" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Örn: 35.4826" />
+                    <p className="mt-1 text-xs text-gray-400">İsteğe bağlı — vatandaş sayfasında harita gösterir.</p>
+                  </Field>
+                </div>
+
+                <Field className="mb-0">
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={sartnameUcretli}
+                      onChange={(e) => setSartnameUcretli(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    Şartname bedeli ücretli
+                  </label>
+                </Field>
+                {sartnameUcretli && (
+                  <Field className="sm:w-56">
+                    <FieldLabel required>Şartname Tutarı (₺)</FieldLabel>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={sartnameTutari}
+                      onChange={(e) => setSartnameTutari(e.target.value)}
+                    />
+                  </Field>
+                )}
+
+                <Field className="mb-0">
+                  <FieldLabel required>Katılım Şartları</FieldLabel>
+                  <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                    {KATILIM_SARTLARI.map((s) => {
+                      const secili = katilimSartlari.includes(s.value);
+                      return (
+                        <button
+                          key={s.value}
+                          type="button"
+                          onClick={() => katilimSartiToggle(s.value)}
+                          className={cn(
+                            'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+                            secili
+                              ? 'border-[var(--renk,#2563eb)] bg-[color-mix(in_srgb,var(--renk,#2563eb)_8%,white)] text-gray-900'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+                              secili ? 'border-[var(--renk,#2563eb)] bg-[var(--renk,#2563eb)]' : 'border-gray-300',
+                            )}
+                          >
+                            {secili && <Check className="h-3.5 w-3.5 text-white" />}
+                          </span>
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
 
-      {ilan.durum === 'TASLAK' && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Taslak Düzenle (yayınlama ön koşulları)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Field>
-              <FieldLabel>Açıklama</FieldLabel>
-              <textarea
-                value={aciklama}
-                onChange={(e) => setAciklama(e.target.value)}
-                rows={4}
-                placeholder="İlan açıklaması — vatandaşa gösterilir."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--renk,#2563eb)] focus:outline-none"
-              />
-            </Field>
-
-            <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-              <Field>
-                <FieldLabel required>İlan Tarihi</FieldLabel>
-                <Input type="date" value={ilanTarihi} onChange={(e) => setIlanTarihi(e.target.value)} />
-                <p className="mt-1 text-xs text-gray-400">Bugünden en az 10 gün sonrası olmalı.</p>
-              </Field>
-              <Field>
-                <FieldLabel required>İhale Tarihi</FieldLabel>
-                <Input type="date" value={ihaleTarihi} onChange={(e) => setIhaleTarihi(e.target.value)} />
-                <p className="mt-1 text-xs text-gray-400">İlan tarihinden en az 10 gün sonrası olmalı.</p>
-              </Field>
-              <Field>
-                <FieldLabel>Enlem (lat)</FieldLabel>
-                <Input type="number" step="0.000001" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Örn: 38.7205" />
-              </Field>
-              <Field>
-                <FieldLabel>Boylam (lng)</FieldLabel>
-                <Input type="number" step="0.000001" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Örn: 35.4826" />
-                <p className="mt-1 text-xs text-gray-400">İsteğe bağlı — vatandaş sayfasında harita gösterir.</p>
-              </Field>
-            </div>
-
-            <Field className="mb-0">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={sartnameUcretli}
-                  onChange={(e) => setSartnameUcretli(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                Şartname bedeli ücretli
-              </label>
-            </Field>
-            {sartnameUcretli && (
-              <Field className="sm:w-56">
-                <FieldLabel required>Şartname Tutarı (₺)</FieldLabel>
-                <Input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={sartnameTutari}
-                  onChange={(e) => setSartnameTutari(e.target.value)}
-                />
-              </Field>
-            )}
-
-            <Field className="mb-0">
-              <FieldLabel required>Katılım Şartları</FieldLabel>
-              <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-                {KATILIM_SARTLARI.map((s) => {
-                  const secili = katilimSartlari.includes(s.value);
-                  return (
-                    <button
-                      key={s.value}
-                      type="button"
-                      onClick={() => katilimSartiToggle(s.value)}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Şartname / Evrak</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ilan.durum === 'TASLAK' && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2.5 text-xs">
+                  <span className="font-medium text-gray-700">Zorunlu belgeler: {zorunluTamamlanan}/3</span>
+                  {ZORUNLU_EVRAK_TIPLERI.map((t) => (
+                    <span
+                      key={t}
                       className={cn(
-                        'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
-                        secili
-                          ? 'border-[var(--renk,#2563eb)] bg-[color-mix(in_srgb,var(--renk,#2563eb)_8%,white)] text-gray-900'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+                        'inline-flex items-center gap-1 rounded-full px-2 py-0.5',
+                        yuklenenTipSeti.has(t) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500',
                       )}
                     >
-                      <span
-                        className={cn(
-                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-                          secili ? 'border-[var(--renk,#2563eb)] bg-[var(--renk,#2563eb)]' : 'border-gray-300',
-                        )}
-                      >
-                        {secili && <Check className="h-3.5 w-3.5 text-white" />}
+                      {yuklenenTipSeti.has(t) ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      {EVRAK_TIPI_ETIKET[t]}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={evrakYukle} className="flex flex-wrap items-end gap-3">
+                <Field className="mb-0 w-56">
+                  <FieldLabel required>Evrak Kategorisi</FieldLabel>
+                  <Select value={evrakTipi} onChange={(e) => setEvrakTipi(e.target.value)}>
+                    {EVRAK_TIPLERI.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
+                />
+                <Button type="submit" variant="outline" loading={uploading} leftIcon={<Upload />}>
+                  Evrak Yükle
+                </Button>
+              </form>
+
+              {evraklar.length > 0 && (
+                <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
+                  {evraklar.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                      <span className="flex min-w-0 items-center gap-2 text-gray-700">
+                        <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                        <span className="truncate">{ev.dosya_adi}</span>
+                        <Badge variant="default">{EVRAK_TIPI_ETIKET[ev.tip] ?? ev.tip}</Badge>
                       </span>
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          downloadFile(`/evrak/${ev.id}`, ev.dosya_adi).catch((e) =>
+                            toast.error(e instanceof Error ? e.message : 'İndirme başarısız.'),
+                          )
+                        }
+                      >
+                        İndir
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            <Button loading={taslakSaving} onClick={taslakKaydet}>
-              Taslağı Kaydet
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">İlan Görselleri (galeri)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {gorseller.length > 0 && (
+                <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {gorseller.map((g) => (
+                    <img
+                      key={g.id}
+                      src={`${API_URL}/ilan/gorsel/${g.id}?tenant=${getTenantSlug()}`}
+                      alt={g.dosya_adi}
+                      className="aspect-square w-full rounded-lg border border-gray-100 object-cover"
+                    />
+                  ))}
+                </div>
+              )}
+              <form onSubmit={gorselYukle} className="space-y-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setGorselFiles(e.target.files)}
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
+                />
+                {gorselFiles && <p className="text-xs text-gray-500">{gorselFiles.length} görsel seçili</p>}
+                <Button type="submit" variant="outline" loading={gorselUploading} leftIcon={<Upload />}>
+                  Görselleri Yükle (max 15)
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Şartname / Evrak</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {ilan.durum === 'TASLAK' && (
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2.5 text-xs">
-              <span className="font-medium text-gray-700">Zorunlu belgeler: {zorunluTamamlanan}/3</span>
-              {ZORUNLU_EVRAK_TIPLERI.map((t) => (
-                <span
-                  key={t}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5',
-                    yuklenenTipSeti.has(t) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500',
-                  )}
-                >
-                  {yuklenenTipSeti.has(t) ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                  {EVRAK_TIPI_ETIKET[t]}
-                </span>
-              ))}
-            </div>
-          )}
+        {/* Sidebar */}
+        <aside className="flex flex-col gap-[22px] lg:sticky lg:top-20">
+          <Card variant="elevated">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Durum Yönetimi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ilan.durum !== 'IPTAL' && (
+                <div className="mb-4 flex flex-col">
+                  {DURUM_SIRASI.map((d, i) => {
+                    const tamam = durumSiraIndex >= 0 && i < durumSiraIndex;
+                    const aktif = i === durumSiraIndex;
+                    return (
+                      <div key={d} className="flex items-center gap-2.5 py-1">
+                        <span
+                          className={cn(
+                            'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+                            tamam && 'border-[var(--renk,#2563eb)] bg-[var(--renk,#2563eb)]',
+                            aktif &&
+                              'border-[var(--renk,#2563eb)] ring-4 ring-[color-mix(in_srgb,var(--renk,#2563eb)_20%,transparent)]',
+                            !tamam && !aktif && 'border-gray-200',
+                          )}
+                        >
+                          {tamam && <Check className="h-3 w-3 text-white" />}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-sm',
+                            aktif ? 'font-medium text-gray-900' : tamam ? 'text-gray-500' : 'text-gray-400',
+                          )}
+                        >
+                          {DURUM_ETIKET[d]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-          <form onSubmit={evrakYukle} className="space-y-3">
-            <Field className="sm:w-64">
-              <FieldLabel required>Evrak Kategorisi</FieldLabel>
-              <Select value={evrakTipi} onChange={(e) => setEvrakTipi(e.target.value)}>
-                {EVRAK_TIPLERI.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
-            />
-            <Button type="submit" variant="outline" loading={uploading} leftIcon={<Upload />}>
-              Evrak Yükle
-            </Button>
-          </form>
-
-          {evraklar.length > 0 && (
-            <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
-              {evraklar.map((ev) => (
-                <div key={ev.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
-                  <span className="flex min-w-0 items-center gap-2 text-gray-700">
-                    <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                    <span className="truncate">{ev.dosya_adi}</span>
-                    <Badge variant="default">{EVRAK_TIPI_ETIKET[ev.tip] ?? ev.tip}</Badge>
-                  </span>
+              {ilan.durum === 'TASLAK' && (
+                <div className="flex flex-col gap-2">
+                  <Button variant="secondary" className="w-full" loading={taslakSaving} onClick={taslakKaydet}>
+                    Taslağı Kaydet
+                  </Button>
                   <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      downloadFile(`/evrak/${ev.id}`, ev.dosya_adi).catch((e) =>
-                        toast.error(e instanceof Error ? e.message : 'İndirme başarısız.'),
-                      )
-                    }
+                    className="w-full bg-slate-900 hover:bg-slate-800"
+                    loading={busy}
+                    leftIcon={<CheckCircle2 />}
+                    onClick={() => durumDegistir('YAYINDA', 'İlanı yayınlamak istediğinize emin misiniz?')}
                   >
-                    İndir
+                    Yayınla
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              )}
+              {ilan.durum === 'YAYINDA' && (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    className="w-full bg-slate-900 hover:bg-slate-800"
+                    loading={busy}
+                    leftIcon={<Gavel />}
+                    onClick={() => durumDegistir('CANLI_ARTIRMA', 'İhaleyi başlatmak istediğinize emin misiniz? Başlatıldıktan sonra teklif kabul edilmeye başlanır.')}
+                  >
+                    İhaleyi Başlat
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-red-600"
+                    loading={busy}
+                    leftIcon={<Ban />}
+                    onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
+                  >
+                    İptal Et
+                  </Button>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                    İhale tarihi gelmeden ihale başlatılamaz — tarih gelmeden denerseniz backend reddeder.
+                  </p>
+                </div>
+              )}
+              {ilan.durum === 'CANLI_ARTIRMA' && (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    className="w-full bg-slate-900 hover:bg-slate-800"
+                    loading={busy}
+                    leftIcon={<Trophy />}
+                    onClick={sonuclandir}
+                  >
+                    Sonuçlandır
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-red-600"
+                    loading={busy}
+                    leftIcon={<Ban />}
+                    onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
+                  >
+                    İptal Et
+                  </Button>
+                </div>
+              )}
+              {ilan.durum === 'IPTAL' && (
+                <EmptyState icon={<Ban />} title="Bu ilan iptal edilmiş" description="İptal edilen ilanlar üzerinde başka bir işlem yapılamaz." />
+              )}
+              {ilan.durum === 'SONUCLANDI' && (
+                <EmptyState icon={<Trophy />} title="İhale sonuçlandı" description="Kazanan belirlendi, bu ilan üzerinde başka bir işlem yapılamaz." />
+              )}
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">İlan Görselleri (galeri)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {gorseller.length > 0 && (
-            <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {gorseller.map((g) => (
-                <img
-                  key={g.id}
-                  src={`${API_URL}/ilan/gorsel/${g.id}?tenant=${getTenantSlug()}`}
-                  alt={g.dosya_adi}
-                  className="aspect-square w-full rounded-lg border border-gray-100 object-cover"
-                />
-              ))}
-            </div>
-          )}
-          <form onSubmit={gorselYukle} className="space-y-3">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setGorselFiles(e.target.files)}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
-            />
-            {gorselFiles && <p className="text-xs text-gray-500">{gorselFiles.length} görsel seçili</p>}
-            <Button type="submit" variant="outline" loading={gorselUploading} leftIcon={<Upload />}>
-              Görselleri Yükle (max 15)
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Durum Yönetimi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {ilan.durum === 'TASLAK' && (
-            <Button loading={busy} leftIcon={<CheckCircle2 />} onClick={() => durumDegistir('YAYINDA', 'İlanı yayınlamak istediğinize emin misiniz?')}>
-              Yayınla
-            </Button>
-          )}
-          {ilan.durum === 'YAYINDA' && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                loading={busy}
-                leftIcon={<Gavel />}
-                onClick={() => durumDegistir('CANLI_ARTIRMA', 'İhaleyi başlatmak istediğinize emin misiniz? Başlatıldıktan sonra teklif kabul edilmeye başlanır.')}
-              >
-                İhaleyi Başlat
-              </Button>
-              <Button
-                variant="outline"
-                loading={busy}
-                leftIcon={<Ban />}
-                className="text-red-600"
-                onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
-              >
-                İptal Et
-              </Button>
-            </div>
-          )}
-          {ilan.durum === 'YAYINDA' && (
-            <p className="mt-2 text-xs text-gray-400">
-              İhale tarihi gelmeden ihale başlatılamaz — tarih gelmeden denerseniz backend reddeder.
-            </p>
-          )}
-          {ilan.durum === 'CANLI_ARTIRMA' && (
-            <div className="flex flex-wrap gap-2">
-              <Button loading={busy} leftIcon={<Trophy />} onClick={sonuclandir}>
-                Sonuçlandır
-              </Button>
-              <Button
-                variant="outline"
-                loading={busy}
-                leftIcon={<Ban />}
-                className="text-red-600"
-                onClick={() => durumDegistir('IPTAL', 'İlanı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.')}
-              >
-                İptal Et
-              </Button>
-            </div>
-          )}
-          {ilan.durum === 'IPTAL' && (
-            <EmptyState icon={<Ban />} title="Bu ilan iptal edilmiş" description="İptal edilen ilanlar üzerinde başka bir işlem yapılamaz." />
-          )}
-          {ilan.durum === 'SONUCLANDI' && (
-            <EmptyState icon={<Trophy />} title="İhale sonuçlandı" description="Kazanan belirlendi, bu ilan üzerinde başka bir işlem yapılamaz." />
-          )}
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Özet</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">İhale Tipi</span>
+                <span className="text-right text-gray-900">{ilan.ihale_tipi}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">İşlem Türü</span>
+                <span className="text-gray-900">{ilan.islem_turu ? ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu : '—'}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">İlan Tarihi</span>
+                <span className="text-gray-900">{ilanTarihi || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">İhale Tarihi</span>
+                <span className="text-gray-900">{ihaleTarihi || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Şartname</span>
+                <span className="text-gray-900">
+                  {ilan.sartname_ucretli ? `${Number(ilan.sartname_tutari ?? 0).toLocaleString('tr-TR')} ₺` : 'Ücretsiz'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 }

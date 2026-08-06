@@ -4,6 +4,10 @@ import { serverApiFetch } from '../lib/api';
 
 const BASE = process.env['NEXT_PUBLIC_SITE_URL'] ?? 'http://localhost:4200';
 
+// Tenant her istekte header/host'tan çözülür — statik önbelleğe alınırsa container
+// her başladığında ilk isteğin tenant'ı tüm isteklere donmuş kalır.
+export const dynamic = 'force-dynamic';
+
 async function getTenantSlug(): Promise<string> {
   const h = await headers();
   const xSlug = h.get('x-tenant-slug');

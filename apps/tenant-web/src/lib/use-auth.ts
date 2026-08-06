@@ -58,7 +58,9 @@ export function useAuth(): AuthState {
 
 /** Kullanıcıyı giriş yapmaya yönlendir (check-sso sonrası). */
 export function login() {
-  getKeycloak().login({ redirectUri: window.location.href });
+  // prompt:'login' — mevcut bir SSO oturumu varsa bile sessizce ona bağlanmasın,
+  // her "Giriş" tıklamasında gerçekten kimlik doğrulama ekranı görsün.
+  getKeycloak().login({ redirectUri: window.location.href, prompt: 'login' });
 }
 
 /** Çıkış yap (cookie temizle + Keycloak logout). */

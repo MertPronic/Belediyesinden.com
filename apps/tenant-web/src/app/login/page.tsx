@@ -40,7 +40,7 @@ export default function LoginPage() {
       {error && (
         <button
           type="button"
-          onClick={() => getKeycloak().login()}
+          onClick={() => getKeycloak().login({ prompt: 'login' })}
           className="rounded-lg px-5 py-2 text-sm font-semibold text-white"
           style={{ background: 'var(--renk)' }}
         >

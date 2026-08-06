@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   description: 'Belediye İlan ve Açık Artırma Portalı',
 };
 
+// Tenant (marka/tema) her istekte `x-tenant-slug`/host'tan çözülür — Next.js bunu
+// statik önbelleğe alırsa container her başladığında ilk isteğin tenant'ı tüm
+// ziyaretçilere donmuş kalır (KK: tenant izolasyonu kırmızı çizgi). Asla cache'lenmesin.
+export const dynamic = 'force-dynamic';
+
 interface TenantTheme {
   slug: string;
   ad: string;

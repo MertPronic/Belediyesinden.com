@@ -4,6 +4,10 @@ import { ArrowRight, CheckCircle2, FileText, Gavel, ShieldCheck, TrendingUp } fr
 import { serverApiFetch } from '../lib/api';
 import { Card, CardContent, EmptyState, IlanKarti, type IlanKartiData } from '@belediyesinden/ui';
 
+// Tenant her istekte header/host'tan çözülür — statik önbelleğe alınırsa container
+// her başladığında ilk isteğin tenant verisi tüm ziyaretçilere donmuş kalır.
+export const dynamic = 'force-dynamic';
+
 interface Ilan extends IlanKartiData {}
 
 async function getTenantSlug(): Promise<string> {
