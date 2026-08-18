@@ -2,6 +2,9 @@
 // Tanımsızsa client URL'ine fallback.
 const SERVER_API_URL = process.env['API_INTERNAL_URL'] ?? process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 
+/** Tarayıcıdan (client component) doğrudan erişilebilen public API taban URL'i. */
+export const PORTAL_PUBLIC_API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
+
 /**
  * API hata gövdesini ({statusCode, error, message, ...} — bkz. AllExceptionsFilter)
  * kullanıcıya gösterilecek tek satır temiz mesaja indirger.
@@ -39,4 +42,14 @@ export function tenantUrl(tenantSlug: string, path: string): string {
   // Lokal geliştirmede base 'localhost:<port>' olur — TLS yok, http kullanılmalı.
   const protocol = base.startsWith('localhost') ? 'http' : 'https';
   return `${protocol}://${tenantSlug}.${base}${path}`;
+}
+
+/**
+ * İlan kapak görseli URL'i — tarayıcı `<img>` isteği, `x-tenant-slug` header'ı
+ * taşıyamadığı için `?tenant=` query fallback kullanır (bkz. WS bağlantısındaki
+ * aynı desen, ILERLEME.md Adım 6). Bu yüzden `NEXT_PUBLIC_API_URL` (tarayıcıdan
+ * erişilebilir), `portalFetch`'in server-only `API_INTERNAL_URL`'i DEĞİL.
+ */
+export function portalGorselUrl(tenantSlug: string, gorselId: string): string {
+  return `${PORTAL_PUBLIC_API_URL}/ilan/gorsel/${gorselId}?tenant=${tenantSlug}`;
 }

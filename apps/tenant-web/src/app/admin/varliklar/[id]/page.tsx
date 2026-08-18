@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Save } from 'lucide-react';
+import { ArrowLeft, FileText, Save, Upload } from 'lucide-react';
 import type { VarlikTipi } from '@belediyesinden/shared';
 import { varlikDetayAlanlari } from '@belediyesinden/varlik-core';
-import { apiFetch } from '../../../../lib/api';
+import { apiFetch, getTenantSlug } from '../../../../lib/api';
 import { RequireTenantAdmin } from '../../../../components/require-tenant-admin';
 import {
   Button,
@@ -30,12 +30,19 @@ interface Varlik {
   detay: Record<string, string>;
 }
 
+interface Gorsel {
+  id: string;
+  dosya_adi: string;
+}
+
 const TIP_ETIKET: Record<string, string> = {
   TASINIR: 'Taşınır',
   TASINMAZ: 'Taşınmaz',
   ISLETME_HAKKI: 'İşletme Hakkı',
   REKLAM_ALANI: 'Reklam Alanı',
 };
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 
 export default function VarlikDuzenlePage() {
   return (
@@ -56,6 +63,10 @@ function VarlikDuzenleIcerik() {
   const [detay, setDetay] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  const [gorseller, setGorseller] = useState<Gorsel[]>([]);
+  const [gorselFiles, setGorselFiles] = useState<FileList | null>(null);
+  const [gorselUploading, setGorselUploading] = useState(false);
+
   const detayAlanlari = useMemo(
     () => (varlik ? varlikDetayAlanlari(varlik.tip as VarlikTipi, detay['cinsi']) : []),
     [varlik, detay['cinsi']],
@@ -71,6 +82,9 @@ function VarlikDuzenleIcerik() {
       })
       .catch(() => toast.error('Varlık yüklenemedi.'))
       .finally(() => setYukleniyor(false));
+    apiFetch<Gorsel[]>(`/varlik/${params.id}/gorsel`)
+      .then(setGorseller)
+      .catch(() => setGorseller([]));
   }, [params.id]);
 
   useEffect(() => {
@@ -105,6 +119,30 @@ function VarlikDuzenleIcerik() {
       toast.error(err instanceof Error ? err.message : 'Güncelleme başarısız.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function gorselYukle(e: React.FormEvent) {
+    e.preventDefault();
+    if (!gorselFiles || gorselFiles.length === 0) {
+      toast.error('En az bir görsel seçin.');
+      return;
+    }
+    setGorselUploading(true);
+    try {
+      const fd = new FormData();
+      Array.from(gorselFiles).forEach((f) => fd.append('files', f));
+      await apiFetch(`/varlik/${params.id}/gorsel`, { method: 'POST', body: fd });
+      const adet = gorselFiles.length;
+      setGorselFiles(null);
+      toast.success(`${adet} görsel yüklendi.`);
+      apiFetch<Gorsel[]>(`/varlik/${params.id}/gorsel`)
+        .then(setGorseller)
+        .catch(() => {});
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Görsel yükleme başarısız.');
+    } finally {
+      setGorselUploading(false);
     }
   }
 
@@ -188,6 +226,42 @@ function VarlikDuzenleIcerik() {
               Kaydet
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Fotoğraflar</CardTitle>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Bu varlığa özel fotoğraflar — vatandaş varlık detay sayfasında galeri olarak gösterilir.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {gorseller.length > 0 && (
+            <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {gorseller.map((g) => (
+                <img
+                  key={g.id}
+                  src={`${API_URL}/varlik/gorsel/${g.id}?tenant=${getTenantSlug()}`}
+                  alt={g.dosya_adi}
+                  className="aspect-square w-full rounded-lg border border-gray-100 object-cover"
+                />
+              ))}
+            </div>
+          )}
+          <form onSubmit={gorselYukle} className="space-y-3">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setGorselFiles(e.target.files)}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
+            />
+            {gorselFiles && <p className="text-xs text-gray-500">{gorselFiles.length} görsel seçili</p>}
+            <Button type="submit" variant="outline" loading={gorselUploading} leftIcon={<Upload />}>
+              Görselleri Yükle (max 15)
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -52,4 +52,20 @@ describe('yayinOnKosullariGecerliMi', () => {
     expect(sonuc.gecerli).toBe(false);
     expect(sonuc.hata).toContain('Eksik zorunlu evrak');
   });
+
+  it('kalemSayisi verilmezse varsayılan 1 → diğer koşullar tamsa geçerli (geriye dönük uyumluluk)', () => {
+    const sonuc = yayinOnKosullariGecerliMi(TAM_EVRAK, BIR_SART);
+    expect(sonuc.gecerli).toBe(true);
+  });
+
+  it('hiç kalem (varlık) eklenmemiş → geçersiz', () => {
+    const sonuc = yayinOnKosullariGecerliMi(TAM_EVRAK, BIR_SART, 0);
+    expect(sonuc.gecerli).toBe(false);
+    expect(sonuc.hata).toContain('varlık');
+  });
+
+  it('birden fazla kalem eklenmiş → geçerli', () => {
+    const sonuc = yayinOnKosullariGecerliMi(TAM_EVRAK, BIR_SART, 5);
+    expect(sonuc.gecerli).toBe(true);
+  });
 });

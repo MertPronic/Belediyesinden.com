@@ -3,6 +3,7 @@ import { FilesInterceptor } from '@nestjs/platform-express/multer';
 import type { Response } from 'express';
 import { IsArray, IsBoolean, IsEnum, IsISO8601, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { IlanService } from './ilan.service';
+import { IlanKalemiService } from './ilan-kalemi.service';
 import { GorselService } from './gorsel.service';
 
 /** Multer yüklenen dosya (Express.Multer.File global augmentasyonu yerine yerel tip). */
@@ -37,17 +38,11 @@ class CreateIlanDto {
   @IsOptional() @IsString()
   aciklama?: string;
 
-  @IsString()
-  varlikId!: string;
-
   @IsEnum(IhaleTipi)
   ihaleTipi!: IhaleTipi;
 
   @IsEnum(IslemTuru)
   islemTuru!: IslemTuru;
-
-  @IsNumber() @Min(0) @Max(1_000_000_000)
-  baslangicFiyati!: number;
 
   /** İlan (yayın) tarihi — zorunlu; oluşturma anında `publishDogrula` ile doğrulanır (KK-23). */
   @IsISO8601()
@@ -73,6 +68,15 @@ class CreateIlanDto {
 class ChangeDurumDto {
   @IsString()
   durum!: string;
+}
+
+/** İlana varlık (kalem) ekleme — DECISIONS.md KK-25. */
+class AddIlanKalemiDto {
+  @IsString()
+  varlikId!: string;
+
+  @IsNumber() @Min(0.01) @Max(1_000_000_000)
+  baslangicFiyati!: number;
 }
 
 class UpdateIlanDto {
@@ -119,6 +123,7 @@ class SonuclandirDto {
 export class IlanController {
   constructor(
     private readonly service: IlanService,
+    private readonly kalemler: IlanKalemiService,
     private readonly gorseller: GorselService,
   ) {}
 
@@ -143,6 +148,34 @@ export class IlanController {
     return this.service.listFavoriler(user.sub, limit, offset);
   }
 
+  /**
+   * Bu tenant'ın vatandaşa açık ilanlarını arama indeksiyle yeniden eşitler
+   * (OpenSearch mapping alanı eklendiğinde mevcut kayıtları geriye dönük senkronlar).
+   * :id'den ÖNCE tanımlı.
+   */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Superadmin)
+  @Post('search/resync')
+  async searchResync(): Promise<{ senkronlanan: number }> {
+    const senkronlanan = await this.service.resyncSearchIndex();
+    return { senkronlanan };
+  }
+
+  /**
+   * Tek kalem (varlık) + üst ilan bağlamı — vatandaş varlık detay sayfasının
+   * veri kaynağı (KK-25, Faz 4). Görünürlük kapısı `get()` ile aynı: üst ilan
+   * citizen-visible değilse (henüz yayınlanmadı/ilan tarihi gelmedi) personel
+   * olmayan kullanıcıya 404. :id'den ÖNCE tanımlı.
+   */
+  @Unprotected(false)
+  @Get('kalem/:kalemId')
+  async kalemDetay(@Param('kalemId') kalemId: string, @CurrentUser() user: AuthenticatedUser | null) {
+    const kalem = await this.kalemler.getWithContext(kalemId);
+    if (!isPersonel(user) && !ilanCitizenGorunurMu(kalem.ilan_durum, kalem.ilan_baslangic_tarihi, new Date())) {
+      throw new NotFoundException('Varlık bulunamadı');
+    }
+    return kalem;
+  }
+
   /** Görsel stream (galeri <img> proxy'si). :id'den ÖNCE tanımlı. */
   @Unprotected()
   @Get('gorsel/:gorselId')
@@ -164,14 +197,17 @@ export class IlanController {
   @Roller(KullaniciRolu.TenantAdmin)
   @Post(':id/gorsel')
   @UseInterceptors(FilesInterceptor('files', 15))
-  gorselYukle(@Param('id') id: string, @UploadedFiles() files: MulterFile[]) {
+  async gorselYukle(@Param('id') id: string, @UploadedFiles() files: MulterFile[]) {
     if (!files || files.length === 0) {
       throw new BadRequestException('Dosya bulunamadı (multipart "files" alanı)');
     }
-    return this.gorseller.upload(
+    const yuklenen = await this.gorseller.upload(
       id,
       files.map((f) => ({ originalname: f.originalname, buffer: f.buffer, mimetype: f.mimetype, size: f.size })),
     );
+    // İlk yüklenen görsel kapak olabilir — arama sonuçlarındaki kart bunu hemen yansıtsın.
+    this.service.syncSearchIndexFor(id).catch(() => {});
+    return yuklenen;
   }
 
   /**
@@ -200,23 +236,43 @@ export class IlanController {
     return this.service.toggleFavori(id, user.sub);
   }
 
-  /** İlan oluştur (TenantAdmin). */
+  /** İlan oluştur (TenantAdmin). Varlıksız/"boş" TASLAK olarak oluşur — varlıklar `/kalem` ile eklenir (KK-25). */
   @Roller(KullaniciRolu.TenantAdmin)
   @Post()
   create(@Body() dto: CreateIlanDto) {
     return this.service.create({
       baslik: dto.baslik,
       aciklama: dto.aciklama,
-      varlikId: dto.varlikId,
       ihaleTipi: dto.ihaleTipi,
       islemTuru: dto.islemTuru,
-      baslangicFiyati: dto.baslangicFiyati,
       ilanTarihi: dto.ilanTarihi,
       ihaleTarihi: dto.ihaleTarihi,
       sartnameUcretli: dto.sartnameUcretli,
       sartnameTutari: dto.sartnameTutari,
       katilimSartlari: dto.katilimSartlari,
     });
+  }
+
+  /** İlandaki kalemler (varlıklar) — public, ilan detayında listelemek için. */
+  @Unprotected()
+  @Get(':id/kalem')
+  kalemleri(@Param('id') id: string) {
+    return this.kalemler.list(id);
+  }
+
+  /** İlana varlık ekle (TenantAdmin). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Post(':id/kalem')
+  kalemEkle(@Param('id') id: string, @Body() dto: AddIlanKalemiDto) {
+    return this.kalemler.add(id, dto.varlikId, dto.baslangicFiyati);
+  }
+
+  /** İlandan varlık çıkar (TenantAdmin, soft — ihalesi başlamış kalem çıkarılamaz). */
+  @Roller(KullaniciRolu.TenantAdmin)
+  @Delete(':id/kalem/:kalemId')
+  async kalemCikar(@Param('id') id: string, @Param('kalemId') kalemId: string) {
+    await this.kalemler.remove(id, kalemId);
+    return { id: kalemId, silindi: true };
   }
 
   /** Durum geçişi: { durum: 'YAYINDA' | 'IPTAL' | ... } */
@@ -241,10 +297,14 @@ export class IlanController {
     return this.service.changeDurum(id, dto.durum);
   }
 
-  /** İhaleyi sonuçlandır (en yüksek teklif → kazanan). */
+  /** Bir varlığı (kalemi) sonuçlandır — en yüksek teklif → kazanan (KK-25: kalemler bağımsız sonuçlanır). */
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
-  @Post(':id/sonuclandir')
-  sonuclandir(@Param('id') id: string, @Body() dto: SonuclandirDto) {
-    return this.service.sonuclandir(id, dto?.kararNo);
+  @Post(':id/kalem/:kalemId/sonuclandir')
+  sonuclandirKalem(
+    @Param('id') id: string,
+    @Param('kalemId') kalemId: string,
+    @Body() dto: SonuclandirDto,
+  ) {
+    return this.service.sonuclandirKalem(id, kalemId, dto?.kararNo);
   }
 }

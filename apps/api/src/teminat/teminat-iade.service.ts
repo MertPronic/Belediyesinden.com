@@ -47,8 +47,12 @@ export class TeminatIadeService implements OnModuleInit, OnModuleDestroy {
     await this.queue?.close();
   }
 
-  /** Bir ilan'ın tüm BLOKE teminatları için gecikmeli iade planla. */
-  async planlaIadeForIlan(ilanId: string): Promise<number> {
+  /**
+   * Bir ilan kaleminin (varlığın) tüm BLOKE teminatları için gecikmeli iade
+   * planla. Kalem bazlı — aynı ilandaki diğer (hâlâ açık) kalemlerin
+   * başvurularını etkilemez (KK-25).
+   */
+  async planlaIadeForKalem(kalemId: string): Promise<number> {
     const tenant = getCurrentTenant();
     if (!tenant) {
       return 0;
@@ -58,8 +62,8 @@ export class TeminatIadeService implements OnModuleInit, OnModuleDestroy {
       tenant.queryRunner,
       `SELECT t.id FROM teminat t
        JOIN basvuru b ON t.basvuru_id = b.id
-       WHERE b.ilan_id = $1 AND t.durum = 'BLOKE_EDILDI'`,
-      [ilanId],
+       WHERE b.ilan_kalemi_id = $1 AND t.durum = 'BLOKE_EDILDI'`,
+      [kalemId],
     );
     for (const row of rows) {
       await this.queue.add(
@@ -68,7 +72,7 @@ export class TeminatIadeService implements OnModuleInit, OnModuleDestroy {
         { delay: IADE_GECIKME_MS, removeOnComplete: true },
       );
     }
-    this.logger.log(`${rows.length} teminat iade için planlandı (ilan=${ilanId}, gecikme=${IADE_GECIKME_MS}ms)`);
+    this.logger.log(`${rows.length} teminat iade için planlandı (kalem=${kalemId}, gecikme=${IADE_GECIKME_MS}ms)`);
     return rows.length;
   }
 }

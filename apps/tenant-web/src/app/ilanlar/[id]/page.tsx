@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ArrowRight,
+  Boxes,
   CalendarClock,
   CalendarDays,
   ChevronRight,
-  ClipboardCheck,
   Download,
   Eye,
   FileText,
@@ -52,7 +52,8 @@ interface Ilan {
   ihale_tipi: string;
   islem_turu: string | null;
   durum: string;
-  baslangic_fiyati: string;
+  /** Tek-varlık dönemden kalma (KK-25 öncesi) — çoklu kalemli ilanlarda null, fiyat kalem bazlı. */
+  baslangic_fiyati: string | null;
   baslangic_tarihi: string | null;
   bitis_tarihi: string | null;
   kurallar: { minArtirmaAdimi?: number } | null;
@@ -69,6 +70,23 @@ interface Evrak {
   content_type: string | null;
   boyut: number | null;
 }
+
+/** İlana eklenmiş bir varlık (kalem) — bkz. DECISIONS.md KK-25. */
+interface Kalem {
+  id: string;
+  baslangic_fiyati: string;
+  durum: string;
+  varlik_ad: string;
+  varlik_tip: string;
+  varlik_detay: { il?: string; ilce?: string };
+}
+
+const VARLIK_TIP_LABEL: Record<string, string> = {
+  TASINIR: 'Taşınır',
+  TASINMAZ: 'Taşınmaz',
+  ISLETME_HAKKI: 'İşletme Hakkı',
+  REKLAM_ALANI: 'Reklam Alanı',
+};
 
 const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
@@ -146,6 +164,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
   let ilan: Ilan | null = null;
   let evraklar: Evrak[] = [];
+  let kalemler: Kalem[] = [];
   try {
     ilan = await serverApiFetch<Ilan>(`/ilan/${id}`, slug);
   } catch {
@@ -158,15 +177,23 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
   } catch {
     evraklar = [];
   }
+  try {
+    kalemler = await serverApiFetch<Kalem[]>(`/ilan/${id}/kalem`, slug);
+  } catch {
+    kalemler = [];
+  }
 
   const tip = TIP[ilan.ihale_tipi] ?? { label: ilan.ihale_tipi, icon: FileText };
   const TipIcon = tip.icon;
   const islemTuruLabel = ilan.islem_turu ? (ISLEM_TURU_LABEL[ilan.islem_turu] ?? ilan.islem_turu) : null;
-  const canBid = ilan.durum === 'CANLI_ARTIRMA';
   const baslangic = ilan.baslangic_tarihi ? new Date(ilan.baslangic_tarihi) : null;
   const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
   const minAdim = Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0;
-  const fiyat = Number(ilan.baslangic_fiyati);
+  const kalemFiyatlari = kalemler.map((k) => Number(k.baslangic_fiyati));
+  // Tek-varlık dönemden kalma ilanlarda tek fiyat vardır; çoklu-varlık ilanlarda
+  // "X ₺'den başlayan" temsili değer olarak en düşük kalem fiyatı kullanılır (KK-25).
+  const fiyat =
+    ilan.baslangic_fiyati != null ? Number(ilan.baslangic_fiyati) : (kalemFiyatlari.length ? Math.min(...kalemFiyatlari) : 0);
   const katilimSartlari = ilan.katilim_sartlari ?? [];
 
   // Gerçek ilan görselleri (MinIO proxy); yoksa dummy placeholder.
@@ -364,6 +391,49 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
             </p>
           </div>
 
+          {/* Varlıklar — bir ilan birden fazla varlık içerebilir (KK-25) */}
+          {kalemler.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+                <Boxes className="h-4 w-4 text-gray-400" />
+                Bu İlandaki Varlıklar ({kalemler.length})
+              </h2>
+              <p className="text-xs text-gray-400">
+                Katılmak (başvuru/teminat/teklif) için aşağıdaki varlıklardan birine tıklayın —
+                her varlığın kendi ihalesi vardır.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {kalemler.map((k) => {
+                  const kalemKonum = [k.varlik_detay?.ilce, k.varlik_detay?.il].filter(Boolean).join(', ');
+                  return (
+                    <Link key={k.id} href={`/varliklar/${k.id}`} className="block">
+                      <Card interactive>
+                        <CardContent className="space-y-2 p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-gray-900">{k.varlik_ad}</p>
+                              <p className="text-xs text-gray-500">{VARLIK_TIP_LABEL[k.varlik_tip] ?? k.varlik_tip}</p>
+                            </div>
+                            <DurumBadge durum={k.durum} />
+                          </div>
+                          {kalemKonum && (
+                            <p className="flex items-center gap-1 text-xs text-gray-500">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" />
+                              {kalemKonum}
+                            </p>
+                          )}
+                          <p className="text-lg font-bold tracking-tight text-gray-900">
+                            {Number(k.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Tabs */}
           <Tabs items={tabs} />
         </div>
@@ -372,7 +442,9 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <Card variant="elevated" className="overflow-hidden">
             <div className="accent-soft-bg px-5 py-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Başlangıç Fiyatı</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                {ilan.baslangic_fiyati != null ? 'Başlangıç Fiyatı' : `${kalemler.length} Varlık — Başlayan Fiyat`}
+              </p>
               <p className="mt-0.5 text-3xl font-bold tracking-tight text-gray-900">
                 {fiyat.toLocaleString('tr-TR')} <span className="text-xl">₺</span>
               </p>
@@ -415,31 +487,17 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
-              ) : canBid ? (
+              ) : ilan.durum === 'CANLI_ARTIRMA' ? (
                 <Alert variant="info" icon={<Gavel />}>
-                  Bu ihale şu anda canlı. Katılım hakkınız varsa{' '}
-                  <Link href="/ihalelerim" className="font-semibold underline">
-                    İhalelerim
-                  </Link>{' '}
-                  sayfasından teklif verebilirsiniz.
+                  Bu ihale şu anda canlı. Katılmak için yukarıdaki varlıklardan birine tıklayın —
+                  onaylı başvurunuz varsa doğrudan teklif verebilirsiniz.
                 </Alert>
               ) : ilan.durum === 'YAYINDA' ? (
-                <>
-                  <Alert variant="info" icon={<Info />}>
-                    {bitis
-                      ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak.`
-                      : 'Bu ihale henüz başlamadı.'}
-                  </Alert>
-                  <Link
-                    href={`/basvuru/${ilan.id}`}
-                    className="flex h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-                    style={{ background: 'var(--renk)' }}
-                  >
-                    <ClipboardCheck className="h-4 w-4" />
-                    Başvur
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </>
+                <Alert variant="info" icon={<Info />}>
+                  {bitis
+                    ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak. Başvurmak için yukarıdaki varlıklardan birine tıklayın.`
+                    : 'Bu ihale henüz başlamadı. Başvurmak için yukarıdaki varlıklardan birine tıklayın.'}
+                </Alert>
               ) : (
                 <Alert variant="info" icon={<Info />}>
                   Bu ihale sonuçlandırılmıştır.

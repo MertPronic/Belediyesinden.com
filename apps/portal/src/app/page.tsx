@@ -1,56 +1,65 @@
-import Link from 'next/link';
-import { ArrowRight, Building2, Inbox, Search, ShieldCheck } from 'lucide-react';
+import { Building2, FileText, ShieldCheck } from 'lucide-react';
 import { portalFetch } from '../lib/api';
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  EmptyState,
-  Field,
-  Input,
-  Select,
-  IlanKarti,
-  type IlanKartiData,
-} from '@belediyesinden/ui';
+import { AramaPaneli, type PortalIlan } from './arama-paneli';
 
-interface PortalIlan extends IlanKartiData {
-  tenant_slug: string;
+interface AramaSonucu {
+  data: PortalIlan[];
+  total: number;
 }
 
-async function fetchTumIlanlar(query?: string, tip?: string): Promise<PortalIlan[]> {
+interface Lokasyonlar {
+  ilceler: string[];
+  belediyeSayisi: number;
+}
+
+interface AramaParams {
+  q?: string;
+  tip?: string;
+  il?: string;
+  ilce?: string;
+}
+
+const SAYFA_BOYUTU = 24;
+
+async function fetchTumIlanlar(sp: AramaParams): Promise<AramaSonucu> {
   try {
     const params = new URLSearchParams();
-    if (query) params.set('q', query);
-    if (tip) params.set('tip', tip);
-    const qs = params.toString();
-    return await portalFetch<PortalIlan[]>(qs ? `/search/ilan?${qs}` : '/search/ilan');
+    if (sp.q) params.set('q', sp.q);
+    if (sp.tip) params.set('tip', sp.tip);
+    if (sp.il) params.set('il', sp.il);
+    if (sp.ilce) params.set('ilce', sp.ilce);
+    params.set('pageSize', String(SAYFA_BOYUTU));
+    return await portalFetch<AramaSonucu>(`/search/ilan?${params.toString()}`);
   } catch {
-    return [];
+    return { data: [], total: 0 };
   }
 }
 
-const TIPLER = [
-  { value: '', label: 'Tüm Tipler' },
-  { value: 'ACIK_ARTIRMA', label: 'Açık Artırma' },
-  { value: 'ACIK_TEKLIF', label: 'Açık Teklif' },
-  { value: 'KAPALI_TEKLIF', label: 'Kapalı Teklif' },
-];
+async function fetchLokasyonlar(il?: string): Promise<Lokasyonlar> {
+  try {
+    return await portalFetch<Lokasyonlar>(
+      il ? `/search/lokasyonlar?il=${encodeURIComponent(il)}` : '/search/lokasyonlar',
+    );
+  } catch {
+    return { ilceler: [], belediyeSayisi: 0 };
+  }
+}
 
 export default async function PortalHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tip?: string }>;
+  searchParams: Promise<AramaParams>;
 }) {
   const sp = await searchParams;
-  const ilanlar = await fetchTumIlanlar(sp['q'], sp['tip']);
-  const aktifFiltre = !!(sp['q'] || sp['tip']);
+  const ilkFiltre = { q: sp.q ?? '', il: sp.il ?? '', ilce: sp.ilce ?? '', tip: sp.tip ?? '' };
+
+  const [sonuc, lokasyonlar] = await Promise.all([fetchTumIlanlar(sp), fetchLokasyonlar(sp.il)]);
 
   return (
     <div className="space-y-10">
-      {/* Hero */}
+      {/* Hero + gömülü arama/filtre (yazdıkça filtreler — bkz. AramaPaneli) */}
       <section className="hero-accent overflow-hidden rounded-2xl border border-gray-100">
-        <div className="px-6 py-12 sm:px-10 sm:py-16">
+        <div className="px-6 py-14 sm:px-10 sm:py-20">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/70 px-3 py-1 text-xs font-medium text-gray-600 backdrop-blur">
             <ShieldCheck className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
             Tüm Belediyeler Tek Çatı Altında
@@ -62,83 +71,37 @@ export default async function PortalHomePage({
             Türkiye genelindeki belediyelerin satış, kiralama ve açık artırma ilanlarını
             arayın, kendi belediyenizin portalına yönlendirilin.
           </p>
+
+          {lokasyonlar.belediyeSayisi > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <div className="flex items-center gap-2 rounded-lg accent-soft-bg py-1.5 pl-1.5 pr-3.5">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                  style={{ background: 'var(--renk)' }}
+                >
+                  <Building2 className="h-3.5 w-3.5 text-white" />
+                </span>
+                <p className="text-sm text-gray-700">
+                  <strong className="font-semibold text-gray-900">{lokasyonlar.belediyeSayisi}</strong> belediye
+                </p>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg accent-soft-bg py-1.5 pl-1.5 pr-3.5">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                  style={{ background: 'var(--renk)' }}
+                >
+                  <FileText className="h-3.5 w-3.5 text-white" />
+                </span>
+                <p className="text-sm text-gray-700">
+                  <strong className="font-semibold text-gray-900">{sonuc.total}</strong> aktif ilan
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Filtre */}
-      <Card>
-        <CardContent className="p-4">
-          <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Field className="mb-0 flex-1">
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
-                Ara
-              </label>
-              <Input
-                type="text"
-                name="q"
-                placeholder="İlan ara..."
-                defaultValue={sp['q'] ?? ''}
-                icon={<Search />}
-              />
-            </Field>
-            <Field className="mb-0 sm:w-56">
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
-                İhale Tipi
-              </label>
-              <Select name="tip" defaultValue={sp['tip'] ?? ''}>
-                {TIPLER.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Button type="submit" leftIcon={<Search />} className="sm:h-10">
-              Ara
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Sonuçlar */}
-      {ilanlar.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Inbox />}
-            title={aktifFiltre ? 'İlan bulunamadı' : 'Henüz ilan yok'}
-            description={
-              aktifFiltre
-                ? 'Arama kriterlerinize uygun ilan bulunamadı.'
-                : 'Şu anda yayında ilan bulunmuyor.'
-            }
-            action={
-              aktifFiltre ? (
-                <Link href="/" className="text-sm font-medium" style={{ color: 'var(--renk)' }}>
-                  Filtreleri temizle
-                </Link>
-              ) : undefined
-            }
-          />
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">{ilanlar.length} ilan bulundu</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ilanlar.map((ilan) => (
-              <IlanKarti
-                key={`${ilan.tenant_slug}:${ilan.id}`}
-                ilan={ilan}
-                href={`/${ilan.tenant_slug}/${ilan.id}`}
-                extra={
-                  <Badge variant="default" icon={<Building2 />}>
-                    {ilan.tenant_slug}
-                  </Badge>
-                }
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      <AramaPaneli ilkFiltre={ilkFiltre} ilkSonuc={sonuc} ilkIlceler={lokasyonlar.ilceler} />
     </div>
   );
 }

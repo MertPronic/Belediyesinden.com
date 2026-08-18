@@ -9,7 +9,8 @@ import { ihaleBaslatDogrula, ilanGecisGecerliMi, publishDogrula, yayinOnKosullar
 import { rawQuery } from '@belediyesinden/db';
 import { OpenSearchService } from '../search/opensearch.service';
 import { TeminatIadeService } from '../teminat/teminat-iade.service';
-import { VarlikService } from '../varlik/varlik.service';
+import { IlanKalemiService } from './ilan-kalemi.service';
+import type { IlanKalemi } from './ilan-kalemi.entity';
 import type { Ilan } from './ilan.entity';
 
 const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
@@ -23,24 +24,77 @@ export class IlanService {
     private readonly os: OpenSearchService,
     @InjectDataSource() private readonly ds: DataSource,
     private readonly iadeService: TeminatIadeService,
-    private readonly varlikService: VarlikService,
+    private readonly kalemler: IlanKalemiService,
   ) {}
 
-  /** Arama indeksini ilanın güncel durumuyla senkronlar (yayınla/iptal/sonuçlandır sonrası). */
-  private syncSearchIndex(ilan: Ilan): void {
+  /**
+   * Arama indeksini ilanın güncel durumuyla senkronlar (yayınla/iptal/sonuçlandır sonrası).
+   * Fire-and-forget dokümante edilmiş yan etki (CLAUDE.md) — hata sessizce yutulur.
+   */
+  private async syncSearchIndex(ilan: Ilan): Promise<void> {
     const tenant = getCurrentTenant();
     if (!tenant) return;
-    this.os
-      .indexIlan(tenant.slug, {
+    try {
+      const [tenantRows, gorselRows, kalemler] = await Promise.all([
+        rawQuery<{ ad: string }>(this.qr(), 'SELECT ad FROM shared.tenants WHERE slug = $1', [tenant.slug]),
+        rawQuery<{ id: string }>(
+          this.qr(),
+          'SELECT id FROM ilan_gorseller WHERE ilan_id = $1 ORDER BY sira, created_at LIMIT 1',
+          [ilan.id],
+        ),
+        this.kalemler.list(ilan.id),
+      ]);
+      // Çoklu-varlık ilanlarda tek `baslangic_fiyati` yok — kalemlerin fiyat
+      // aralığı (KK-25) arama sonuçlarında "X - Y ₺" gösterebilsin diye indekslenir.
+      const kalemFiyatlari = kalemler.map((k) => Number(k.baslangic_fiyati));
+      const fiyatMin = kalemFiyatlari.length ? Math.min(...kalemFiyatlari) : null;
+      const fiyatMax = kalemFiyatlari.length ? Math.max(...kalemFiyatlari) : null;
+      await this.os.indexIlan(tenant.slug, {
         id: ilan.id,
         baslik: ilan.baslik,
         aciklama: ilan.aciklama,
         ihale_tipi: ilan.ihale_tipi,
         baslangic_fiyati: ilan.baslangic_fiyati,
+        fiyat_min: fiyatMin,
+        fiyat_max: fiyatMax,
         durum: ilan.durum,
         baslangic_tarihi: ilan.baslangic_tarihi,
-      })
-      .catch(() => {});
+        bitis_tarihi: ilan.bitis_tarihi,
+        il: ilan.il,
+        ilce: ilan.ilce,
+        tenant_ad: tenantRows[0]?.ad ?? null,
+        kapak_gorsel_id: gorselRows[0]?.id ?? null,
+      });
+    } catch {
+      // Arama indeksleme dokümante edilmiş fire-and-forget yan etki — sessizce yutulur.
+    }
+  }
+
+  /**
+   * Tek bir ilanı arama indeksiyle yeniden eşitler — ilan durumu/fiyatı dışındaki
+   * bir yan tabloyu değiştiren işlemler (örn. görsel yükleme, kapak fotoğrafını
+   * etkiler) sonrası `GorselService`/`IlanController` tarafından tetiklenir.
+   */
+  async syncSearchIndexFor(ilanId: string): Promise<void> {
+    const ilan = await this.get(ilanId);
+    if (ilan) await this.syncSearchIndex(ilan);
+  }
+
+  /**
+   * Bu tenant'ın vatandaşa açık ilanlarını arama indeksiyle yeniden eşitler.
+   * OpenSearch mapping değişikliği sonrası mevcut kayıtları geriye dönük
+   * senkronlamak için (TENANT_ADMIN tetikler, bkz. ilan.controller.ts).
+   */
+  async resyncSearchIndex(): Promise<number> {
+    const ilanlar = await rawQuery<Ilan>(
+      this.qr(),
+      'SELECT * FROM ilan WHERE deleted_at IS NULL AND durum IN ($1, $2, $3)',
+      [IlanDurumu.Yayinda, IlanDurumu.CanliArtirma, IlanDurumu.Sonuclandi],
+    );
+    for (const ilan of ilanlar) {
+      await this.syncSearchIndex(ilan);
+    }
+    return ilanlar.length;
   }
 
   private qr(): QueryRunner {
@@ -71,13 +125,11 @@ export class IlanService {
   async create(data: {
     baslik: string;
     aciklama?: string | null;
-    varlikId: string;
     ihaleTipi: string;
     islemTuru: string;
-    baslangicFiyati: number;
     /** İlan (yayın) tarihi — zorunlu, oluşturma anında `publishDogrula` ile doğrulanır (KK-23). Kolon: baslangic_tarihi. */
     ilanTarihi: string;
-    /** İhale tarihi — zorunlu, oluşturma anında `publishDogrula` ile doğrulanır (KK-23). Kolon: bitis_tarihi. */
+    /** İhale tarihi — zorunlu, oluşturma anında `publishDogrula` ile doğrulanır (KK-23). Kolon: bitis_tarihi — kalemler için ORTAK başlangıç (KK-25). */
     ihaleTarihi: string;
     /** Şartname bedeli ücretli mi (ilan başına tek bedel). */
     sartnameUcretli?: boolean;
@@ -92,10 +144,6 @@ export class IlanService {
     if (!GECERLI_ISLEM_TURU.has(data.islemTuru)) {
       throw new BadRequestException('Geçersiz işlem türü');
     }
-    const varlik = await this.varlikService.get(data.varlikId);
-    if (!varlik) {
-      throw new BadRequestException('Varlık bulunamadı');
-    }
     const kurallar = await getIlanKurallari(this.qr(), data.ihaleTipi as IhaleTipi);
     const sonuc = publishDogrula(
       new Date(data.ilanTarihi),
@@ -107,28 +155,23 @@ export class IlanService {
     if (!sonuc.gecerli) {
       throw new BadRequestException(sonuc.hata ?? 'İlan/ihale tarihleri kural motoruna uymuyor');
     }
-    // Konum artık ilan seviyesinde girilmez — varlığın detayından tek seferde kopyalanır (KK-24).
-    const il = typeof varlik.detay?.['il'] === 'string' ? (varlik.detay['il'] as string) : null;
-    const ilce = typeof varlik.detay?.['ilce'] === 'string' ? (varlik.detay['ilce'] as string) : null;
+    // Varlık(lar) artık oluşturma anında seçilmiyor — ilan "boş" TASLAK olarak
+    // doğar, admin ardından /kalem ile istediği kadar varlık ekler (KK-25).
     const rows = await rawQuery<Ilan>(
       this.qr(),
-      `INSERT INTO ilan (baslik, aciklama, varlik_id, ihale_tipi, islem_turu, durum, baslangic_fiyati, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari, il, ilce)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      `INSERT INTO ilan (baslik, aciklama, ihale_tipi, islem_turu, durum, baslangic_tarihi, bitis_tarihi, sartname_ucretli, sartname_tutari, katilim_sartlari)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         data.baslik,
         data.aciklama ?? null,
-        data.varlikId,
         data.ihaleTipi,
         data.islemTuru,
         IlanDurumu.Taslak,
-        data.baslangicFiyati,
         data.ilanTarihi,
         data.ihaleTarihi,
         data.sartnameUcretli ?? false,
         data.sartnameTutari ?? null,
         JSON.stringify(data.katilimSartlari ?? []),
-        il,
-        ilce,
       ],
     );
     const ilan = rows[0];
@@ -275,9 +318,11 @@ export class IlanService {
         'SELECT DISTINCT tip FROM evrak WHERE ilan_id = $1',
         [id],
       );
+      const kalemSayisi = await this.kalemler.count(id);
       const onKosulSonuc = yayinOnKosullariGecerliMi(
         evrakRows.map((r) => r.tip as EvrakTipi),
         ilan.katilim_sartlari ?? [],
+        kalemSayisi,
       );
       if (!onKosulSonuc.gecerli) {
         throw new BadRequestException(onKosulSonuc.hata ?? 'Yayınlama ön koşulları sağlanmadı');
@@ -289,7 +334,7 @@ export class IlanService {
         [IlanDurumu.Yayinda, JSON.stringify(kurallar), id],
       );
       const updated = rows[0];
-      if (updated) this.syncSearchIndex(updated);
+      if (updated) this.syncSearchIndex(updated).catch(() => {});
       // Audit (hash-chain) — fire-and-forget.
       appendAuditLog(this.ds, {
         tenantId: getCurrentTenant()?.slug ?? null,
@@ -318,7 +363,9 @@ export class IlanService {
         [IlanDurumu.CanliArtirma, id],
       );
       const updated = rows[0];
-      if (updated) this.syncSearchIndex(updated);
+      if (updated) this.syncSearchIndex(updated).catch(() => {});
+      // İhale tarihi ortak olduğu için ilandaki tüm kalemler birlikte açılır (KK-25).
+      await this.kalemler.activateAllForIlan(id);
       appendAuditLog(this.ds, {
         tenantId: getCurrentTenant()?.slug ?? null,
         actorId: 'system:ilan',
@@ -336,58 +383,47 @@ export class IlanService {
       [hedef, id],
     );
     const updated = rows[0];
-    if (updated) this.syncSearchIndex(updated);
+    if (updated) this.syncSearchIndex(updated).catch(() => {});
     return updated;
   }
 
   /**
-   * İhaleyi sonuçlandır: en yüksek teklifi bul → ilan SONUCLANDI.
+   * Bir kalemi (varlığı) sonuçlandır: en yüksek teklifi bul → o kalemin kazananı.
+   * Kalemler birbirinden bağımsız sonuçlanır (KK-25) — ilan.durum yalnızca
+   * ilandaki TÜM kalemler terminal (SONUCLANDI/IPTAL) olunca otomatik SONUCLANDI'ya çekilir.
    * @Roller(TenantAdmin, Encumen) tarafından çağrılır.
    */
-  async sonuclandir(id: string, kararNo?: string): Promise<{
+  async sonuclandirKalem(ilanId: string, kalemId: string, kararNo?: string): Promise<{
     winnerId: string | null;
     kazananTutar: number | null;
-    ilan: Ilan;
+    kalem: IlanKalemi;
   }> {
-    const ilan = await this.get(id);
-    if (!ilan) {
-      throw new NotFoundException('İlan bulunamadı');
-    }
-    if (ilan.durum !== IlanDurumu.CanliArtirma) {
-      throw new BadRequestException('Sadece canlı artırmadaki ilanlar sonuçlandırılabilir');
-    }
-    const maxRows = await rawQuery<{ kullanici_id: string; tutar: string }>(
-      this.qr(),
-      'SELECT kullanici_id, tutar FROM teklif WHERE ilan_id = $1 AND kabul_edildi = true ORDER BY tutar DESC LIMIT 1',
-      [id],
-    );
-    const winner = maxRows[0];
-    const rows = await rawQuery<Ilan>(
-      this.qr(),
-      'UPDATE ilan SET durum = $1, kazanan_kullanici_id = $2, kazanan_tutar = $3, encumen_karar_no = $4, encumen_karar_tarihi = $5 WHERE id = $6 RETURNING *',
-      [IlanDurumu.Sonuclandi, winner?.kullanici_id ?? null, winner?.tutar ?? null, kararNo ?? null, new Date(), id],
-    );
-    if (rows[0]) this.syncSearchIndex(rows[0]);
-    // BullMQ gecikmeli iade planla (fire-and-forget).
-    this.iadeService.planlaIadeForIlan(id).catch(() => {});
+    const sonuc = await this.kalemler.sonuclandir(ilanId, kalemId, kararNo);
+    // BullMQ gecikmeli iade planla — sadece bu kalemin başvurularına ait teminatlar (fire-and-forget).
+    this.iadeService.planlaIadeForKalem(kalemId).catch(() => {});
 
-    appendAuditLog(this.ds, {
-      tenantId: getCurrentTenant()?.slug ?? null,
-      actorId: 'system:ilan',
-      action: 'ILAN_SONUCLANDIR',
-      entityType: 'ilan',
-      entityId: id,
-      payload: {
-        kazanan_kullanici_id: winner?.kullanici_id ?? null,
-        kazanan_tutar: winner ? Number(winner.tutar) : null,
-      },
-    }).catch(() => {});
+    const [toplam, terminal] = await Promise.all([
+      this.kalemler.count(ilanId),
+      this.kalemler.countTerminal(ilanId),
+    ]);
+    if (toplam > 0 && toplam === terminal) {
+      const rows = await rawQuery<Ilan>(
+        this.qr(),
+        'UPDATE ilan SET durum = $1 WHERE id = $2 RETURNING *',
+        [IlanDurumu.Sonuclandi, ilanId],
+      );
+      if (rows[0]) this.syncSearchIndex(rows[0]).catch(() => {});
+      appendAuditLog(this.ds, {
+        tenantId: getCurrentTenant()?.slug ?? null,
+        actorId: 'system:ilan',
+        action: 'ILAN_SONUCLANDIR',
+        entityType: 'ilan',
+        entityId: ilanId,
+        payload: { tumKalemlerTerminal: true },
+      }).catch(() => {});
+    }
 
-    return {
-      winnerId: winner?.kullanici_id ?? null,
-      kazananTutar: winner ? Number(winner.tutar) : null,
-      ilan: rows[0],
-    };
+    return sonuc;
   }
 
   /** İlan favorisini aç/kapat (toggle). { favori: boolean } döner. */
@@ -412,13 +448,29 @@ export class IlanService {
     return { favori: true };
   }
 
-  /** Kullanıcının favori ilanları (ilan detayı join'li). */
-  async listFavoriler(kullaniciId: string, limit: number, offset: number): Promise<Ilan[]> {
-    return rawQuery<Ilan>(
+  /**
+   * Kullanıcının favori ilanları (ilan detayı join'li). `fiyat_min`/`fiyat_max`
+   * çoklu-varlık ilanlarda kalemlerin fiyat aralığını taşır (KK-25) — tek-varlık
+   * ilanlarda `i.baslangic_fiyati` zaten dolu olduğu için ikisi de null kalır.
+   */
+  async listFavoriler(
+    kullaniciId: string,
+    limit: number,
+    offset: number,
+  ): Promise<(Ilan & { fiyat_min: string | null; fiyat_max: string | null; kapak_gorsel_id: string | null })[]> {
+    return rawQuery<Ilan & { fiyat_min: string | null; fiyat_max: string | null; kapak_gorsel_id: string | null }>(
       this.qr(),
-      `SELECT i.* FROM ilan i
+      `SELECT i.*, k.fiyat_min, k.fiyat_max,
+              (SELECT g.id FROM ilan_gorseller g WHERE g.ilan_id = i.id ORDER BY g.sira ASC, g.created_at ASC LIMIT 1) AS kapak_gorsel_id
+       FROM ilan i
        JOIN ilan_favoriler f ON f.ilan_id = i.id
-       WHERE f.kullanici_id = $1 AND i.deleted_at IS NULL ORDER BY f.created_at DESC LIMIT $2 OFFSET $3`,
+       LEFT JOIN LATERAL (
+         SELECT MIN(baslangic_fiyati) AS fiyat_min, MAX(baslangic_fiyati) AS fiyat_max
+         FROM ilan_kalemi
+         WHERE ilan_id = i.id AND deleted_at IS NULL
+       ) k ON true
+       WHERE f.kullanici_id = $1 AND i.deleted_at IS NULL
+       ORDER BY f.created_at DESC LIMIT $2 OFFSET $3`,
       [kullaniciId, limit, offset],
     );
   }

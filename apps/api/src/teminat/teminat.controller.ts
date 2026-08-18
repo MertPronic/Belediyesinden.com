@@ -1,5 +1,6 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
+import type { Response } from 'express';
 import { CurrentUser, Roller, type AuthenticatedUser } from '@belediyesinden/auth';
 import { KullaniciRolu } from '@belediyesinden/shared';
 import { sayfalamaCoz } from '@belediyesinden/db';
@@ -50,6 +51,16 @@ export class TeminatController {
       mimetype: file.mimetype,
       size: file.size,
     });
+  }
+
+  /** Dekont indir (encümen/admin — onaylamadan önce içeriği gözden geçirmek için). */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
+  @Get(':id/dekont')
+  async download(@Param('id') id: string, @Res() res: Response): Promise<void> {
+    const { stream, teminat } = await this.service.download(id);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${teminat.dekont_dosya_adi}"`);
+    stream.pipe(res);
   }
 
   /** Encümen: teminat onayla (bloke). */

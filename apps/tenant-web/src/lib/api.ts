@@ -38,6 +38,16 @@ export function getTenantSlug(): string {
   return process.env['NEXT_PUBLIC_TENANT_SLUG'] ?? 'talas';
 }
 
+/**
+ * İlan kapak/galeri görseli URL'i — tarayıcı `<img>` isteği `x-tenant-slug` header'ı
+ * taşıyamadığı için `?tenant=` query fallback kullanır (portal'daki `portalGorselUrl`
+ * ile aynı desen). Server component'lerde `getTenantSlug()` çalışmadığından
+ * (window yok) slug parametre olarak verilir.
+ */
+export function ilanGorselUrl(tenantSlug: string, gorselId: string): string {
+  return `${API_URL}/ilan/gorsel/${gorselId}?tenant=${tenantSlug}`;
+}
+
 /** Authenticated API fetch (Bearer + x-tenant-slug). Token gerekirse yenilenir. */
 export async function apiFetch<T>(
   path: string,

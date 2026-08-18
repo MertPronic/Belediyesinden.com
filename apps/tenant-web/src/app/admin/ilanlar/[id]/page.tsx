@@ -2,9 +2,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Ban, Check, CheckCircle2, FileText, Gavel, MapPin, Trophy, Upload, X } from 'lucide-react';
+import { ArrowLeft, Ban, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, FileText, Gavel, Handshake, ImagePlus, MapPin, Megaphone, Package, Plus, Trash2, Trophy, Upload, X } from 'lucide-react';
 import { apiFetch, downloadFile, getTenantSlug } from '../../../../lib/api';
+import { useCanliTeklifler } from '../../../../lib/use-canli-teklifler';
 import { RequireTenantAdmin } from '../../../../components/require-tenant-admin';
+import { CanliTeklifGorunumu } from '../../../../components/canli-teklif-gorunumu';
 import {
   Badge,
   Button,
@@ -19,6 +21,7 @@ import {
   FieldLabel,
   Input,
   Select,
+  TutarInput,
   useToast,
 } from '@belediyesinden/ui';
 
@@ -29,17 +32,36 @@ interface Ilan {
   ihale_tipi: string;
   islem_turu: string | null;
   durum: string;
-  baslangic_fiyati: string;
+  /** Tek-varlık dönemden kalma (KK-25 öncesi) — yeni ilanlarda null, fiyat kalem bazlı (bkz. Kalem). */
+  baslangic_fiyati: string | null;
   baslangic_tarihi: string | null;
   bitis_tarihi: string | null;
   sartname_ucretli: boolean;
   sartname_tutari: string | null;
   katilim_sartlari: string[];
+  kurallar: { minArtirmaAdimi?: number } | null;
   /** Varlıktan oluşturma anında kopyalanır — ilan seviyesinde düzenlenemez (KK-24). */
   il: string | null;
   ilce: string | null;
   lat: number | null;
   lng: number | null;
+}
+
+/** İlan kalemi — ilana eklenmiş bir varlık + o varlığın bu ilandaki fiyatı/durumu (KK-25). */
+interface Kalem {
+  id: string;
+  varlik_id: string;
+  varlik_ad: string;
+  varlik_tip: string;
+  baslangic_fiyati: string;
+  bitis_tarihi: string | null;
+  durum: string;
+}
+
+interface VarlikSecenek {
+  id: string;
+  ad: string;
+  tip: string;
 }
 
 interface Evrak {
@@ -99,6 +121,201 @@ function tarihInputDegeri(iso: string | null): string {
   return iso ? iso.slice(0, 10) : '';
 }
 
+/** Varlık tipi → ikon + renk (admin/varliklar listesiyle tutarlı, KK-25). */
+const VARLIK_TIP_BILGI: Record<string, { label: string; icon: typeof Package; renk: string; bg: string }> = {
+  TASINIR: { label: 'Taşınır', icon: Package, renk: 'text-blue-600', bg: 'bg-blue-50' },
+  TASINMAZ: { label: 'Taşınmaz', icon: Building2, renk: 'text-emerald-600', bg: 'bg-emerald-50' },
+  ISLETME_HAKKI: { label: 'İşletme Hakkı', icon: Handshake, renk: 'text-amber-600', bg: 'bg-amber-50' },
+  REKLAM_ALANI: { label: 'Reklam Alanı', icon: Megaphone, renk: 'text-purple-600', bg: 'bg-purple-50' },
+};
+
+/**
+ * Tek bir kalem (varlık) satırı — CANLI_ARTIRMA'daysa kendi canlı teklif akışına
+ * abone olur ve "Sonuçlandır" butonunu gösterir. Her kalem bağımsız (KK-25),
+ * bu yüzden `useCanliTeklifler` burada, satır bazında çağrılıyor.
+ */
+function KalemSatiri({
+  kalem,
+  ilanDurum,
+  ihaleTipi,
+  minArtirmaAdimi,
+  silinenId,
+  sonuclandiranId,
+  onCikar,
+  onSonuclandir,
+}: {
+  kalem: Kalem;
+  ilanDurum: string;
+  ihaleTipi: string;
+  minArtirmaAdimi: number;
+  silinenId: string | null;
+  sonuclandiranId: string | null;
+  onCikar: (kalemId: string) => void;
+  onSonuclandir: (kalemId: string) => void;
+}) {
+  const canliAktif = kalem.durum === 'CANLI_ARTIRMA';
+  const { teklifler, yeniTeklifIds, connected } = useCanliTeklifler(kalem.id, canliAktif);
+
+  const [fotoAcik, setFotoAcik] = useState(false);
+  const [gorseller, setGorseller] = useState<Gorsel[]>([]);
+  const [gorselFiles, setGorselFiles] = useState<FileList | null>(null);
+  const [gorselUploading, setGorselUploading] = useState(false);
+  const toast = useToast();
+
+  const gorselleriYukle = useCallback(() => {
+    apiFetch<Gorsel[]>(`/varlik/${kalem.varlik_id}/gorsel`)
+      .then(setGorseller)
+      .catch(() => setGorseller([]));
+  }, [kalem.varlik_id]);
+
+  useEffect(() => {
+    gorselleriYukle();
+  }, [gorselleriYukle]);
+
+  async function fotoYukle(e: React.FormEvent) {
+    e.preventDefault();
+    if (!gorselFiles || gorselFiles.length === 0) {
+      toast.error('En az bir fotoğraf seçin.');
+      return;
+    }
+    setGorselUploading(true);
+    try {
+      const fd = new FormData();
+      Array.from(gorselFiles).forEach((f) => fd.append('files', f));
+      await apiFetch(`/varlik/${kalem.varlik_id}/gorsel`, { method: 'POST', body: fd });
+      const adet = gorselFiles.length;
+      setGorselFiles(null);
+      toast.success(`${adet} fotoğraf yüklendi.`);
+      gorselleriYukle();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Fotoğraf yükleme başarısız.');
+    } finally {
+      setGorselUploading(false);
+    }
+  }
+
+  const tipBilgi = VARLIK_TIP_BILGI[kalem.varlik_tip] ?? {
+    label: kalem.varlik_tip,
+    icon: Package,
+    renk: 'text-gray-500',
+    bg: 'bg-gray-100',
+  };
+  const TipIcon = tipBilgi.icon;
+  const kapak = gorseller[0] ? `${API_URL}/varlik/gorsel/${gorseller[0].id}?tenant=${getTenantSlug()}` : null;
+  const cikarilabilir = kalem.durum === 'BEKLIYOR' && (ilanDurum === 'TASLAK' || ilanDurum === 'YAYINDA');
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex gap-3 p-3">
+        {/* Kapak küçük resmi — yoksa tip ikonlu placeholder */}
+        <div className={cn('flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg', tipBilgi.bg)}>
+          {kapak ? (
+            <img src={kapak} alt={kalem.varlik_ad} className="h-full w-full object-cover" />
+          ) : (
+            <TipIcon className={cn('h-6 w-6', tipBilgi.renk)} />
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium', tipBilgi.renk, tipBilgi.bg)}>
+                <TipIcon className="h-3 w-3" />
+                {tipBilgi.label}
+              </span>
+              <p className="mt-1 truncate text-sm font-semibold text-gray-900">{kalem.varlik_ad}</p>
+            </div>
+            <DurumBadge durum={kalem.durum} />
+          </div>
+          <p className="text-lg font-bold tracking-tight text-gray-900">
+            {Number(kalem.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 border-t border-gray-100 bg-gray-50/60 px-2 py-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-gray-500"
+          onClick={() => setFotoAcik((v) => !v)}
+          rightIcon={fotoAcik ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        >
+          <Camera className="h-3.5 w-3.5" />
+          {gorseller.length > 0 ? `Fotoğraflar (${gorseller.length})` : 'Fotoğraf ekle'}
+        </Button>
+        <div className="flex-1" />
+        {canliAktif && (
+          <Button
+            size="sm"
+            loading={sonuclandiranId === kalem.id}
+            leftIcon={<Trophy className="h-3.5 w-3.5" />}
+            onClick={() => onSonuclandir(kalem.id)}
+          >
+            Sonuçlandır
+          </Button>
+        )}
+        {cikarilabilir && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-red-600"
+            loading={silinenId === kalem.id}
+            onClick={() => onCikar(kalem.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {fotoAcik && (
+        <div className="border-t border-gray-100 bg-gray-50 p-3">
+          {gorseller.length > 0 ? (
+            <div className="mb-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
+              {gorseller.map((g) => (
+                <img
+                  key={g.id}
+                  src={`${API_URL}/varlik/gorsel/${g.id}?tenant=${getTenantSlug()}`}
+                  alt={g.dosya_adi}
+                  className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mb-2 text-xs text-gray-400">Bu varlığa henüz fotoğraf eklenmedi.</p>
+          )}
+          <form onSubmit={fotoYukle} className="flex flex-wrap items-center gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setGorselFiles(e.target.files)}
+              className="text-xs text-gray-600 file:mr-2 file:rounded-lg file:border-0 file:bg-gray-200 file:px-3 file:py-1.5 file:text-xs file:text-gray-700 hover:file:bg-gray-300"
+            />
+            <Button type="submit" size="sm" variant="outline" loading={gorselUploading} leftIcon={<Upload className="h-3.5 w-3.5" />}>
+              Yükle
+            </Button>
+          </form>
+        </div>
+      )}
+
+      {canliAktif && (
+        <div className="border-t border-gray-100 bg-gray-50 p-3">
+          <CanliTeklifGorunumu
+            teklifler={teklifler}
+            yeniTeklifIds={yeniTeklifIds}
+            connected={connected}
+            baslangicFiyati={Number(kalem.baslangic_fiyati)}
+            minArtirmaAdimi={minArtirmaAdimi}
+            bitisTarihi={kalem.bitis_tarihi}
+            ihaleTipi={ihaleTipi}
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function AdminIlanDetayPage() {
   return (
     <RequireTenantAdmin>
@@ -120,6 +337,15 @@ function AdminIlanDetayIcerik() {
   const [gorseller, setGorseller] = useState<Gorsel[]>([]);
   const [busy, setBusy] = useState(false);
   const [yukleniyor, setYukleniyor] = useState(true);
+
+  // Kalem (ilana eklenmiş varlık) yönetimi — KK-25.
+  const [kalemler, setKalemler] = useState<Kalem[]>([]);
+  const [varlikSecenekleri, setVarlikSecenekleri] = useState<VarlikSecenek[]>([]);
+  const [kalemVarlikId, setKalemVarlikId] = useState('');
+  const [kalemFiyat, setKalemFiyat] = useState('');
+  const [kalemEkleniyor, setKalemEkleniyor] = useState(false);
+  const [kalemSilinenId, setKalemSilinenId] = useState<string | null>(null);
+  const [kalemSonuclandiranId, setKalemSonuclandiranId] = useState<string | null>(null);
 
   // TASLAK düzenleme formu (yayınlama ön koşulları).
   const [aciklama, setAciklama] = useState('');
@@ -153,6 +379,12 @@ function AdminIlanDetayIcerik() {
     apiFetch<Gorsel[]>(`/ilan/${params.id}/gorsel`)
       .then(setGorseller)
       .catch(() => setGorseller([]));
+    apiFetch<Kalem[]>(`/ilan/${params.id}/kalem`)
+      .then(setKalemler)
+      .catch(() => setKalemler([]));
+    apiFetch<VarlikSecenek[]>('/varlik')
+      .then(setVarlikSecenekleri)
+      .catch(() => setVarlikSecenekleri([]));
   }, [params.id]);
 
   useEffect(() => {
@@ -162,8 +394,51 @@ function AdminIlanDetayIcerik() {
   const yuklenenTipSeti = useMemo(() => new Set(evraklar.map((e) => e.tip)), [evraklar]);
   const zorunluTamamlanan = ZORUNLU_EVRAK_TIPLERI.filter((t) => yuklenenTipSeti.has(t)).length;
 
+  // Zaten eklenmiş varlıklar seçim listesinden çıkarılır (aynı varlık ilana iki kez eklenemez).
+  const eklenebilirVarliklar = useMemo(() => {
+    const eklenmis = new Set(kalemler.map((k) => k.varlik_id));
+    return varlikSecenekleri.filter((v) => !eklenmis.has(v.id));
+  }, [varlikSecenekleri, kalemler]);
+
   function katilimSartiToggle(value: string) {
     setKatilimSartlari((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  }
+
+  async function kalemEkle(e: React.FormEvent) {
+    e.preventDefault();
+    if (!kalemVarlikId || !kalemFiyat) {
+      toast.error('Varlık ve başlangıç fiyatı zorunludur.');
+      return;
+    }
+    setKalemEkleniyor(true);
+    try {
+      await apiFetch(`/ilan/${params.id}/kalem`, {
+        method: 'POST',
+        body: JSON.stringify({ varlikId: kalemVarlikId, baslangicFiyati: Number(kalemFiyat) }),
+      });
+      setKalemVarlikId('');
+      setKalemFiyat('');
+      toast.success('Varlık ilana eklendi.');
+      await yukle();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Varlık eklenemedi.');
+    } finally {
+      setKalemEkleniyor(false);
+    }
+  }
+
+  async function kalemCikar(kalemId: string) {
+    if (!window.confirm('Bu varlığı ilandan çıkarmak istediğinize emin misiniz?')) return;
+    setKalemSilinenId(kalemId);
+    try {
+      await apiFetch(`/ilan/${params.id}/kalem/${kalemId}`, { method: 'DELETE' });
+      toast.success('Varlık ilandan çıkarıldı.');
+      await yukle();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Çıkarma başarısız.');
+    } finally {
+      setKalemSilinenId(null);
+    }
   }
 
   async function taslakKaydet() {
@@ -218,17 +493,17 @@ function AdminIlanDetayIcerik() {
     }
   }
 
-  async function sonuclandir() {
-    if (!window.confirm('İhaleyi sonuçlandırmak istediğinize emin misiniz? En yüksek teklif kazanan ilan edilecek ve bu işlem geri alınamaz.')) return;
-    setBusy(true);
+  async function kalemSonuclandir(kalemId: string) {
+    if (!window.confirm('Bu varlığı sonuçlandırmak istediğinize emin misiniz? En yüksek teklif kazanan ilan edilecek ve bu işlem geri alınamaz.')) return;
+    setKalemSonuclandiranId(kalemId);
     try {
-      await apiFetch(`/ilan/${params.id}/sonuclandir`, { method: 'POST' });
+      await apiFetch(`/ilan/${params.id}/kalem/${kalemId}/sonuclandir`, { method: 'POST' });
       await yukle();
-      toast.success('İhale sonuçlandırıldı (en yüksek teklif kazanan).');
+      toast.success('Varlık sonuçlandırıldı (en yüksek teklif kazanan).');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Sonuçlandırma başarısız.');
     } finally {
-      setBusy(false);
+      setKalemSonuclandiranId(null);
     }
   }
 
@@ -323,10 +598,12 @@ function AdminIlanDetayIcerik() {
               <div className="grid grid-cols-2 gap-5">
                 <div>
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--renk,#2563eb)]">
-                    Başlangıç Bedeli
+                    {ilan.baslangic_fiyati != null ? 'Başlangıç Bedeli' : 'Varlık Sayısı'}
                   </p>
                   <p className="text-2xl font-bold tracking-tight text-gray-900">
-                    {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+                    {ilan.baslangic_fiyati != null
+                      ? `${Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺`
+                      : kalemler.length}
                   </p>
                 </div>
                 {(ilan.il || ilan.ilce) && (
@@ -347,6 +624,71 @@ function AdminIlanDetayIcerik() {
                   <p className="text-sm leading-relaxed text-gray-700">{ilan.aciklama}</p>
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Varlıklar ({kalemler.length})</CardTitle>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Bu ilana eklenen varlıklar — her biri kendi fiyatıyla ayrı ihale birimi olarak yayınlanır.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {kalemler.length === 0 ? (
+                <EmptyState icon={<FileText />} title="Henüz varlık eklenmedi" description="Yayınlamadan önce en az bir varlık eklenmeli." />
+              ) : (
+                <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                  {kalemler.map((k) => (
+                    <KalemSatiri
+                      key={k.id}
+                      kalem={k}
+                      ilanDurum={ilan.durum}
+                      ihaleTipi={ilan.ihale_tipi}
+                      minArtirmaAdimi={Number(ilan.kurallar?.minArtirmaAdimi ?? 0) || 0}
+                      silinenId={kalemSilinenId}
+                      sonuclandiranId={kalemSonuclandiranId}
+                      onCikar={kalemCikar}
+                      onSonuclandir={kalemSonuclandir}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {(ilan.durum === 'TASLAK' || ilan.durum === 'YAYINDA') &&
+                (eklenebilirVarliklar.length > 0 ? (
+                  <form
+                    onSubmit={kalemEkle}
+                    className="flex flex-wrap items-end gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-3"
+                  >
+                    <Field className="mb-0 min-w-48 flex-1">
+                      <FieldLabel required>Varlık</FieldLabel>
+                      <Select value={kalemVarlikId} onChange={(e) => setKalemVarlikId(e.target.value)}>
+                        <option value="">Seçiniz</option>
+                        {eklenebilirVarliklar.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.ad} ({v.tip})
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field className="mb-0 w-40">
+                      <FieldLabel required>Fiyat (₺)</FieldLabel>
+                      <TutarInput value={kalemFiyat} onChange={setKalemFiyat} placeholder="Örn: 250.000" />
+                    </Field>
+                    <Button type="submit" loading={kalemEkleniyor} leftIcon={<Plus />}>
+                      Varlık Ekle
+                    </Button>
+                  </form>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Eklenebilecek varlık kalmadı —{' '}
+                    <Link href="/admin/varliklar" className="font-medium underline">
+                      yeni varlık oluşturun
+                    </Link>
+                    .
+                  </p>
+                ))}
             </CardContent>
           </Card>
 
@@ -404,13 +746,7 @@ function AdminIlanDetayIcerik() {
                 {sartnameUcretli && (
                   <Field className="sm:w-56">
                     <FieldLabel required>Şartname Tutarı (₺)</FieldLabel>
-                    <Input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={sartnameTutari}
-                      onChange={(e) => setSartnameTutari(e.target.value)}
-                    />
+                    <TutarInput value={sartnameTutari} onChange={setSartnameTutari} />
                   </Field>
                 )}
 
@@ -635,14 +971,11 @@ function AdminIlanDetayIcerik() {
               )}
               {ilan.durum === 'CANLI_ARTIRMA' && (
                 <div className="flex flex-col gap-2">
-                  <Button
-                    className="w-full bg-slate-900 hover:bg-slate-800"
-                    loading={busy}
-                    leftIcon={<Trophy />}
-                    onClick={sonuclandir}
-                  >
-                    Sonuçlandır
-                  </Button>
+                  <p className="text-xs leading-relaxed text-gray-400">
+                    Her varlık kendi ihalesini bağımsız sonuçlandırır — "Varlıklar" kartındaki
+                    ilgili satırdan "Sonuçlandır"a basın. Tüm varlıklar sonuçlanınca ilan otomatik
+                    Sonuçlandı'ya geçer.
+                  </p>
                   <Button
                     variant="outline"
                     className="w-full text-red-600"

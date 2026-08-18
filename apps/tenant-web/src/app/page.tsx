@@ -1,14 +1,22 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, FileText, Gavel, ShieldCheck, TrendingUp } from 'lucide-react';
-import { serverApiFetch } from '../lib/api';
+import { ilanGorselUrl, serverApiFetch } from '../lib/api';
 import { Card, CardContent, EmptyState, IlanKarti, type IlanKartiData } from '@belediyesinden/ui';
 
 // Tenant her istekte header/host'tan çözülür — statik önbelleğe alınırsa container
 // her başladığında ilk isteğin tenant verisi tüm ziyaretçilere donmuş kalır.
 export const dynamic = 'force-dynamic';
 
-interface Ilan extends IlanKartiData {}
+interface Ilan extends IlanKartiData {
+  /** Arama indeksinden gelir — `kapak_gorsel_url`'e dönüştürülmeden `IlanKarti` görseli çözemez. */
+  kapak_gorsel_id?: string | null;
+}
+
+interface AramaSonucu {
+  data: Ilan[];
+  total: number;
+}
 
 async function getTenantSlug(): Promise<string> {
   const h = await headers();
@@ -49,7 +57,11 @@ export default async function HomePage() {
 
   if (slug) {
     try {
-      ilanlar = await serverApiFetch<Ilan[]>('/search/ilan', slug);
+      const sonuc = await serverApiFetch<AramaSonucu>('/search/ilan', slug);
+      ilanlar = sonuc.data.map((i) => ({
+        ...i,
+        kapak_gorsel_url: i.kapak_gorsel_id ? ilanGorselUrl(slug, i.kapak_gorsel_id) : null,
+      }));
     } catch {
       ilanlar = [];
     }

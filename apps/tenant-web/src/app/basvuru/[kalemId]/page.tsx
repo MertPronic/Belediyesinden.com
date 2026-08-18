@@ -14,26 +14,27 @@ import {
   CardTitle,
 } from '@belediyesinden/ui';
 
-interface Ilan {
+interface KalemBaglami {
   id: string;
-  baslik: string;
-  ihale_tipi: string;
+  ilan_id: string;
+  ilan_baslik: string;
+  varlik_ad: string;
   baslangic_fiyati: string;
 }
 
-function BasvuruFormu({ ilanId }: { ilanId: string }) {
+function BasvuruFormu({ kalemId }: { kalemId: string }) {
   const router = useRouter();
-  const [ilan, setIlan] = useState<Ilan | null>(null);
+  const [kalem, setKalem] = useState<KalemBaglami | null>(null);
   const [kvkk, setKvkk] = useState(false);
   const [riza, setRiza] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<Ilan>(`/ilan/${ilanId}`)
-      .then(setIlan)
-      .catch(() => setError('İlan bilgisi alınamadı.'));
-  }, [ilanId]);
+    apiFetch<KalemBaglami>(`/ilan/kalem/${kalemId}`)
+      .then(setKalem)
+      .catch(() => setError('Varlık bilgisi alınamadı.'));
+  }, [kalemId]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,7 +45,7 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
     setSubmitting(true);
     setError(null);
     try {
-      const basvuru = await apiFetch<{ id: string }>('/basvuru/ilan/' + ilanId, {
+      const basvuru = await apiFetch<{ id: string }>('/basvuru/kalem/' + kalemId, {
         method: 'POST',
         body: JSON.stringify({ kvkkOnay: kvkk, acikRiza: riza }),
       });
@@ -58,21 +59,22 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
-        href={`/ilanlar/${ilanId}`}
+        href={`/varliklar/${kalemId}`}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
       >
         <ArrowLeft className="h-4 w-4" />
-        İlana dön
+        Varlığa dön
       </Link>
 
-      {ilan && (
+      {kalem && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{ilan.baslik}</CardTitle>
+            <CardTitle className="text-base">{kalem.varlik_ad}</CardTitle>
+            <p className="text-xs text-gray-400">{kalem.ilan_baslik}</p>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              {ilan.ihale_tipi} · Başlangıç: {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+              Başlangıç fiyatı: {Number(kalem.baslangic_fiyati).toLocaleString('tr-TR')} ₺
             </p>
           </CardContent>
         </Card>
@@ -138,10 +140,10 @@ function BasvuruFormu({ ilanId }: { ilanId: string }) {
 }
 
 export default function BasvuruPage() {
-  const params = useParams<{ ilanId: string }>();
+  const params = useParams<{ kalemId: string }>();
   return (
     <RequireAuth>
-      <BasvuruFormu ilanId={params.ilanId} />
+      <BasvuruFormu kalemId={params.kalemId} />
     </RequireAuth>
   );
 }

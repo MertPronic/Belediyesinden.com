@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { CalendarClock, FileText, Gavel, Lock } from 'lucide-react';
+import { CalendarClock, FileText, Gavel, Lock, MapPin } from 'lucide-react';
 import { Card, CardContent, CardFooter } from './card';
 import { DurumBadge } from './badge';
+import { dummyGorseller } from './gorseller';
 
 /** İlan kartı tarafından kullanılan ortak alan seti. */
 export interface IlanKartiData {
@@ -9,9 +10,20 @@ export interface IlanKartiData {
   baslik: string;
   ihale_tipi: string;
   durum: string;
-  baslangic_fiyati: string | number;
+  /** Tek-varlık dönemden kalma (KK-25 öncesi) — çoklu varlıklı ilanlarda null, bkz. `fiyat_min`/`fiyat_max`. */
+  baslangic_fiyati: string | number | null;
+  /** Çoklu-varlık ilanlarda kalemlerin en düşük/en yüksek fiyatı (KK-25). */
+  fiyat_min?: string | number | null;
+  fiyat_max?: string | number | null;
+  /** İlan (yayın) tarihi. */
+  baslangic_tarihi?: string | null;
+  /** İhale tarihi. */
   bitis_tarihi?: string | null;
   islem_turu?: string | null;
+  il?: string | null;
+  ilce?: string | null;
+  /** Kapak görseli URL'i — verilmezse ilan id'sinden tutarlı bir placeholder üretilir. */
+  kapak_gorsel_url?: string | null;
 }
 
 const ISLEM_TURU_ETIKET: Record<string, string> = {
@@ -46,12 +58,39 @@ export function IlanKarti({
 }) {
   const tip = TIP_ICON[ilan.ihale_tipi] ?? { icon: FileText, label: ilan.ihale_tipi };
   const TipIcon = tip.icon;
-  const bitis = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
-  const bitisGecmis = bitis ? bitis.getTime() < Date.now() : false;
+  const ilanTarihi = ilan.baslangic_tarihi ? new Date(ilan.baslangic_tarihi) : null;
+  const ihaleTarihi = ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi) : null;
+  const ihaleGecmis = ihaleTarihi ? ihaleTarihi.getTime() < Date.now() : false;
+  const konum = [ilan.ilce, ilan.il].filter(Boolean).join(', ');
+
+  // Tek-varlık ilanlarda tek fiyat; çoklu-varlık ilanlarda kalemlerin aralığı (KK-25).
+  const fiyatMin = ilan.fiyat_min != null ? Number(ilan.fiyat_min) : null;
+  const fiyatMax = ilan.fiyat_max != null ? Number(ilan.fiyat_max) : null;
+  const aralikli = ilan.baslangic_fiyati == null && fiyatMin != null && fiyatMax != null && fiyatMin !== fiyatMax;
+  const fiyatEtiketi = aralikli ? 'Fiyat aralığı' : 'Başlangıç fiyatı';
+  const fiyatGosterim =
+    ilan.baslangic_fiyati != null
+      ? `${fmt(ilan.baslangic_fiyati)} ₺`
+      : fiyatMin != null && fiyatMax != null
+        ? aralikli
+          ? `${fmt(fiyatMin)} - ${fmt(fiyatMax)} ₺`
+          : `${fmt(fiyatMin)} ₺`
+        : null;
+
+  const kapak = ilan.kapak_gorsel_url ?? dummyGorseller(ilan.id, 1)[0];
 
   return (
     <Link href={href} className="block">
-      <Card interactive className="h-full">
+      <Card interactive className="group h-full overflow-hidden">
+        <div className="aspect-[16/10] w-full overflow-hidden bg-gray-100">
+          {/* eslint-disable-next-line @next/next/no-img-element -- harici/proxy görsel, tenant başına değişken host */}
+          <img
+            src={kapak}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
         <CardContent className="space-y-3 p-5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -71,27 +110,45 @@ export function IlanKarti({
             </div>
           </div>
 
-          <h3 className="line-clamp-2 font-semibold leading-snug text-gray-900">
-            {ilan.baslik}
-          </h3>
-
           <div>
-            <p className="text-xl font-bold tracking-tight text-gray-900">{fmt(ilan.baslangic_fiyati)} ₺</p>
-            <p className="text-xs text-gray-400">Başlangıç fiyatı</p>
+            <h3 className="line-clamp-2 font-semibold leading-snug text-gray-900">
+              {ilan.baslik}
+            </h3>
+            {konum && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                <MapPin className="h-3.5 w-3.5" />
+                {konum}
+              </p>
+            )}
           </div>
+
+          {fiyatGosterim && (
+            <div>
+              <p className="text-xl font-bold tracking-tight text-gray-900">{fiyatGosterim}</p>
+              <p className="text-xs text-gray-400">{fiyatEtiketi}</p>
+            </div>
+          )}
         </CardContent>
 
-        {bitis && (
-          <CardFooter className="p-5 py-3">
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs ${
-                bitisGecmis ? 'text-gray-400' : 'text-gray-500'
-              }`}
-            >
-              <CalendarClock className="h-3.5 w-3.5" />
-              {bitisGecmis ? 'Sona erdi: ' : 'Bitiş: '}
-              {bitis.toLocaleDateString('tr-TR')}
-            </span>
+        {(ilanTarihi || ihaleTarihi) && (
+          <CardFooter className="flex flex-wrap gap-x-4 gap-y-1 p-5 py-3">
+            {ilanTarihi && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                <CalendarClock className="h-3.5 w-3.5" />
+                İlan: {ilanTarihi.toLocaleDateString('tr-TR')}
+              </span>
+            )}
+            {ihaleTarihi && (
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs ${
+                  ihaleGecmis ? 'text-gray-400' : 'text-gray-500'
+                }`}
+              >
+                <Gavel className="h-3.5 w-3.5" />
+                {ihaleGecmis ? 'İhale (sona erdi): ' : 'İhale: '}
+                {ihaleTarihi.toLocaleDateString('tr-TR')}
+              </span>
+            )}
           </CardFooter>
         )}
       </Card>

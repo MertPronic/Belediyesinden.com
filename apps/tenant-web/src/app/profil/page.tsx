@@ -16,16 +16,18 @@ import {
 
 interface Basvuru {
   id: string;
-  ilan_id: string;
+  ilan_kalemi_id: string;
   ilan_baslik: string;
+  varlik_ad: string;
   durum: string;
   gereken_teminat: string | null;
   created_at: string;
 }
 interface Teklif {
   id: string;
-  ilan_id: string;
+  ilan_kalemi_id: string;
   ilan_baslik: string;
+  varlik_ad: string;
   tutar: string;
   kabul_edildi: boolean;
   created_at: string;
@@ -91,9 +93,10 @@ function ProfilIcerik() {
                 return (
                   <div key={b.id} className="flex items-center justify-between gap-3 px-6 py-3">
                     <div className="min-w-0">
-                      <Link href={`/ilanlar/${b.ilan_id}`} className="block truncate text-sm font-medium text-gray-900 hover:underline">
-                        {b.ilan_baslik}
+                      <Link href={`/varliklar/${b.ilan_kalemi_id}`} className="block truncate text-sm font-medium text-gray-900 hover:underline">
+                        {b.varlik_ad}
                       </Link>
+                      <p className="truncate text-xs text-gray-400">{b.ilan_baslik}</p>
                       <p className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString('tr-TR')}</p>
                     </div>
                     <Badge variant={d.variant}>{d.label}</Badge>
@@ -121,9 +124,10 @@ function ProfilIcerik() {
               {teklifler.map((t) => (
                 <div key={t.id} className="flex items-center justify-between gap-3 px-6 py-3">
                   <div className="min-w-0">
-                    <Link href={`/ilanlar/${t.ilan_id}`} className="block truncate text-sm font-medium text-gray-900 hover:underline">
-                      {t.ilan_baslik}
+                    <Link href={`/varliklar/${t.ilan_kalemi_id}`} className="block truncate text-sm font-medium text-gray-900 hover:underline">
+                      {t.varlik_ad}
                     </Link>
+                    <p className="truncate text-xs text-gray-400">{t.ilan_baslik}</p>
                     <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleDateString('tr-TR')}</p>
                   </div>
                   <span className="shrink-0 text-sm font-bold text-gray-900">

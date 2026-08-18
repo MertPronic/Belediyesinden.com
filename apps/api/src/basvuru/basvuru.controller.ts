@@ -21,30 +21,38 @@ class CreateBasvuruDto {
 export class BasvuruController {
   constructor(private readonly service: BasvuruService) {}
 
-  /** Bir ilan'a başvur (kullanıcı JWT'sinden sub). */
+  /** Bir varlığa (kaleme) başvur (kullanıcı JWT'sinden sub). KK-25: birim ilan değil varlık. */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
-  @Post('ilan/:ilanId')
+  @Post('kalem/:kalemId')
   create(
-    @Param('ilanId') ilanId: string,
+    @Param('kalemId') kalemId: string,
     @CurrentUser() user: AuthenticatedUser | null,
     @Body() dto: CreateBasvuruDto,
   ) {
     if (!user) {
       throw new Error('Kimlik doğrulanmış kullanıcı yok');
     }
-    return this.service.create(ilanId, user.sub, dto.kvkkOnay, dto.acikRiza ?? false);
+    return this.service.create(kalemId, user.sub, dto.kvkkOnay, dto.acikRiza ?? false);
   }
 
-  /** Bir ilan'ın başvurularını listele (encümen/admin). */
+  /** Bir varlığın başvurularını listele (encümen/admin). */
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
-  @Get('ilan/:ilanId')
+  @Get('kalem/:kalemId')
   list(
-    @Param('ilanId') ilanId: string,
+    @Param('kalemId') kalemId: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
     const { limit, offset } = sayfalamaCoz({ page, pageSize });
-    return this.service.list(ilanId, limit, offset);
+    return this.service.list(kalemId, limit, offset);
+  }
+
+  /** Kullanıcının bu varlığa yaptığı başvuru (varsa) — varlık detay sayfasındaki "Başvur" CTA durumu için. */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Get('kalem/:kalemId/benim')
+  findMyForKalem(@Param('kalemId') kalemId: string, @CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) throw new BadRequestException('Kimlik doğrulanmış kullanıcı yok');
+    return this.service.findMyForKalem(kalemId, user.sub);
   }
 
   /** Kullanıcının kendi başvuruları (vatandaş). */

@@ -12,6 +12,18 @@ export enum IlanDurumu {
   Iptal = 'IPTAL',
 }
 
+/**
+ * İlan kalemi (bir ilan içindeki tek varlığın ihale birimi) yaşam döngüsü —
+ * `IlanDurumu`'ndan bağımsız: kalemler kendi teklif/kazanan/sonuçlanma
+ * akışında ilerler (bkz. DECISIONS.md KK-25).
+ */
+export enum IlanKalemiDurumu {
+  Bekliyor = 'BEKLIYOR',
+  CanliArtirma = 'CANLI_ARTIRMA',
+  Sonuclandi = 'SONUCLANDI',
+  Iptal = 'IPTAL',
+}
+
 /** İhale/usul tipleri (2886 sayılı Kanun'a atıfla). */
 export enum IhaleTipi {
   AcikArtirma = 'ACIK_ARTIRMA',

@@ -1,7 +1,9 @@
 /** Başvuru — tenant şeması. Raw sorgu; alanlar DB kolon adlarıyla (snake_case). */
 export interface Basvuru {
   id: string;
+  /** Denormalize (KK-24 emsaliyle) — asıl birim `ilan_kalemi_id`. */
   ilan_id: string;
+  ilan_kalemi_id: string;
   kullanici_id: string;
   durum: string;
   kvkk_onay: boolean;

@@ -1,8 +1,9 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch } from '../../../lib/api';
+import { Download } from 'lucide-react';
+import { apiFetch, downloadFile } from '../../../lib/api';
 import { RequireTenantAdmin } from '../../../components/require-tenant-admin';
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@belediyesinden/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, useToast } from '@belediyesinden/ui';
 
 interface Teminat {
   id: string;
@@ -38,6 +39,7 @@ export default function AdminBasvurularPage() {
 }
 
 function AdminBasvurularIcerik() {
+  const toast = useToast();
   const [teminatlar, setTeminatlar] = useState<Teminat[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -104,7 +106,25 @@ function AdminBasvurularIcerik() {
                           {DURUM_LABEL[t.durum] ?? t.durum}
                         </Badge>
                       </td>
-                      <td className="text-gray-600">{t.dekont_dosya_adi ?? '—'}</td>
+                      <td className="text-gray-600">
+                        {t.dekont_dosya_adi ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              downloadFile(`/teminat/${t.id}/dekont`, t.dekont_dosya_adi ?? 'dekont').catch((e) =>
+                                toast.error(e instanceof Error ? e.message : 'İndirme başarısız.'),
+                              )
+                            }
+                            className="inline-flex items-center gap-1 font-medium hover:underline"
+                            style={{ color: 'var(--renk)' }}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            {t.dekont_dosya_adi}
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className="text-right">
                         {t.durum === 'BEKLEMEDE' && (
                           <div className="flex justify-end gap-1">

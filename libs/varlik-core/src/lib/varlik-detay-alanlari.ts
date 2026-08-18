@@ -1,4 +1,4 @@
-import { TasinirCinsi, TasinmazCinsi, VarlikTipi } from '@belediyesinden/shared';
+import { TasinirCinsi, TasinmazCinsi, TURKIYE_ILLERI, VarlikTipi } from '@belediyesinden/shared';
 
 export type VarlikDetayAlanTipi = 'text' | 'number' | 'select';
 
@@ -22,7 +22,15 @@ export interface VarlikDetayAlanTanimi {
  * girmez.
  */
 const ORTAK_IL_ILCE_ALANLARI: VarlikDetayAlanTanimi[] = [
-  { key: 'il', etiket: 'İl', tip: 'text', zorunlu: false },
+  {
+    key: 'il',
+    etiket: 'İl',
+    tip: 'select',
+    zorunlu: false,
+    // Serbest metin değil sabit liste — "kayseri" / "Kayseri" gibi büyük/küçük harf
+    // tutarsızlığı arama filtresine (portal) sızmasın diye kaynağında engellenir.
+    secenekler: TURKIYE_ILLERI.map((il) => ({ deger: il, etiket: il })),
+  },
   { key: 'ilce', etiket: 'İlçe', tip: 'text', zorunlu: false },
 ];
 

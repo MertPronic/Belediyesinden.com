@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { Inbox, Search } from 'lucide-react';
-import { serverApiFetch } from '../../lib/api';
+import { ilanGorselUrl, serverApiFetch } from '../../lib/api';
 import {
   Button,
   Card,
@@ -18,7 +18,15 @@ import {
 // her başladığında ilk isteğin tenant verisi tüm ziyaretçilere donmuş kalır.
 export const dynamic = 'force-dynamic';
 
-interface Ilan extends IlanKartiData {}
+interface Ilan extends IlanKartiData {
+  /** Arama indeksinden gelir — `kapak_gorsel_url`'e dönüştürülmeden `IlanKarti` görseli çözemez. */
+  kapak_gorsel_id?: string | null;
+}
+
+interface AramaSonucu {
+  data: Ilan[];
+  total: number;
+}
 
 const TIPLER = [
   { value: '', label: 'Tüm Tipler' },
@@ -43,7 +51,14 @@ async function fetchIlanlar(slug: string, query?: string, tip?: string): Promise
     if (query) params.set('q', query);
     if (tip) params.set('tip', tip);
     const qs = params.toString();
-    return await serverApiFetch<Ilan[]>(qs ? `/search/ilan?${qs}` : '/search/ilan', slug);
+    const sonuc = await serverApiFetch<AramaSonucu>(
+      qs ? `/search/ilan?${qs}` : '/search/ilan',
+      slug,
+    );
+    return sonuc.data.map((i) => ({
+      ...i,
+      kapak_gorsel_url: i.kapak_gorsel_id ? ilanGorselUrl(slug, i.kapak_gorsel_id) : null,
+    }));
   } catch {
     return [];
   }

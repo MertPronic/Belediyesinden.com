@@ -54,6 +54,8 @@ export function Badge({
 
 const durumVariant: Record<string, BadgeVariant> = {
   TASLAK: 'default',
+  /** İlan kalemi (varlık) henüz ihaleye açılmadı — bkz. DECISIONS.md KK-25. */
+  BEKLIYOR: 'default',
   YAYINDA: 'success',
   CANLI_ARTIRMA: 'info',
   SONUCLANDI: 'warning',
@@ -62,6 +64,7 @@ const durumVariant: Record<string, BadgeVariant> = {
 
 const durumLabel: Record<string, string> = {
   TASLAK: 'Taslak',
+  BEKLIYOR: 'Bekliyor',
   YAYINDA: 'Yayında',
   CANLI_ARTIRMA: 'Canlı Artırma',
   SONUCLANDI: 'Sonuçlandı',

@@ -6,12 +6,14 @@ export interface Ilan {
   id: string;
   baslik: string;
   aciklama: string | null;
-  varlik_id: string;
+  /** Tek-varlık dönemden kalma (KK-25 öncesi) — yeni ilanlarda null, varlıklar `ilan_kalemi`de. */
+  varlik_id: string | null;
   ihale_tipi: string;
   /** Satış / Kiralama / İşletme Hakkı Devri — `ihale_tipi`den bağımsız (o, ihale usulünü tutar). Geriye dönük kayıtlarda null olabilir. */
   islem_turu: string | null;
   durum: string;
-  baslangic_fiyati: string; // NUMERIC → pg string döner
+  /** Tek-varlık dönemden kalma (KK-25 öncesi) — yeni ilanlarda null, fiyat `ilan_kalemi.baslangic_fiyati`de (kalem bazlı). */
+  baslangic_fiyati: string | null; // NUMERIC → pg string döner
   /** İlan (yayın) tarihi — personel girdisi (KK-20). Geçmiş olabilir. */
   baslangic_tarihi: Date | null;
   /** İhale tarihi — personel girdisi (KK-20). `publishDogrula` bu iki alanı doğrular. */

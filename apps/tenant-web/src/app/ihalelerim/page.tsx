@@ -9,10 +9,13 @@ import { Card, CardContent, DurumBadge, dummyGorseller, EmptyState, Skeleton } f
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 
+/** KK-25: birim artık ilan değil varlık (kalem) — her varlığın kendi bağımsız durumu var. */
 interface IhalemItem {
+  ilan_kalemi_id: string;
   ilan_id: string;
   ilan_baslik: string;
-  ilan_durum: string;
+  varlik_ad: string;
+  kalem_durum: string;
   ihale_tipi: string;
   baslangic_fiyati: string;
   baslangic_tarihi: string | null;
@@ -35,19 +38,19 @@ function IhaleKarti({ h, kullaniciId }: { h: IhalemItem; kullaniciId?: string })
   const slug = getTenantSlug();
   const gorselUrl = h.gorsel_id
     ? `${API_URL}/ilan/gorsel/${h.gorsel_id}?tenant=${slug}`
-    : dummyGorseller(h.ilan_id, 1)[0];
-  const canli = h.ilan_durum === 'CANLI_ARTIRMA';
-  const yaklasan = h.ilan_durum === 'YAYINDA';
-  const kazandi = h.ilan_durum === 'SONUCLANDI' && h.kazanan_kullanici_id === kullaniciId;
+    : dummyGorseller(h.ilan_kalemi_id, 1)[0];
+  const canli = h.kalem_durum === 'CANLI_ARTIRMA';
+  const yaklasan = h.kalem_durum === 'BEKLIYOR';
+  const kazandi = h.kalem_durum === 'SONUCLANDI' && h.kazanan_kullanici_id === kullaniciId;
   const baslangic = h.baslangic_tarihi ? new Date(h.baslangic_tarihi) : null;
 
   return (
-    <Link href={`/teklif/${h.ilan_id}`} className="block">
+    <Link href={`/varliklar/${h.ilan_kalemi_id}`} className="block">
       <Card interactive className="overflow-hidden">
         <div className="flex flex-col sm:flex-row">
           <div className="relative h-36 shrink-0 overflow-hidden sm:h-auto sm:w-48">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={gorselUrl} alt={h.ilan_baslik} className="h-full w-full object-cover" />
+            <img src={gorselUrl} alt={h.varlik_ad} className="h-full w-full object-cover" />
             {canli && (
               <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[11px] font-semibold text-gray-900 shadow-sm">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
@@ -67,15 +70,16 @@ function IhaleKarti({ h, kullaniciId }: { h: IhalemItem; kullaniciId?: string })
               <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 {TIP_LABEL[h.ihale_tipi] ?? h.ihale_tipi}
               </span>
-              <h3 className="truncate text-lg font-semibold text-gray-900">{h.ilan_baslik}</h3>
+              <h3 className="truncate text-lg font-semibold text-gray-900">{h.varlik_ad}</h3>
+              <p className="truncate text-xs text-gray-400">{h.ilan_baslik}</p>
               <div className="flex flex-wrap items-center gap-2">
-                <DurumBadge durum={h.ilan_durum} />
+                <DurumBadge durum={h.kalem_durum} />
                 <span className="text-sm font-bold text-gray-900">{fmt(h.baslangic_fiyati)} ₺</span>
               </div>
               {yaklasan && baslangic && (
                 <p className="flex items-center gap-1 text-xs text-gray-500">
                   <CalendarClock className="h-3.5 w-3.5" />
-                  {baslangic.toLocaleDateString('tr-TR')} tarihinde başlayacak
+                  İhale {baslangic.toLocaleDateString('tr-TR')} tarihinde başlayacak
                 </p>
               )}
             </div>
@@ -108,7 +112,7 @@ function Bolum({ baslik, aciklama, items, kullaniciId }: { baslik: string; acikl
       </div>
       <div className="space-y-3">
         {items.map((h) => (
-          <IhaleKarti key={h.ilan_id} h={h} kullaniciId={kullaniciId} />
+          <IhaleKarti key={h.ilan_kalemi_id} h={h} kullaniciId={kullaniciId} />
         ))}
       </div>
     </div>
@@ -129,9 +133,9 @@ function IhalelerimIcerik() {
 
   const { canli, yaklasan, gecmis } = useMemo(
     () => ({
-      canli: ihaleler.filter((h) => h.ilan_durum === 'CANLI_ARTIRMA'),
-      yaklasan: ihaleler.filter((h) => h.ilan_durum === 'YAYINDA'),
-      gecmis: ihaleler.filter((h) => h.ilan_durum === 'SONUCLANDI' || h.ilan_durum === 'IPTAL'),
+      canli: ihaleler.filter((h) => h.kalem_durum === 'CANLI_ARTIRMA'),
+      yaklasan: ihaleler.filter((h) => h.kalem_durum === 'BEKLIYOR'),
+      gecmis: ihaleler.filter((h) => h.kalem_durum === 'SONUCLANDI' || h.kalem_durum === 'IPTAL'),
     }),
     [ihaleler],
   );
@@ -140,7 +144,7 @@ function IhalelerimIcerik() {
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">İhalelerim</h1>
-        <p className="mt-1 text-sm text-gray-500">Onaylı başvurunuz olan ihaleler — süresi gelince buradan katılın.</p>
+        <p className="mt-1 text-sm text-gray-500">Onaylı başvurunuz olan varlıklar — süresi gelince buradan katılın.</p>
       </div>
 
       {loading ? (

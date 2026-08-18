@@ -21,30 +21,30 @@ function maskeliAd(ad: string | null, soyad: string | null): string | null {
 export class TeklifController {
   constructor(private readonly service: TeklifService) {}
 
-  /** Teklif ver (server-authoritative: teklifDogrula + anti-snipping). */
+  /** Teklif ver (server-authoritative: teklifDogrula + anti-snipping). Birim: varlık (kalem), KK-25. */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci, KullaniciRolu.TenantAdmin)
-  @Post('ilan/:ilanId')
+  @Post('kalem/:kalemId')
   submit(
-    @Param('ilanId') ilanId: string,
+    @Param('kalemId') kalemId: string,
     @CurrentUser() user: AuthenticatedUser | null,
     @Body() dto: SubmitTeklifDto,
   ) {
     if (!user) {
       throw new Error('Kimlik doğrulanmış kullanıcı yok');
     }
-    return this.service.submit(ilanId, user.sub, dto.tutar, maskeliAd(user.ad, user.soyad));
+    return this.service.submit(kalemId, user.sub, dto.tutar, maskeliAd(user.ad, user.soyad));
   }
 
-  /** İlan'ın tekliflerini listele (public — ihale şeffaflığı, sadece tutar). */
+  /** Varlığın tekliflerini listele (public — ihale şeffaflığı, sadece tutar). */
   @Unprotected()
-  @Get('ilan/:ilanId')
+  @Get('kalem/:kalemId')
   list(
-    @Param('ilanId') ilanId: string,
+    @Param('kalemId') kalemId: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
     const { limit, offset } = sayfalamaCoz({ page, pageSize });
-    return this.service.list(ilanId, limit, offset);
+    return this.service.list(kalemId, limit, offset);
   }
 
   /** Kullanıcının kendi teklifleri (vatandaş). */

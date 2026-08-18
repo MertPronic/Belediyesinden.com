@@ -46,7 +46,13 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect,
     this.subRedis.on('message', (_ch: string, msg: string) => {
       // Redis'ten gelen mesajı tenant'sı eşleşen local istemcilere yayınla.
       try {
-        const parsed = JSON.parse(msg) as { event: string; tenant: string; ilanId: string; teklif: unknown };
+        const parsed = JSON.parse(msg) as {
+          event: string;
+          tenant: string;
+          ilanId: string;
+          kalemId: string;
+          teklif: unknown;
+        };
         this.server?.clients.forEach((client) => {
           if (client.readyState !== WebSocket.OPEN) return;
           const meta = this.clients.get(client);
@@ -77,7 +83,7 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect,
       // Personel (TENANT_ADMIN/ENCUMEN) tenant_groups'tan çözülür. Vatandaş/yatırımcı
       // hiçbir tenant grubuna bağlı DEĞİLDİR (bilerek) — bu yüzden query'den gelen
       // ?tenant= ile fallback yapılır. Teklif verisi zaten tenant başına public'tir
-      // (GET /teklif/ilan/:id @Unprotected — bkz. teklif.controller.ts), o yüzden
+      // (GET /teklif/kalem/:kalemId @Unprotected — bkz. teklif.controller.ts), o yüzden
       // bu kanala hangi tenant'ın yayınına abone olunacağını client belirtebilir;
       // asıl yetkilendirme (teklif verme) ayrıca ve her zaman backend'de doğrulanır.
       const tenant = tenantFromGroups(payload['tenant_groups'] as string[] | undefined) ?? url.searchParams.get('tenant');
@@ -99,15 +105,16 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect,
     this.logger.log('ws istemci ayrıldı');
   }
 
-  /** Teklif → Redis'e publish (tenant dahil; tüm instance'lara ulaşır). */
+  /** Teklif → Redis'e publish (tenant dahil; tüm instance'lara ulaşır). `kalemId`: KK-25, ilan içindeki hangi varlık. */
   broadcastTeklif(
     tenantSlug: string,
     ilanId: string,
+    kalemId: string,
     teklif: { id: string; kullanici_id: string; kullanici_ad?: string | null; tutar: string },
   ): void {
-    const msg = JSON.stringify({ event: 'teklif', tenant: tenantSlug, ilanId, teklif });
+    const msg = JSON.stringify({ event: 'teklif', tenant: tenantSlug, ilanId, kalemId, teklif });
     this.pubRedis?.publish(CHANNEL, msg);
-    this.logger.log(`teklif yayınlandı: tenant=${tenantSlug} ilan=${ilanId} tutar=${teklif.tutar}`);
+    this.logger.log(`teklif yayınlandı: tenant=${tenantSlug} kalem=${kalemId} tutar=${teklif.tutar}`);
   }
 
   private tokenFromProtocol(request?: IncomingMessage): string | null {

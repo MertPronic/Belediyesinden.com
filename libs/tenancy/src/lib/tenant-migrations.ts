@@ -417,6 +417,165 @@ class AddIlanIslemTuru1740000018000 extends TenantMigration {
   }
 }
 
+/**
+ * 0019 — `ilan_kalemi`: bir ilanın artık N varlık içerebilmesi (DECISIONS.md
+ * KK-25). Gerçek ihale/teklif birimi buradan sonra bu tablo — `ilan` "duyuru"
+ * rolüne iner (başlık/tarih/şartname ortak; fiyat/kazanan/durum kalem bazlı).
+ * Mevcut her ilan satırı (hepsi bugüne dek tek `varlik_id` taşıyordu) burada
+ * tek bir kaleme backfill edilir — geriye dönük veri kaybı yok.
+ */
+class CreateIlanKalemi1740000019000 extends TenantMigration {
+  name = 'CreateIlanKalemi1740000019000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS ilan_kalemi (
+        id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        ilan_id              UUID          NOT NULL REFERENCES ilan(id),
+        varlik_id            UUID          NOT NULL REFERENCES varlik(id),
+        baslangic_fiyati     NUMERIC(18,2) NOT NULL,
+        bitis_tarihi         TIMESTAMPTZ,
+        durum                VARCHAR(20)   NOT NULL DEFAULT 'BEKLIYOR',
+        kazanan_kullanici_id VARCHAR(100),
+        kazanan_tutar        NUMERIC(18,2),
+        encumen_karar_no     VARCHAR(100),
+        encumen_karar_tarihi TIMESTAMPTZ,
+        deleted_at           TIMESTAMPTZ,
+        created_at           TIMESTAMPTZ   NOT NULL DEFAULT now(),
+        updated_at           TIMESTAMPTZ   NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_ilan_kalemi_ilan ON ilan_kalemi (ilan_id)`);
+    await qr.query(`CREATE INDEX ix_ilan_kalemi_durum ON ilan_kalemi (durum)`);
+    await qr.query(
+      `CREATE UNIQUE INDEX ux_ilan_kalemi_ilan_varlik ON ilan_kalemi (ilan_id, varlik_id) WHERE deleted_at IS NULL`,
+    );
+
+    // Backfill: bugüne dek her ilan tam olarak bir varlık taşıyordu — o satır tek kaleme taşınır.
+    await qr.query(`
+      INSERT INTO ilan_kalemi (
+        ilan_id, varlik_id, baslangic_fiyati, bitis_tarihi, durum,
+        kazanan_kullanici_id, kazanan_tutar, encumen_karar_no, encumen_karar_tarihi,
+        deleted_at, created_at, updated_at
+      )
+      SELECT
+        id, varlik_id, baslangic_fiyati, bitis_tarihi,
+        CASE durum
+          WHEN 'CANLI_ARTIRMA' THEN 'CANLI_ARTIRMA'
+          WHEN 'SONUCLANDI' THEN 'SONUCLANDI'
+          WHEN 'IPTAL' THEN 'IPTAL'
+          ELSE 'BEKLIYOR'
+        END,
+        kazanan_kullanici_id, kazanan_tutar, encumen_karar_no, encumen_karar_tarihi,
+        deleted_at, created_at, updated_at
+      FROM ilan
+    `);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS ilan_kalemi`);
+  }
+}
+
+/**
+ * 0020 — `ilan.varlik_id`/`ilan.baslangic_fiyati` artık NOT NULL değil (KK-25
+ * devamı). Yeni ilanlar varlıksız/fiyatsız "boş" TASLAK olarak doğuyor —
+ * varlık(lar) ve onların fiyatı `ilan_kalemi` üzerinden ekleniyor. Mevcut
+ * satırlar (0019'da backfill edilenler dahil) dokunulmadan kalır.
+ */
+class IlanTekVarlikAlanlariOpsiyonel1740000020000 extends TenantMigration {
+  name = 'IlanTekVarlikAlanlariOpsiyonel1740000020000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ALTER COLUMN varlik_id DROP NOT NULL`);
+    await qr.query(`ALTER TABLE ilan ALTER COLUMN baslangic_fiyati DROP NOT NULL`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ALTER COLUMN baslangic_fiyati SET NOT NULL`);
+    await qr.query(`ALTER TABLE ilan ALTER COLUMN varlik_id SET NOT NULL`);
+  }
+}
+
+/**
+ * 0021 — `basvuru`/`teklif` artık `ilan_kalemi_id` taşıyor (KK-25, Faz 2):
+ * gerçek başvuru/teklif birimi ilan değil, ilan içindeki tek bir varlık (kalem).
+ * Backfill: bugüne dek her ilan tam 1 kalem taşıdığı için (0019 backfill'i)
+ * mevcut satırlar o tek kaleme bağlanır — çoklu-kalemli ilanlarda henüz
+ * başvuru/teklif olmadığından belirsizlik yok. `basvuru`'nun tekillik kısıtı
+ * `(ilan_id, kullanici_id)`'den `(ilan_kalemi_id, kullanici_id)`'ye taşınır —
+ * eskisi aynı ilandaki 2 farklı varlığa başvuruyu yanlışlıkla engellerdi.
+ * `ilan_id` kolonları ikisinde de kalıyor (KK-24 emsaliyle denormalize,
+ * sorgu kolaylığı) ama artık yalnızca bilgi amaçlı.
+ */
+class AddIlanKalemiToBasvuruTeklif1740000021000 extends TenantMigration {
+  name = 'AddIlanKalemiToBasvuruTeklif1740000021000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE basvuru ADD COLUMN IF NOT EXISTS ilan_kalemi_id UUID REFERENCES ilan_kalemi(id)`);
+    await qr.query(`ALTER TABLE teklif ADD COLUMN IF NOT EXISTS ilan_kalemi_id UUID REFERENCES ilan_kalemi(id)`);
+
+    await qr.query(`
+      UPDATE basvuru b SET ilan_kalemi_id = k.id
+      FROM ilan_kalemi k
+      WHERE k.ilan_id = b.ilan_id AND b.ilan_kalemi_id IS NULL
+        AND (SELECT COUNT(*) FROM ilan_kalemi k2 WHERE k2.ilan_id = b.ilan_id) = 1
+    `);
+    await qr.query(`
+      UPDATE teklif t SET ilan_kalemi_id = k.id
+      FROM ilan_kalemi k
+      WHERE k.ilan_id = t.ilan_id AND t.ilan_kalemi_id IS NULL
+        AND (SELECT COUNT(*) FROM ilan_kalemi k2 WHERE k2.ilan_id = t.ilan_id) = 1
+    `);
+
+    await qr.query(`ALTER TABLE basvuru ALTER COLUMN ilan_kalemi_id SET NOT NULL`);
+    await qr.query(`ALTER TABLE teklif ALTER COLUMN ilan_kalemi_id SET NOT NULL`);
+
+    await qr.query(`DROP INDEX IF EXISTS ux_basvuru_ilan_kullanici`);
+    await qr.query(
+      `CREATE UNIQUE INDEX ux_basvuru_kalem_kullanici ON basvuru (ilan_kalemi_id, kullanici_id)`,
+    );
+    await qr.query(`CREATE INDEX ix_teklif_ilan_kalemi ON teklif (ilan_kalemi_id)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP INDEX IF EXISTS ix_teklif_ilan_kalemi`);
+    await qr.query(`DROP INDEX IF EXISTS ux_basvuru_kalem_kullanici`);
+    await qr.query(`CREATE UNIQUE INDEX ux_basvuru_ilan_kullanici ON basvuru (ilan_id, kullanici_id)`);
+    await qr.query(`ALTER TABLE teklif DROP COLUMN IF EXISTS ilan_kalemi_id`);
+    await qr.query(`ALTER TABLE basvuru DROP COLUMN IF EXISTS ilan_kalemi_id`);
+  }
+}
+
+/**
+ * 0022 — `varlik_gorseller`: varlığa özel fotoğraf galerisi (KK-25, Faz 4).
+ * `ilan_gorseller` ile birebir aynı desen — bir ilan artık N varlık
+ * içerebildiği için ortak ilan galerisi tek bir varlığı temsil edemez.
+ */
+class CreateVarlikGorseller1740000022000 extends TenantMigration {
+  name = 'CreateVarlikGorseller1740000022000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS varlik_gorseller (
+        id           UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        varlik_id    UUID          NOT NULL REFERENCES varlik(id) ON DELETE CASCADE,
+        minio_key    VARCHAR(500)  NOT NULL,
+        dosya_adi    VARCHAR(255)  NOT NULL,
+        content_type VARCHAR(100),
+        boyut        BIGINT        NOT NULL DEFAULT 0,
+        sira         INTEGER       NOT NULL DEFAULT 0,
+        created_at   TIMESTAMPTZ   NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_varlik_gorseller_varlik ON varlik_gorseller (varlik_id)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS varlik_gorseller`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -436,4 +595,8 @@ export const tenantMigrations = [
   SoftDeleteVarlikIlan1740000016000,
   TeklifKullaniciAd1740000017000,
   AddIlanIslemTuru1740000018000,
+  CreateIlanKalemi1740000019000,
+  IlanTekVarlikAlanlariOpsiyonel1740000020000,
+  AddIlanKalemiToBasvuruTeklif1740000021000,
+  CreateVarlikGorseller1740000022000,
 ];

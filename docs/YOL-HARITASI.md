@@ -20,7 +20,7 @@
 |----|------------------|----------------|-------|
 | İP1 | Analiz & sistem mimarisi | Diyagram + faz-0 + 5 belge seti + v2 diyagram | ✅ baz |
 | İP2 | Çok kiracılı altyapı | tenancy dolu (migrations 14KB), guard zinciri, izolasyon **çalışıyor**; SQLi kapandı (KK-07) | ✅ (kalan: ingress header-strip) |
-| İP3 | İlan & varlık | `ilan`, `varlik` modülleri mevcut; ilan durum makinesi kullanılıyor | 🟡 olgunluk teyit |
+| İP3 | İlan & varlık | `ilan`+`varlik` **dolu** (CRUD, roller, audit, arama, görsel); publish sağlamlaştırılacak (state-machine → ilan-core, KK-20 tarihler). **Kapsam genişliyor:** ilan artık 1 varlık değil N varlık ("kalem") içerebilecek — bkz. KK-25, fazlanmış uygulama sürüyor | ✅ dolu / 🔧 publish / 🟡 KK-25 fazlanıyor |
 | İP4 | Başvuru & teminat | `basvuru`, `teminat` modülleri mevcut; teminat **simülasyon** (stub) | 🟡 olgunluk teyit |
 | İP5 | Gerçek zamanlı açık artırma motoru | **Çalışıyor**: `TeklifService` zinciri tam (doğrula→yaz→WS→audit→anti-sniping), `auction-core` testli, gateway güvenli relay | 🔧 sağlamlaştır (KK-17, KK-18) |
 | İP6 | Dinamik kural motoru | `rule-engine` kullanılıyor (`getIlanKurallari`); `ilan_kurallari` tablosu | 🟡 kapsam teyit |

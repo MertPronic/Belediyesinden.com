@@ -2,16 +2,29 @@
 import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { RequireAuth } from '../../components/require-auth';
-import { apiFetch } from '../../lib/api';
+import { apiFetch, getTenantSlug, ilanGorselUrl } from '../../lib/api';
 import { Card, EmptyState, IlanKarti, type IlanKartiData } from '@belediyesinden/ui';
 
+interface FavoriIlan extends IlanKartiData {
+  /** Ham `/ilan/*` yanıtından gelir — `kapak_gorsel_url`'e dönüştürülmeden `IlanKarti` görseli çözemez. */
+  kapak_gorsel_id?: string | null;
+}
+
 function FavorilerIcerik() {
-  const [ilanlar, setIlanlar] = useState<IlanKartiData[]>([]);
+  const [ilanlar, setIlanlar] = useState<FavoriIlan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<IlanKartiData[]>('/ilan/favoriler/my')
-      .then(setIlanlar)
+    apiFetch<FavoriIlan[]>('/ilan/favoriler/my')
+      .then((rows) => {
+        const slug = getTenantSlug();
+        setIlanlar(
+          rows.map((i) => ({
+            ...i,
+            kapak_gorsel_url: i.kapak_gorsel_id ? ilanGorselUrl(slug, i.kapak_gorsel_id) : null,
+          })),
+        );
+      })
       .catch(() => setIlanlar([]))
       .finally(() => setLoading(false));
   }, []);

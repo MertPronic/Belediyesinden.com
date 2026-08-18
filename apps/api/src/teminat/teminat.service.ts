@@ -86,6 +86,20 @@ export class TeminatService {
     return rows[0];
   }
 
+  /** Dekont indir (encümen/admin — onaylamadan önce gözden geçirmek için). */
+  async download(id: string): Promise<{ stream: NodeJS.ReadableStream; teminat: Teminat }> {
+    const rows = await rawQuery<Teminat>(this.qr(), 'SELECT * FROM teminat WHERE id = $1', [id]);
+    const teminat = rows[0];
+    if (!teminat) {
+      throw new NotFoundException('Teminat bulunamadı');
+    }
+    if (!teminat.dekont_minio_key) {
+      throw new BadRequestException('Bu teminat için yüklenmiş bir dekont yok');
+    }
+    const stream = (await this.minio.getObject(teminat.dekont_minio_key)) as NodeJS.ReadableStream;
+    return { stream, teminat };
+  }
+
   /** Encümen onayı: BEKLEMEDE → BLOKE_EDILDI; başvuru → ONAYLANDI. */
   async approve(id: string, onaylayan: string): Promise<Teminat> {
     const rows = await rawQuery<Teminat>(

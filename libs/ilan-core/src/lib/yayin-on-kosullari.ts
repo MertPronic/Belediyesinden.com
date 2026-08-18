@@ -24,9 +24,14 @@ export interface YayinOnKosulSonuc {
   hata?: string;
 }
 
+/**
+ * `kalemSayisi` — ilana eklenmiş `ilan_kalemi` (varlık) sayısı (DECISIONS.md KK-25).
+ * Varsayılan 1: eski çağıranlar (tek-varlık ilanlar, geriye dönük uyumluluk) etkilenmez.
+ */
 export function yayinOnKosullariGecerliMi(
   yuklenenEvrakTipleri: EvrakTipi[],
   katilimSartlari: string[],
+  kalemSayisi = 1,
 ): YayinOnKosulSonuc {
   const eksik = ZORUNLU_EVRAK_TIPLERI.filter((tip) => !yuklenenEvrakTipleri.includes(tip));
   if (eksik.length > 0) {
@@ -37,6 +42,9 @@ export function yayinOnKosullariGecerliMi(
   }
   if (katilimSartlari.length === 0) {
     return { gecerli: false, hata: 'En az bir katılım şartı seçilmeli' };
+  }
+  if (kalemSayisi < 1) {
+    return { gecerli: false, hata: 'İlana en az bir varlık eklenmeden yayınlanamaz' };
   }
   return { gecerli: true };
 }

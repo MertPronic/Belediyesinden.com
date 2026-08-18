@@ -15,6 +15,7 @@ import {
   FieldLabel,
   Input,
   Skeleton,
+  TutarInput,
   useToast,
 } from '@belediyesinden/ui';
 
@@ -136,7 +137,7 @@ function KuralKarti({ tip, baslik, kurallar }: { tip: string; baslik: string; ku
         <div className="grid gap-x-4 gap-y-1 sm:grid-cols-3">
           <Field>
             <FieldLabel>Min. Artırma Adımı (₺)</FieldLabel>
-            <Input type="number" min={0} value={form.minArtirmaAdimi} onChange={(e) => set('minArtirmaAdimi', e.target.value)} />
+            <TutarInput value={String(form.minArtirmaAdimi)} onChange={(v) => set('minArtirmaAdimi', v)} />
           </Field>
           <Field>
             <FieldLabel>Teminat Oranı (0–1)</FieldLabel>

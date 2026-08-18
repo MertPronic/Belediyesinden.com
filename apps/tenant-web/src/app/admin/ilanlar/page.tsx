@@ -26,12 +26,12 @@ interface Ilan {
   ihale_tipi: string;
   islem_turu: string | null;
   durum: string;
-  baslangic_fiyati: string;
-}
-interface Varlik {
-  id: string;
-  ad: string;
-  tip: string;
+  /** Tek-varlık dönemden kalma (KK-25 öncesi) — yeni ilanlarda null, fiyat kalem bazlı. */
+  baslangic_fiyati: string | null;
+  baslangic_tarihi: string | null;
+  bitis_tarihi: string | null;
+  il: string | null;
+  ilce: string | null;
 }
 
 const IHALE_TIP = [
@@ -66,27 +66,19 @@ function AdminIlanlarIcerik() {
   const toast = useToast();
   const router = useRouter();
   const [ilanlar, setIlanlar] = useState<Ilan[]>([]);
-  const [varliklar, setVarliklar] = useState<Varlik[]>([]);
   const [baslik, setBaslik] = useState('');
-  const [varlikId, setVarlikId] = useState('');
   const [ihaleTipi, setIhaleTipi] = useState(IHALE_TIP[0].value);
   const [islemTuru, setIslemTuru] = useState(ISLEM_TURU[0].value);
-  const [fiyat, setFiyat] = useState('');
   const [ilanTarihi, setIlanTarihi] = useState('');
   const [ihaleTarihi, setIhaleTarihi] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const yukle = useCallback(() => {
-    Promise.all([
-      apiFetch<Ilan[]>('/ilan').catch(() => []),
-      apiFetch<Varlik[]>('/varlik').catch(() => []),
-    ]).then(([i, v]) => {
-      setIlanlar(i);
-      setVarliklar(v);
-      if (v.length && !varlikId) setVarlikId(v[0].id);
-    });
-  }, [varlikId]);
+    apiFetch<Ilan[]>('/ilan')
+      .catch(() => [])
+      .then(setIlanlar);
+  }, []);
 
   useEffect(() => {
     yukle();
@@ -99,8 +91,8 @@ function AdminIlanlarIcerik() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!baslik.trim() || !varlikId || !fiyat) {
-      toast.error('Başlık, varlık ve başlangıç fiyatı zorunludur.');
+    if (!baslik.trim()) {
+      toast.error('Başlık zorunludur.');
       return;
     }
     if (!ilanTarihi || !ihaleTarihi) {
@@ -113,15 +105,13 @@ function AdminIlanlarIcerik() {
         method: 'POST',
         body: JSON.stringify({
           baslik: baslik.trim(),
-          varlikId,
           ihaleTipi,
           islemTuru,
-          baslangicFiyati: Number(fiyat),
           ilanTarihi,
           ihaleTarihi,
         }),
       });
-      toast.success('İlan oluşturuldu (taslak) — fotoğraf ve evrak eklemeye devam edin.');
+      toast.success('İlan oluşturuldu (taslak) — şimdi varlık ekleyin.');
       router.push(`/admin/ilanlar/${created.id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Oluşturma başarısız.');
@@ -170,74 +160,54 @@ function AdminIlanlarIcerik() {
           <CardTitle className="text-base">Yeni İlan (Taslak)</CardTitle>
         </CardHeader>
         <CardContent>
-          {varliklar.length === 0 ? (
-            <EmptyState
-              icon={<FileText />}
-              title="Önce bir varlık gerekli"
-              description="İlan oluşturmadan önce belediye envanterine en az bir varlık eklenmeli."
-              action={
-                <Button size="sm" leftIcon={<Plus />} onClick={() => router.push('/admin/varliklar')}>
-                  Varlık Ekle
-                </Button>
-              }
-            />
-          ) : (
-            <form onSubmit={submit} className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-              <Field className="sm:col-span-2">
-                <FieldLabel required>Başlık</FieldLabel>
-                <Input value={baslik} onChange={(e) => setBaslik(e.target.value)} placeholder="İlan başlığı" />
-              </Field>
-              <Field>
-                <FieldLabel>Varlık</FieldLabel>
-                <Select value={varlikId} onChange={(e) => setVarlikId(e.target.value)}>
-                  {varliklar.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.ad} ({v.tip})
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>İhale Tipi</FieldLabel>
-                <Select value={ihaleTipi} onChange={(e) => setIhaleTipi(e.target.value)}>
-                  {IHALE_TIP.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel required>İşlem Türü</FieldLabel>
-                <Select value={islemTuru} onChange={(e) => setIslemTuru(e.target.value)}>
-                  {ISLEM_TURU.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel required>Başlangıç Fiyatı (₺)</FieldLabel>
-                <Input type="number" value={fiyat} onChange={(e) => setFiyat(e.target.value)} placeholder="Örn: 250000" />
-              </Field>
-              <Field>
-                <FieldLabel required>İlan Tarihi</FieldLabel>
-                <Input type="date" value={ilanTarihi} onChange={(e) => setIlanTarihi(e.target.value)} />
-                <p className="mt-1 text-xs text-gray-400">Bugünden en az 10 gün sonrası seçilmeli.</p>
-              </Field>
-              <Field>
-                <FieldLabel required>İhale Tarihi</FieldLabel>
-                <Input type="date" value={ihaleTarihi} onChange={(e) => setIhaleTarihi(e.target.value)} />
-                <p className="mt-1 text-xs text-gray-400">İlan tarihinden en az 10 gün sonrası seçilmeli.</p>
-              </Field>
-              <div className="mt-3 sm:col-span-2">
-                <Button type="submit" loading={submitting} leftIcon={<Plus />}>
-                  İlan Oluştur
-                </Button>
-              </div>
-            </form>
-          )}
+          <p className="mb-4 text-xs text-gray-500">
+            Varlıklar ilan oluşturulduktan sonra, ilan detay sayfasından tek tek eklenir — bir
+            ilan istediğiniz kadar varlık içerebilir.
+          </p>
+          <form onSubmit={submit} className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            <Field className="sm:col-span-2">
+              <FieldLabel required>Başlık</FieldLabel>
+              <Input value={baslik} onChange={(e) => setBaslik(e.target.value)} placeholder="İlan başlığı" />
+            </Field>
+            <Field>
+              <FieldLabel>İhale Tipi</FieldLabel>
+              <Select value={ihaleTipi} onChange={(e) => setIhaleTipi(e.target.value)}>
+                {IHALE_TIP.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel required>İşlem Türü</FieldLabel>
+              <Select value={islemTuru} onChange={(e) => setIslemTuru(e.target.value)}>
+                {ISLEM_TURU.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel required>İlan Tarihi</FieldLabel>
+              <Input type="date" value={ilanTarihi} onChange={(e) => setIlanTarihi(e.target.value)} />
+              <p className="mt-1 text-xs text-gray-400">Bugünden en az 10 gün sonrası seçilmeli.</p>
+            </Field>
+            <Field>
+              <FieldLabel required>İhale Tarihi</FieldLabel>
+              <Input type="date" value={ihaleTarihi} onChange={(e) => setIhaleTarihi(e.target.value)} />
+              <p className="mt-1 text-xs text-gray-400">
+                İlan tarihinden en az 10 gün sonrası seçilmeli — ilandaki tüm varlıklar bu tarihte
+                birlikte ihaleye açılır.
+              </p>
+            </Field>
+            <div className="mt-3 sm:col-span-2">
+              <Button type="submit" loading={submitting} leftIcon={<Plus />}>
+                İlan Oluştur
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
 
@@ -254,6 +224,9 @@ function AdminIlanlarIcerik() {
                 <thead>
                   <tr className="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     <th className="h-11 px-4">Başlık</th>
+                    <th className="px-4">Konum</th>
+                    <th className="px-4">İlan Tarihi</th>
+                    <th className="px-4">İhale Tarihi</th>
                     <th className="px-4">Durum</th>
                     <th className="px-4 text-right">Fiyat</th>
                     <th className="px-4 text-right">İşlem</th>
@@ -271,11 +244,22 @@ function AdminIlanlarIcerik() {
                           {ilan.islem_turu && ` · ${ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}`}
                         </span>
                       </td>
+                      <td className="px-4 text-gray-500">
+                        {[ilan.ilce, ilan.il].filter(Boolean).join(', ') || '—'}
+                      </td>
+                      <td className="px-4 text-gray-500">
+                        {ilan.baslangic_tarihi ? new Date(ilan.baslangic_tarihi).toLocaleDateString('tr-TR') : '—'}
+                      </td>
+                      <td className="px-4 text-gray-500">
+                        {ilan.bitis_tarihi ? new Date(ilan.bitis_tarihi).toLocaleDateString('tr-TR') : '—'}
+                      </td>
                       <td className="px-4">
                         <DurumBadge durum={ilan.durum} />
                       </td>
                       <td className="px-4 text-right tabular-nums">
-                        {Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺
+                        {ilan.baslangic_fiyati != null
+                          ? `${Number(ilan.baslangic_fiyati).toLocaleString('tr-TR')} ₺`
+                          : '—'}
                       </td>
                       <td className="px-4 text-right">
                         {ilan.durum === 'TASLAK' && (
