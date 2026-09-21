@@ -1,7 +1,7 @@
 import { type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from './cn';
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info';
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'accent';
 type BadgeSize = 'sm' | 'md';
 
 const variants: Record<BadgeVariant, string> = {
@@ -10,6 +10,8 @@ const variants: Record<BadgeVariant, string> = {
   warning: 'bg-amber-100 text-amber-700',
   danger: 'bg-red-100 text-red-700',
   info: 'bg-blue-100 text-blue-700',
+  /** Belediyenin tema rengine göre yumuşak zemin (bkz. `accent-soft-bg`, global.css). */
+  accent: 'accent-soft-bg text-gray-700',
 };
 
 const sizes: Record<BadgeSize, string> = {

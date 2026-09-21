@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { CalendarClock, FileText, Gavel, Lock, MapPin } from 'lucide-react';
+import { Boxes, CalendarClock, FileText, Gavel, Lock, MapPin } from 'lucide-react';
 import { Card, CardContent, CardFooter } from './card';
-import { DurumBadge } from './badge';
+import { Badge, DurumBadge } from './badge';
 import { dummyGorseller } from './gorseller';
 
 /** İlan kartı tarafından kullanılan ortak alan seti. */
@@ -24,6 +24,8 @@ export interface IlanKartiData {
   ilce?: string | null;
   /** Kapak görseli URL'i — verilmezse ilan id'sinden tutarlı bir placeholder üretilir. */
   kapak_gorsel_url?: string | null;
+  /** İlanın içerdiği varlık (kalem) sayısı — YAYINDA durumunda badge yerine gösterilir. */
+  kalem_sayisi?: string | number | null;
 }
 
 const ISLEM_TURU_ETIKET: Record<string, string> = {
@@ -67,7 +69,7 @@ export function IlanKarti({
   const fiyatMin = ilan.fiyat_min != null ? Number(ilan.fiyat_min) : null;
   const fiyatMax = ilan.fiyat_max != null ? Number(ilan.fiyat_max) : null;
   const aralikli = ilan.baslangic_fiyati == null && fiyatMin != null && fiyatMax != null && fiyatMin !== fiyatMax;
-  const fiyatEtiketi = aralikli ? 'Fiyat aralığı' : 'Başlangıç fiyatı';
+  const fiyatEtiketi = aralikli ? 'Başlangıç fiyat aralığı' : 'Başlangıç fiyatı';
   const fiyatGosterim =
     ilan.baslangic_fiyati != null
       ? `${fmt(ilan.baslangic_fiyati)} ₺`
@@ -78,6 +80,7 @@ export function IlanKarti({
         : null;
 
   const kapak = ilan.kapak_gorsel_url ?? dummyGorseller(ilan.id, 1)[0];
+  const kalemSayisi = ilan.kalem_sayisi != null ? Number(ilan.kalem_sayisi) : null;
 
   return (
     <Link href={href} className="block">
@@ -92,22 +95,21 @@ export function IlanKarti({
           />
         </div>
         <CardContent className="space-y-3 p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center gap-1.5 rounded-md accent-soft-bg px-2 py-1 text-xs font-medium text-gray-700">
-                <TipIcon className="h-3.5 w-3.5" style={{ color: 'var(--renk)' }} />
-                {tip.label}
-              </span>
-              {ilan.islem_turu && (
-                <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
-                  {ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
-              {extra}
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <Badge variant="accent" icon={<TipIcon style={{ color: 'var(--renk)' }} />}>
+              {tip.label}
+            </Badge>
+            {ilan.islem_turu && (
+              <Badge variant="default">{ISLEM_TURU_ETIKET[ilan.islem_turu] ?? ilan.islem_turu}</Badge>
+            )}
+            {extra}
+            {ilan.durum === 'YAYINDA' && kalemSayisi != null ? (
+              <Badge variant="default" icon={<Boxes className="h-3 w-3" />}>
+                {kalemSayisi} Varlık
+              </Badge>
+            ) : (
               <DurumBadge durum={ilan.durum} />
-            </div>
+            )}
           </div>
 
           <div>
