@@ -4,6 +4,38 @@ import { Client } from '@opensearch-project/opensearch';
 const INDEX = 'ilanlar';
 /** Halka açık arama sonuçlarında gösterilebilecek durumlar (bkz. tenant-web/portal PUBLIC_DURUMLAR). */
 const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
+/**
+ * Varsayılan liste — SONUCLANDI hariç (PO geri bildirimi, 2026-08-21): sonuçlanmış
+ * ihaleler ana listede görünmez. "Sonuçlananları göster" anahtarı açılınca (bkz.
+ * `sadeceSonuclananlar`) görünüm bunun tersine, SADECE SONUCLANDI'ya döner — birleşim değil.
+ */
+const AKTIF_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA'];
+
+/**
+ * Sıralama seçenekleri (portal arama paneli). `fiyat_min`, tek-varlıklı ilanlarda da
+ * kalemlerden türetildiği için (bkz. IlanService.syncSearchIndex) her zaman dolu —
+ * ayrı bir "fiyat" alanına gerek yok.
+ */
+/**
+ * Varsayılan sırada canlı artırmalar en üstte durur (Harun bey/PO geri bildirimi,
+ * 2026-08-21): `durum_oncelik` — CANLI_ARTIRMA=0, YAYINDA=1, SONUCLANDI=2 — index
+ * zamanında hesaplanır (bkz. IlanService.syncSearchIndex), asc sıralanır.
+ */
+function siralamaKurallari(sort?: string): Array<Record<string, { order: 'asc' | 'desc'; missing: '_last' }>> {
+  switch (sort) {
+    case 'ihale_yakin':
+      return [{ bitis_tarihi: { order: 'asc', missing: '_last' } }];
+    case 'fiyat_artan':
+      return [{ fiyat_min: { order: 'asc', missing: '_last' } }];
+    case 'fiyat_azalan':
+      return [{ fiyat_min: { order: 'desc', missing: '_last' } }];
+    default:
+      return [
+        { durum_oncelik: { order: 'asc', missing: '_last' } },
+        { baslangic_tarihi: { order: 'desc', missing: '_last' } },
+      ];
+  }
+}
 
 /** OpenSearch (ilan arama/filtreleme) servisi. İndeks: `ilanlar`, tenant_slug ile izole. */
 @Injectable()
@@ -28,6 +60,9 @@ export class OpenSearchService implements OnModuleInit {
       il: { type: 'keyword' },
       ilce: { type: 'keyword' },
       kapak_gorsel_id: { type: 'keyword' },
+      kalem_sayisi: { type: 'integer' },
+      durum_oncelik: { type: 'integer' },
+      varlik_tipleri: { type: 'keyword' },
     } as const;
     try {
       const exists = await this.client.indices.exists({ index: INDEX });
@@ -66,6 +101,12 @@ export class OpenSearchService implements OnModuleInit {
       ilce?: string | null;
       tenant_ad?: string | null;
       kapak_gorsel_id?: string | null;
+      /** İlanın kaç varlık (kalem) içerdiği — kart üzerinde "Yayında" yerine gösterilir. */
+      kalem_sayisi?: number;
+      /** Varsayılan sıralama önceliği — CANLI_ARTIRMA=0, YAYINDA=1, SONUCLANDI=2. */
+      durum_oncelik?: number;
+      /** İçerdiği kalemlerin tekilleştirilmiş varlık tipleri — "Varlık Türü" filtresi için (PO geri bildirimi, 2026-08-21: ihale tipi filtresinin yerini aldı). */
+      varlik_tipleri?: string[];
     },
   ): Promise<void> {
     await this.client.index({
@@ -90,14 +131,18 @@ export class OpenSearchService implements OnModuleInit {
   async searchIlan(
     tenantSlug: string,
     query: string,
-    tip?: string,
+    varlikTipi?: string,
     isPersonel = false,
     il?: string,
     ilce?: string,
     limit = 24,
     offset = 0,
+    sort?: string,
+    sadeceSonuclananlar = false,
   ): Promise<{ data: unknown[]; total: number }> {
-    const must: Record<string, unknown>[] = [{ terms: { durum: PUBLIC_DURUMLAR } }];
+    const must: Record<string, unknown>[] = [
+      { terms: { durum: sadeceSonuclananlar ? ['SONUCLANDI'] : AKTIF_DURUMLAR } },
+    ];
     const mustNot: Record<string, unknown>[] = [];
     if (tenantSlug && tenantSlug !== 'central') {
       must.push({ term: { tenant_slug: tenantSlug } });
@@ -107,8 +152,8 @@ export class OpenSearchService implements OnModuleInit {
       // olsa bile ("mer" → "Merkez") eşleşir. Düz multi_match yalnızca tam kelime eşleştirir.
       must.push({ multi_match: { query, fields: ['baslik', 'aciklama'], type: 'phrase_prefix' } });
     }
-    if (tip) {
-      must.push({ term: { ihale_tipi: tip } });
+    if (varlikTipi) {
+      must.push({ term: { varlik_tipleri: varlikTipi } });
     }
     if (il) {
       must.push({ term: { il } });
@@ -122,7 +167,12 @@ export class OpenSearchService implements OnModuleInit {
     const result = await this.client.search({
       index: INDEX,
       track_total_hits: true,
-      body: { query: { bool: { must, must_not: mustNot } }, from: offset, size: limit },
+      body: {
+        query: { bool: { must, must_not: mustNot } },
+        sort: siralamaKurallari(sort),
+        from: offset,
+        size: limit,
+      },
     });
     const body = result.body as {
       hits: { hits: Array<{ _source: unknown }>; total: { value: number } };
@@ -134,15 +184,12 @@ export class OpenSearchService implements OnModuleInit {
   }
 
   /**
-   * İl/ilçe filtre seçenekleri — gerçekte ilanı olan yerlerden (statik referans
-   * veri seti yerine, POC kapsamı). İl listesi artık `TURKIYE_ILLERI` sabitinden
-   * (frontend) geliyor — burası sadece seçilen ile ait ilçeleri ve belediye sayısını
-   * döner.
+   * Seçili il'e (varsa) ait ilan yayınlayan belediye sayısı. İl/ilçe seçenekleri
+   * artık `TURKIYE_ILCELERI`/`TURKIYE_ILLERI` sabitlerinden (frontend, `@belediyesinden/shared`)
+   * geliyor — ilanı olmayan ilçeler de listede görünsün diye (Harun/PO kararı)
+   * gerçek ilan verisinden agregasyon kaldırıldı.
    */
-  async aggLokasyonlar(
-    tenantSlug: string,
-    il?: string,
-  ): Promise<{ ilceler: string[]; belediyeSayisi: number }> {
+  async aggLokasyonlar(tenantSlug: string, il?: string): Promise<{ belediyeSayisi: number }> {
     const must: Record<string, unknown>[] = [{ terms: { durum: PUBLIC_DURUMLAR } }];
     if (tenantSlug && tenantSlug !== 'central') {
       must.push({ term: { tenant_slug: tenantSlug } });
@@ -150,24 +197,17 @@ export class OpenSearchService implements OnModuleInit {
     if (il) {
       must.push({ term: { il } });
     }
-    const aggs = {
-      belediyeSayisi: { cardinality: { field: 'tenant_slug' } },
-      ...(il ? { ilceler: { terms: { field: 'ilce', size: 200 } } } : {}),
-    };
     const result = await this.client.search({
       index: INDEX,
-      body: { query: { bool: { must } }, size: 0, aggs },
+      body: {
+        query: { bool: { must } },
+        size: 0,
+        aggs: { belediyeSayisi: { cardinality: { field: 'tenant_slug' } } },
+      },
     });
     const body = result.body as {
-      aggregations?: {
-        ilceler?: { buckets: Array<{ key: string }> };
-        belediyeSayisi?: { value: number };
-      };
+      aggregations?: { belediyeSayisi?: { value: number } };
     };
-    const siralaTr = (a: string, b: string) => a.localeCompare(b, 'tr');
-    return {
-      ilceler: (body.aggregations?.ilceler?.buckets ?? []).map((b) => b.key).sort(siralaTr),
-      belediyeSayisi: body.aggregations?.belediyeSayisi?.value ?? 0,
-    };
+    return { belediyeSayisi: body.aggregations?.belediyeSayisi?.value ?? 0 };
   }
 }

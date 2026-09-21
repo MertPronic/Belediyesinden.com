@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Building2, Inbox, Search } from 'lucide-react';
-import { TURKIYE_ILLERI } from '@belediyesinden/shared';
+import { AlertTriangle, ArrowDownUp, Building2, Inbox, Search } from 'lucide-react';
+import { TURKIYE_ILCELERI, TURKIYE_ILLERI } from '@belediyesinden/shared';
 import {
   Badge,
   Button,
@@ -11,6 +11,7 @@ import {
   Field,
   Input,
   Select,
+  Switch,
   Combobox,
   IlanKarti,
   type IlanKartiData,
@@ -27,17 +28,27 @@ interface Filtre {
   q: string;
   il: string;
   ilce: string;
-  tip: string;
+  varlikTipi: string;
+  sort: string;
+  sonuclananlar: boolean;
 }
 
 const SAYFA_BOYUTU = 24;
 const DEBOUNCE_MS = 400;
 
-const TIPLER = [
-  { value: '', label: 'Tüm Tipler' },
-  { value: 'ACIK_ARTIRMA', label: 'Açık Artırma' },
-  { value: 'ACIK_TEKLIF', label: 'Açık Teklif' },
-  { value: 'KAPALI_TEKLIF', label: 'Kapalı Teklif' },
+const VARLIK_TIPLERI = [
+  { value: '', label: 'Tüm Türler' },
+  { value: 'TASINIR', label: 'Taşınır' },
+  { value: 'TASINMAZ', label: 'Taşınmaz' },
+  { value: 'ISLETME_HAKKI', label: 'İşletme Hakkı' },
+  { value: 'REKLAM_ALANI', label: 'Reklam Alanı' },
+];
+
+const SIRALAMALAR = [
+  { value: '', label: 'En Yeni İlanlar' },
+  { value: 'ihale_yakin', label: 'İhale Tarihi Yaklaşan' },
+  { value: 'fiyat_artan', label: 'Fiyat: Düşükten Yükseğe' },
+  { value: 'fiyat_azalan', label: 'Fiyat: Yüksekten Düşüğe' },
 ];
 
 function urlOlustur(f: Filtre): string {
@@ -45,7 +56,9 @@ function urlOlustur(f: Filtre): string {
   if (f.q) params.set('q', f.q);
   if (f.il) params.set('il', f.il);
   if (f.ilce) params.set('ilce', f.ilce);
-  if (f.tip) params.set('tip', f.tip);
+  if (f.varlikTipi) params.set('varlikTipi', f.varlikTipi);
+  if (f.sort) params.set('sort', f.sort);
+  if (f.sonuclananlar) params.set('sonuclananlar', '1');
   const qs = params.toString();
   return qs ? `/?${qs}` : '/';
 }
@@ -57,9 +70,11 @@ function urlOlustur(f: Filtre): string {
 async function ilanlariGetir(f: Filtre, page: number): Promise<{ data: PortalIlan[]; total: number }> {
   const params = new URLSearchParams();
   if (f.q) params.set('q', f.q);
-  if (f.tip) params.set('tip', f.tip);
   if (f.il) params.set('il', f.il);
   if (f.ilce) params.set('ilce', f.ilce);
+  if (f.varlikTipi) params.set('varlikTipi', f.varlikTipi);
+  if (f.sort) params.set('sort', f.sort);
+  if (f.sonuclananlar) params.set('sonuclananlar', '1');
   params.set('page', String(page));
   params.set('pageSize', String(SAYFA_BOYUTU));
   const res = await fetch(`${PORTAL_PUBLIC_API_URL}/search/ilan?${params.toString()}`, { cache: 'no-store' });
@@ -67,14 +82,13 @@ async function ilanlariGetir(f: Filtre, page: number): Promise<{ data: PortalIla
   return res.json() as Promise<{ data: PortalIlan[]; total: number }>;
 }
 
-async function ilceleriGetir(il: string): Promise<string[]> {
-  if (!il) return [];
-  const res = await fetch(`${PORTAL_PUBLIC_API_URL}/search/lokasyonlar?il=${encodeURIComponent(il)}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`İlçe listesi alınamadı (HTTP ${res.status})`);
-  const json = (await res.json()) as { ilceler: string[] };
-  return json.ilceler;
+/**
+ * İl seçilince o ile ait TÜM ilçeler gösterilir (Harun/PO kararı) — sistemde o
+ * ilçeye ait ilan olup olmadığına bakılmaksızın. İlan yoksa arama sonucu zaten
+ * boş döner, ilçe seçeneği yine de listede kalır.
+ */
+function ilceleriGetir(il: string): string[] {
+  return il ? [...(TURKIYE_ILCELERI[il] ?? [])] : [];
 }
 
 /**
@@ -94,7 +108,9 @@ export function AramaPaneli({
   const [q, setQ] = useState(ilkFiltre.q);
   const [il, setIl] = useState(ilkFiltre.il);
   const [ilce, setIlce] = useState(ilkFiltre.ilce);
-  const [tip, setTip] = useState(ilkFiltre.tip);
+  const [varlikTipi, setVarlikTipi] = useState(ilkFiltre.varlikTipi);
+  const [sort, setSort] = useState(ilkFiltre.sort);
+  const [sonuclananlar, setSonuclananlar] = useState(ilkFiltre.sonuclananlar);
   const [ilanlar, setIlanlar] = useState(ilkSonuc.data);
   const [total, setTotal] = useState(ilkSonuc.total);
   const [ilceler, setIlceler] = useState(ilkIlceler);
@@ -115,7 +131,7 @@ export function AramaPaneli({
     setYukleniyor(true);
     const zamanlayici = setTimeout(() => {
       const siraNo = ++istekSirasiRef.current;
-      const filtre = { q, il, ilce, tip };
+      const filtre = { q, il, ilce, varlikTipi, sort, sonuclananlar };
       window.history.replaceState(null, '', `${urlOlustur(filtre)}#sonuclar`);
       ilanlariGetir(filtre, 1)
         .then((sonuc) => {
@@ -134,27 +150,19 @@ export function AramaPaneli({
     }, DEBOUNCE_MS);
     return () => clearTimeout(zamanlayici);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, il, ilce, tip]);
+  }, [q, il, ilce, varlikTipi, sort, sonuclananlar]);
 
-  async function ilDegisti(yeniIl: string) {
+  function ilDegisti(yeniIl: string) {
     setIl(yeniIl);
     setIlce('');
-    if (!yeniIl) {
-      setIlceler([]);
-      return;
-    }
-    try {
-      setIlceler(await ilceleriGetir(yeniIl));
-    } catch {
-      // İstek başarısız — mevcut ilçe listesi korunur, sessizce boşaltılmaz.
-    }
+    setIlceler(ilceleriGetir(yeniIl));
   }
 
   async function dahaFazlaYukle() {
     setDahaFazlaYukleniyor(true);
     try {
       const sonrakiSayfa = Math.floor(ilanlar.length / SAYFA_BOYUTU) + 1;
-      const sonuc = await ilanlariGetir({ q, il, ilce, tip }, sonrakiSayfa);
+      const sonuc = await ilanlariGetir({ q, il, ilce, varlikTipi, sort, sonuclananlar }, sonrakiSayfa);
       setIlanlar((prev) => [...prev, ...sonuc.data]);
       setTotal(sonuc.total);
       setHataVar(false);
@@ -165,7 +173,7 @@ export function AramaPaneli({
     }
   }
 
-  const aktifFiltre = !!(q || il || ilce || tip);
+  const aktifFiltre = !!(q || il || ilce || varlikTipi);
   const dahaFazlaVar = ilanlar.length < total;
 
   return (
@@ -206,18 +214,37 @@ export function AramaPaneli({
               onValueChange={setIlce}
             />
           </Field>
-          <Field className="mb-0 sm:w-52">
+          <Field className="mb-0 sm:w-44">
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
-              İhale Tipi
+              Varlık Türü
             </label>
-            <Select value={tip} onChange={(e) => setTip(e.target.value)}>
-              {TIPLER.map((t) => (
+            <Select value={varlikTipi} onChange={(e) => setVarlikTipi(e.target.value)}>
+              {VARLIK_TIPLERI.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
               ))}
             </Select>
           </Field>
+          <Field className="mb-0 sm:w-52">
+            <label className="mb-1.5 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+              <ArrowDownUp className="h-3 w-3" />
+              Sırala
+            </label>
+            <Select value={sort} onChange={(e) => setSort(e.target.value)}>
+              {SIRALAMALAR.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Switch
+            checked={sonuclananlar}
+            onChange={(e) => setSonuclananlar(e.target.checked)}
+            label="Sonuçlananları göster"
+            wrapperClassName="mb-0.5 h-10"
+          />
         </div>
       </form>
 
@@ -228,7 +255,7 @@ export function AramaPaneli({
         </p>
       )}
 
-      <div id="sonuclar">
+      <div id="sonuclar" className="mt-8 scroll-mt-24">
         {ilanlar.length === 0 && !yukleniyor ? (
           <Card>
             <EmptyState
@@ -245,7 +272,7 @@ export function AramaPaneli({
                       setQ('');
                       setIl('');
                       setIlce('');
-                      setTip('');
+                      setVarlikTipi('');
                     }}
                     className="text-sm font-medium"
                     style={{ color: 'var(--renk)' }}
@@ -258,9 +285,6 @@ export function AramaPaneli({
           </Card>
         ) : (
           <div className={`space-y-6 transition-opacity ${yukleniyor ? 'opacity-50' : 'opacity-100'}`}>
-            <p className="text-sm text-gray-500">
-              {total} ilandan {ilanlar.length} tanesi gösteriliyor
-            </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {ilanlar.map((ilan) => (
                 <IlanKarti
@@ -287,6 +311,9 @@ export function AramaPaneli({
                 </Button>
               </div>
             )}
+            <p className="text-center text-sm text-gray-500">
+              {total} ilandan {ilanlar.length} tanesi gösteriliyor
+            </p>
           </div>
         )}
       </div>

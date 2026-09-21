@@ -20,9 +20,11 @@ export class SearchController {
   @Get('ilan')
   async ilanAra(
     @Query('q') q: string | undefined,
-    @Query('tip') tip: string | undefined,
+    @Query('varlikTipi') varlikTipi: string | undefined,
     @Query('il') il: string | undefined,
     @Query('ilce') ilce: string | undefined,
+    @Query('sort') sort: string | undefined,
+    @Query('sonuclananlar') sonuclananlar: string | undefined,
     @Query('page') page: string | undefined,
     @Query('pageSize') pageSize: string | undefined,
     @CurrentUser() user: AuthenticatedUser | null,
@@ -31,10 +33,21 @@ export class SearchController {
     const slug = tenant?.slug ?? 'central';
     const isPersonel = !!user?.roles?.some((r) => PERSONEL_ROLLERI.has(r));
     const { limit, offset } = sayfalamaCoz({ page, pageSize });
-    return this.os.searchIlan(slug, q ?? '', tip, isPersonel, il, ilce, limit, offset);
+    return this.os.searchIlan(
+      slug,
+      q ?? '',
+      varlikTipi,
+      isPersonel,
+      il,
+      ilce,
+      limit,
+      offset,
+      sort,
+      sonuclananlar === '1',
+    );
   }
 
-  /** İl (ve seçiliyse ilçe) filtre seçenekleri — gerçek ilan verisinden türetilir. */
+  /** Seçili ile (varsa) ait ilan yayınlayan belediye sayısı. */
   @Unprotected(false)
   @Get('lokasyonlar')
   async lokasyonlar(@Query('il') il: string | undefined) {
