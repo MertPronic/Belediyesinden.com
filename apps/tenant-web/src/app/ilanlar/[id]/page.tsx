@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { isPersonelViewer, serverApiFetch } from '../../../lib/api';
 import { FavoriButton } from '../../../components/favori-button';
+import { SonGezilenKaydet } from '../../../components/son-gezilen-kaydet';
+import { SonGezilenlerSeridi } from '../../../components/son-gezilenler-seridi';
 import {
   Alert,
   Badge,
@@ -41,6 +43,7 @@ import {
   DurumBadge,
   EmptyState,
   FotoGaleri,
+  type IlanKartiData,
   dummyGorseller,
   Tabs,
 } from '@belediyesinden/ui';
@@ -228,6 +231,24 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
     }),
   );
 
+  // "Son Gezdiklerin" için ilan kartı verisi — localStorage'a bu haliyle kaydedilir.
+  const ilanKartVerisi: IlanKartiData = {
+    id: ilan.id,
+    baslik: ilan.baslik,
+    ihale_tipi: ilan.ihale_tipi,
+    durum: ilan.durum,
+    baslangic_fiyati: ilan.baslangic_fiyati,
+    fiyat_min: kalemFiyatlari.length ? Math.min(...kalemFiyatlari) : null,
+    fiyat_max: kalemFiyatlari.length ? Math.max(...kalemFiyatlari) : null,
+    baslangic_tarihi: ilan.baslangic_tarihi,
+    bitis_tarihi: ilan.bitis_tarihi,
+    islem_turu: ilan.islem_turu,
+    il: ilan.il,
+    ilce: ilan.ilce,
+    kapak_gorsel_url: gorseller[0] ?? null,
+    kalem_sayisi: kalemler.length || null,
+  };
+
   // Konum: yalnızca gerçekten girilmiş veri gösterilir — sahte varsayılan yok.
   const konumMetni = [ilan.il, ilan.ilce, ilan.mahalle].filter(Boolean).join(', ') || 'Konum belirtilmedi';
   const haritaVar = ilan.lat != null && ilan.lng != null;
@@ -352,6 +373,8 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-6">
+      <SonGezilenKaydet tenantSlug={slug} ilan={ilanKartVerisi} />
+
       {/* JSON-LD: Product/Offer (SEO structured data) */}
       <script
         type="application/ld+json"
@@ -579,6 +602,8 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
           </Card>
         </aside>
       </div>
+
+      <SonGezilenlerSeridi haricTutulacakId={id} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, FileText, Gavel, ShieldCheck, TrendingUp } from 'lucide-react';
 import { ilanGorselUrl, serverApiFetch } from '../lib/api';
+import { SonGezilenlerSeridi } from '../components/son-gezilenler-seridi';
 import { Card, CardContent, EmptyState, IlanKarti, type IlanKartiData } from '@belediyesinden/ui';
 
 // Tenant her istekte header/host'tan çözülür — statik önbelleğe alınırsa container
@@ -150,6 +151,8 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      <SonGezilenlerSeridi />
     </div>
   );
 }

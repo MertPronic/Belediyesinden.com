@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { ilanGorselUrl, serverApiFetch } from '../../lib/api';
 import { type IlanKartiData } from '@belediyesinden/ui';
+import { SonGezilenlerSeridi } from '../../components/son-gezilenler-seridi';
 import { IlanListesi } from './ilan-listesi';
 
 // Tenant her istekte header/host'tan çözülür — statik önbelleğe alınırsa container
@@ -74,6 +75,8 @@ export default async function IlanlarPage({
       </div>
 
       <IlanListesi ilkFiltre={ilkFiltre} ilkSonuc={ilanlar} />
+
+      <SonGezilenlerSeridi />
     </div>
   );
 }
