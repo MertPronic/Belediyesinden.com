@@ -103,6 +103,13 @@ export enum EvrakTipi {
   Diger = 'DIGER',
 }
 
+/** Uygulama-içi bildirim türü. */
+export enum BildirimTipi {
+  YeniBasvuru = 'YENI_BASVURU',
+  TeminatOnaylandi = 'TEMINAT_ONAYLANDI',
+  TeminatReddedildi = 'TEMINAT_REDDEDILDI',
+}
+
 /**
  * İhaleye katılım şartları (2886-usulü yaygın kalemler) — TASLAK liste,
  * Harun (PO) ile teyit edilecek. jsonb'de saklandığı için yeni değer

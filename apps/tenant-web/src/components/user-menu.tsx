@@ -4,6 +4,7 @@ import { Gavel, LogOut, Shield, User } from 'lucide-react';
 import { useAuth, login, logout } from '../lib/use-auth';
 import { getTenantSlug } from '../lib/api';
 import { Avatar, Button } from '@belediyesinden/ui';
+import { BildirimZili } from './bildirim-zili';
 
 const ADMIN_ROLLER = ['TENANT_ADMIN', 'ENCUMEN', 'SUPERADMIN'];
 
@@ -48,6 +49,7 @@ export function UserMenu() {
           Yönetim
         </Link>
       )}
+      <BildirimZili />
       <div className="flex items-center gap-2">
         <Avatar fallback={user?.ad ?? 'K'} size="sm" />
         <Button size="sm" variant="ghost" leftIcon={<LogOut />} onClick={() => logout()}>

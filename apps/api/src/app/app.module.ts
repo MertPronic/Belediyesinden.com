@@ -22,6 +22,7 @@ import { IlanKurallariModule } from '../ilan-kurallari/ilan-kurallari.module';
 import { EvrakModule } from '../evrak/evrak.module';
 import { BasvuruModule } from '../basvuru/basvuru.module';
 import { TeminatModule } from '../teminat/teminat.module';
+import { BildirimModule } from '../bildirim/bildirim.module';
 import { TeklifModule } from '../teklif/teklif.module';
 import { AuctionGatewayModule } from '../auction/auction-gateway.module';
 import { RaporModule } from '../rapor/rapor.module';
@@ -74,6 +75,7 @@ import { SearchModule } from '../search/search.module';
     IlanKurallariModule, // ihale tipine göre tenant-özel parametreler (floor + override)
     EvrakModule, // şartname/evrak (MinIO + tenant-scoped)
     SearchModule, // OpenSearch ilan arama (global)
+    BildirimModule, // uygulama-içi bildirim (tenant-scoped)
     BasvuruModule, // başvuru + KVKK (tenant-scoped)
     TeminatModule, // teminat simülasyon (e-dekont + onay/iade)
     TeklifModule, // server-authoritative teklif + anti-snicking

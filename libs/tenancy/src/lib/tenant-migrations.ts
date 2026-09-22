@@ -588,6 +588,40 @@ class AddTeminatRedGerekcesi1740000023000 extends TenantMigration {
   }
 }
 
+/**
+ * 0024 — bildirim (uygulama-içi bildirim). `kullanici_id` belirli bir
+ * kullanıcıya özel bildirim, `hedef_rol` rol-bazlı yayın (örn. 'TENANT_OPS' =
+ * tenant'ın tüm TENANT_ADMIN/ENCUMEN personeli için paylaşımlı gelen kutusu —
+ * Keycloak rolleri yerelde kullanıcı bazlı takip edilmediğinden per-personel
+ * okundu-durumu bilinçli olarak kapsam dışı bırakıldı).
+ */
+class CreateBildirim1740000024000 extends TenantMigration {
+  name = 'CreateBildirim1740000024000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE IF NOT EXISTS bildirim (
+        id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        kullanici_id VARCHAR(100),
+        hedef_rol    VARCHAR(30),
+        tip          VARCHAR(40)  NOT NULL,
+        baslik       VARCHAR(200) NOT NULL,
+        mesaj        TEXT,
+        link         VARCHAR(300),
+        okundu       BOOLEAN      NOT NULL DEFAULT false,
+        created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        CONSTRAINT ck_bildirim_hedef CHECK (kullanici_id IS NOT NULL OR hedef_rol IS NOT NULL)
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_bildirim_kullanici ON bildirim (kullanici_id, okundu, created_at DESC)`);
+    await qr.query(`CREATE INDEX ix_bildirim_hedef_rol ON bildirim (hedef_rol, okundu, created_at DESC)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS bildirim`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -612,4 +646,5 @@ export const tenantMigrations = [
   AddIlanKalemiToBasvuruTeklif1740000021000,
   CreateVarlikGorseller1740000022000,
   AddTeminatRedGerekcesi1740000023000,
+  CreateBildirim1740000024000,
 ];
