@@ -33,6 +33,82 @@ export function initKeycloak(): Promise<Keycloak> {
   return initPromise;
 }
 
+const POPUP_ADI = 'belediyesinden-giris';
+const POPUP_GENISLIK = 480;
+const POPUP_YUKSEKLIK = 640;
+const PERDE_SINIFI = 'giris-perdesi';
+
+/** Pop-up'ı mevcut tarayıcı penceresinin tam ortasına konumlandırır. */
+function popupOzellikleri(): string {
+  const sol = Math.round(window.screenX + (window.outerWidth - POPUP_GENISLIK) / 2);
+  const ust = Math.round(window.screenY + (window.outerHeight - POPUP_YUKSEKLIK) / 2);
+  return (
+    `width=${POPUP_GENISLIK},height=${POPUP_YUKSEKLIK},left=${sol},top=${ust},` +
+    'menubar=no,toolbar=no,location=no,status=no'
+  );
+}
+
+/** Pop-up açıkken ana sayfayı hafifçe karartan perde — pop-up kapanınca kaldırılır. */
+function perdeyiGoster(): HTMLDivElement {
+  const perde = document.createElement('div');
+  perde.className = PERDE_SINIFI;
+  document.body.appendChild(perde);
+  return perde;
+}
+
+/**
+ * Giriş ekranını ayrı bir sayfaya geçmeden, küçük bir pop-up pencerede açar
+ * (Harun/PO: kullanıcı bulunduğu sayfadan ayrılmasın). Pop-up'ın hedefi
+ * `/auth/callback` — o sayfa girişi HİÇ işlemez, sadece "bitti" mesajı gönderip
+ * kapanır. Gerçek oturum, `redirectUri`'ye geçince Keycloak'ın kendi sessiz
+ * "check-sso" akışıyla (artık kurulu olan SSO çerezini görerek) kuruluyor —
+ * elle token taşımaya gerek yok.
+ */
+export function loginPopup(redirectUri: string): void {
+  const k = getKeycloak();
+  const eskiDavranisaDus = () => k.login({ redirectUri, prompt: 'login' });
+
+  // Pop-up'ı HEMEN (tıklamanın senkron ucunda) boş açıyoruz — `createLoginUrl`
+  // asenkron (PKCE code_challenge için WebCrypto kullanıyor); URL'i bekleyip
+  // sonra açsaydık tarayıcı bunu kullanıcı jesti saymayıp engelleyebilirdi.
+  const popup = window.open('', POPUP_ADI, popupOzellikleri());
+  if (!popup) {
+    eskiDavranisaDus();
+    return;
+  }
+
+  const perde = perdeyiGoster();
+
+  k.createLoginUrl({ redirectUri: `${window.location.origin}/auth/callback`, prompt: 'login' })
+    .then((girisUrl) => {
+      popup.location.href = girisUrl;
+      popup.focus();
+    })
+    .catch(() => {
+      popup.close();
+      temizle();
+      eskiDavranisaDus();
+    });
+
+  const kapaliMi = setInterval(() => {
+    if (popup.closed) temizle();
+  }, 500);
+
+  function mesajGeldi(event: MessageEvent) {
+    if (event.origin !== window.location.origin || event.data !== 'kc-login-complete') return;
+    temizle();
+    window.location.assign(redirectUri);
+  }
+
+  function temizle() {
+    clearInterval(kapaliMi);
+    window.removeEventListener('message', mesajGeldi);
+    perde.remove();
+  }
+
+  window.addEventListener('message', mesajGeldi);
+}
+
 /** Kimliği doğrulanmamışsa login'e yönlendir. */
 export async function ensureAuth(): Promise<Keycloak> {
   const k = await initKeycloak();

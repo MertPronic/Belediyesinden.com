@@ -77,3 +77,21 @@ html {
 .bid-drop-in {
   animation: bid-drop-in 0.6s ease-out;
 }
+
+/* Pop-up login açıkken ana sayfayı hafif karartan perde (bkz. keycloak.ts loginPopup). */
+@keyframes giris-perdesi-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.giris-perdesi {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background-color: rgb(15 23 42 / 0.4);
+  backdrop-filter: blur(2px);
+  animation: giris-perdesi-in 0.2s ease-out both;
+}

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { initKeycloak, getKeycloak, logout as kcLogout, getUserInfo } from './keycloak';
+import { initKeycloak, getKeycloak, loginPopup, logout as kcLogout, getUserInfo } from './keycloak';
 
 export interface AuthState {
   ready: boolean;
@@ -58,9 +58,19 @@ export function useAuth(): AuthState {
 
 /** Kullanıcıyı giriş yapmaya yönlendir (check-sso sonrası). */
 export function login() {
-  // prompt:'login' — mevcut bir SSO oturumu varsa bile sessizce ona bağlanmasın,
-  // her "Giriş" tıklamasında gerçekten kimlik doğrulama ekranı görsün.
-  getKeycloak().login({ redirectUri: window.location.href, prompt: 'login' });
+  loginTo(window.location.href);
+}
+
+/**
+ * Belirli bir hedefe dönecek şekilde giriş yapmaya yönlendir. Korumalı bir CTA'ya
+ * (Başvur/Teklif Ver) tıklandığında önce ara "giriş yapmanız gerekiyor" ekranına
+ * uğramadan doğrudan login açılsın, sonrasında kullanıcı doğrudan hedef sayfaya
+ * dönsün diye (Harun bey/PO geri bildirimi, 2026-08-21 — gereksiz ara adımı ve
+ * tarayıcı geçmişindeki ekstra hop'u kaldırır). Giriş ekranı ayrı bir sayfaya
+ * geçmeden, pop-up pencerede açılır (Harun/PO, 2026-09-22).
+ */
+export function loginTo(redirectUri: string) {
+  loginPopup(redirectUri);
 }
 
 /** Çıkış yap (cookie temizle + Keycloak logout). */
