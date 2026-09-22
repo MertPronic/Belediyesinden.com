@@ -2,10 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectDataSource } from '@nestjs/typeorm';
 import type { DataSource, QueryRunner } from 'typeorm';
 import { getCurrentTenant } from '@belediyesinden/tenancy';
-import { BasvuruDurumu, IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
+import { BasvuruDurumu, BildirimTipi, IhaleTipi, IlanDurumu } from '@belediyesinden/shared';
 import { appendAuditLog } from '@belediyesinden/audit';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
 import { rawQuery } from '@belediyesinden/db';
+import { BildirimService, TENANT_OPS_HEDEF_ROL } from '../bildirim/bildirim.service';
 import type { IlanKalemi } from '../ilan/ilan-kalemi.entity';
 import type { Basvuru } from './basvuru.entity';
 
@@ -15,7 +16,10 @@ import type { Basvuru } from './basvuru.entity';
  */
 @Injectable()
 export class BasvuruService {
-  constructor(@InjectDataSource() private readonly ds: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly ds: DataSource,
+    private readonly bildirim: BildirimService,
+  ) {}
 
   private qr(): QueryRunner {
     const tenant = getCurrentTenant();
@@ -117,10 +121,14 @@ export class BasvuruService {
     if (!kvkkOnay) {
       throw new BadRequestException('KVKK aydınlatma metni onayı zorunludur');
     }
-    const kalemRows = await rawQuery<IlanKalemi & { ihale_tipi: string; ilan_durum: string }>(
+    const kalemRows = await rawQuery<
+      IlanKalemi & { ihale_tipi: string; ilan_durum: string; varlik_ad: string; ilan_baslik: string }
+    >(
       this.qr(),
-      `SELECT k.*, i.ihale_tipi, i.durum AS ilan_durum FROM ilan_kalemi k
+      `SELECT k.*, i.ihale_tipi, i.durum AS ilan_durum, v.ad AS varlik_ad, i.baslik AS ilan_baslik
+       FROM ilan_kalemi k
        JOIN ilan i ON i.id = k.ilan_id
+       JOIN varlik v ON v.id = k.varlik_id
        WHERE k.id = $1 AND k.deleted_at IS NULL AND i.deleted_at IS NULL`,
       [kalemId],
     );
@@ -150,6 +158,15 @@ export class BasvuruService {
         entityId: rows[0].id,
         payload: { ilan_kalemi_id: kalemId, kvkk_onay: kvkkOnay, acik_riza: acikRiza, gereken_teminat: gereken },
       }).catch(() => {});
+      this.bildirim
+        .olustur({
+          hedefRol: TENANT_OPS_HEDEF_ROL,
+          tip: BildirimTipi.YeniBasvuru,
+          baslik: 'Yeni başvuru',
+          mesaj: `${kalem.ilan_baslik} — ${kalem.varlik_ad} için yeni başvuru geldi.`,
+          link: '/admin/basvurular',
+        })
+        .catch(() => {});
       return rows[0];
     } catch {
       throw new BadRequestException('Bu varlığa zaten başvurdunuz');

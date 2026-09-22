@@ -1,27 +1,93 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, ClipboardCheck, Clock, Info, XCircle } from 'lucide-react';
-import { Alert } from '@belediyesinden/ui';
+import { ArrowRight, ClipboardCheck, Info } from 'lucide-react';
+import { StatusBanner, StatusStepper } from '@belediyesinden/ui';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../lib/use-auth';
+import { AuthAwareLink } from './auth-aware-link';
 
 interface Basvuru {
   id: string;
   durum: string;
 }
 
-const DURUM_GORUNUM: Record<
-  string,
-  { variant: 'info' | 'success' | 'warning' | 'error'; icon: typeof Info; mesaj: string }
-> = {
-  BASLADI: { variant: 'info', icon: Clock, mesaj: 'Bu ilana başvurdunuz — teminat bekleniyor.' },
-  TEMINAT_BEKLENIYOR: { variant: 'info', icon: Clock, mesaj: 'Bu ilana başvurdunuz — teminat dekontunuz inceleniyor.' },
-  ONAYLANDI: { variant: 'success', icon: CheckCircle2, mesaj: 'Başvurunuz ve teminatınız onaylandı. İhale başladığında teklif verebilirsiniz.' },
-  REDDEDILDI: { variant: 'error', icon: XCircle, mesaj: 'Başvurunuz/teminatınız reddedildi.' },
-  IADE_EDILDI: { variant: 'info', icon: Info, mesaj: 'Teminatınız iade edildi.' },
-  IPTAL_EDILDI: { variant: 'info', icon: Info, mesaj: 'Başvurunuzu geri çektiniz.' },
-};
+interface StepperGorunum {
+  aktifIndex: number;
+  aktifTamamlandi?: boolean;
+  /** Süreç bu adımda durduysa (reddedildi/iptal) — bkz. StatusStepper. */
+  durakIndex?: number;
+  durakRenk?: 'red' | 'gray';
+  aciklama: string;
+}
+
+/**
+ * Süreç hâlâ devam ediyorsa (happy-path) uçtan uca 4 adım gösterilir — sadece
+ * başvuru/teminat değil, kalemin kendi ihale durumu da (BEKLIYOR/CANLI_ARTIRMA/
+ * SONUCLANDI, bkz. DECISIONS.md KK-25) bu tek çubuğa dahil edilir. Reddedildi/iptal
+ * gibi süreç dışı durumlar da aynı çubukta — o adımda kırmızı/gri bir durak işaretiyle
+ * biter (Harun bey/PO geri bildirimi, 2026-08-24).
+ */
+const ADIMLAR = [{ label: 'Başvuru' }, { label: 'Teminat' }, { label: 'İhale' }, { label: 'Sonuç' }];
+
+function stepperGorunumu(basvuruDurum: string, kalemDurum: string): StepperGorunum {
+  switch (basvuruDurum) {
+    case 'BASLADI':
+      return {
+        aktifIndex: 1,
+        aciklama: 'Başvurunuz alındı — ihaleye katılmak için teminat dekontu yüklemeniz gerekiyor.',
+      };
+    case 'TEMINAT_BEKLENIYOR':
+      return {
+        aktifIndex: 1,
+        aciklama: 'Dekontunuz belediye tarafından inceleniyor, onaylandığında bilgilendirileceksiniz.',
+      };
+    case 'ONAYLANDI':
+      if (kalemDurum === 'CANLI_ARTIRMA') {
+        return {
+          aktifIndex: 2,
+          aciklama: 'Teminatınız onaylandı ve ihale şu anda canlı — teklif verebilirsiniz.',
+        };
+      }
+      if (kalemDurum === 'SONUCLANDI' || kalemDurum === 'IPTAL') {
+        return {
+          aktifIndex: 3,
+          aktifTamamlandi: true,
+          aciklama:
+            kalemDurum === 'IPTAL'
+              ? 'İhale iptal edildi.'
+              : 'İhale sonuçlandı. Sonucu "İhalelerim" sayfasından görebilirsiniz.',
+        };
+      }
+      // kalemDurum === 'BEKLIYOR'
+      return {
+        aktifIndex: 2,
+        aciklama: 'Teminatınız onaylandı. İhale başladığında teklif verebilirsiniz.',
+      };
+    case 'REDDEDILDI':
+      return {
+        aktifIndex: 1,
+        durakIndex: 1,
+        durakRenk: 'red',
+        aciklama: 'Teminat dekontunuz veya başvurunuz reddedildi.',
+      };
+    case 'IPTAL_EDILDI':
+      return {
+        aktifIndex: 1,
+        durakIndex: 1,
+        durakRenk: 'gray',
+        aciklama: 'Başvurunuzu geri çektiniz.',
+      };
+    case 'IADE_EDILDI':
+      return {
+        aktifIndex: 3,
+        aktifTamamlandi: true,
+        aciklama: 'İhale sonuçlandı, teminatınız iade edildi.',
+      };
+    default:
+      return { aktifIndex: 1, durakIndex: 1, durakRenk: 'red', aciklama: 'Başvurunuz reddedildi.' };
+  }
+}
 
 /**
  * Varlık detay sayfasındaki "Başvur" CTA'sının yerini alır. Sayfa vatandaş için
@@ -29,7 +95,7 @@ const DURUM_GORUNUM: Record<
  * varlığa daha önce başvurup başvurmadığı ancak tarayıcıda (giriş yapmışsa)
  * öğrenilebilir — bu yüzden ayrı bir client component. KK-25: birim ilan değil varlık (kalem).
  */
-export function BasvuruDurumu({ kalemId }: { kalemId: string }) {
+export function BasvuruDurumu({ kalemId, kalemDurum }: { kalemId: string; kalemDurum: string }) {
   const { ready, authenticated } = useAuth();
   const [basvuru, setBasvuru] = useState<Basvuru | null>(null);
   const [checked, setChecked] = useState(false);
@@ -53,18 +119,25 @@ export function BasvuruDurumu({ kalemId }: { kalemId: string }) {
   }
 
   if (basvuru) {
-    const gorunum = DURUM_GORUNUM[basvuru.durum] ?? DURUM_GORUNUM['TEMINAT_BEKLENIYOR'];
+    const s = stepperGorunumu(basvuru.durum, kalemDurum);
     return (
       <div className="space-y-3">
-        <Alert variant={gorunum.variant} icon={<gorunum.icon />}>
-          {gorunum.mesaj}
-        </Alert>
-        {(basvuru.durum === 'BASLADI' || basvuru.durum === 'TEMINAT_BEKLENIYOR') && (
+        <StatusStepper
+          adimlar={ADIMLAR}
+          aktifIndex={s.aktifIndex}
+          aktifTamamlandi={s.aktifTamamlandi}
+          durakIndex={s.durakIndex}
+          durakRenk={s.durakRenk}
+          aciklama={s.aciklama}
+        />
+        {(basvuru.durum === 'BASLADI' ||
+          basvuru.durum === 'TEMINAT_BEKLENIYOR' ||
+          basvuru.durum === 'REDDEDILDI') && (
           <Link
             href={`/teminat/${basvuru.id}`}
             className="flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
-            Teminat sayfasına git
+            {basvuru.durum === 'REDDEDILDI' ? 'Yeni dekont yükle' : 'Teminat sayfasına git'}
             <ArrowRight className="h-4 w-4" />
           </Link>
         )}
@@ -72,8 +145,21 @@ export function BasvuruDurumu({ kalemId }: { kalemId: string }) {
     );
   }
 
+  // Hiç başvuru yok — ihale bu varlık için artık BEKLIYOR aşamasında değilse
+  // (canlı/sonuçlanmış) "Başvur" CTA'sı yanıltıcı olur, o pencere kapanmıştır.
+  if (kalemDurum !== 'BEKLIYOR') {
+    return (
+      <StatusBanner
+        renk="gray"
+        icon={<Info />}
+        baslik="Başvuru Yapılmadı"
+        aciklama="Bu varlığa başvuru yapılmamış — başvuru süresi bu varlık için sona ermiştir."
+      />
+    );
+  }
+
   return (
-    <Link
+    <AuthAwareLink
       href={`/basvuru/${kalemId}`}
       className="flex h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
       style={{ background: 'var(--renk)' }}
@@ -81,6 +167,6 @@ export function BasvuruDurumu({ kalemId }: { kalemId: string }) {
       <ClipboardCheck className="h-4 w-4" />
       Başvur
       <ArrowRight className="h-4 w-4" />
-    </Link>
+    </AuthAwareLink>
   );
 }

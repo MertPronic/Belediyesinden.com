@@ -22,6 +22,10 @@ interface KalemBaglami {
   baslangic_fiyati: string;
 }
 
+interface Basvuru {
+  id: string;
+}
+
 function BasvuruFormu({ kalemId }: { kalemId: string }) {
   const router = useRouter();
   const [kalem, setKalem] = useState<KalemBaglami | null>(null);
@@ -29,11 +33,29 @@ function BasvuruFormu({ kalemId }: { kalemId: string }) {
   const [riza, setRiza] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // undefined: henüz kontrol edilmedi, null: başvuru yok (form gösterilir).
+  const [mevcutBasvuruKontrol, setMevcutBasvuruKontrol] = useState<Basvuru | null | undefined>(undefined);
 
   useEffect(() => {
     apiFetch<KalemBaglami>(`/ilan/kalem/${kalemId}`)
       .then(setKalem)
       .catch(() => setError('Varlık bilgisi alınamadı.'));
+  }, [kalemId]);
+
+  // Kullanıcı bu varlığa daha önce başvurmuşsa (ör. login sonrası buraya düşünce)
+  // KVKK formunu doldurup "zaten başvurdunuz" ile reddedilmesin — direkt varlık
+  // sayfasına dön, orada BasvuruDurumu mevcut başvurunun durumunu zaten gösteriyor.
+  useEffect(() => {
+    apiFetch<Basvuru | null>(`/basvuru/kalem/${kalemId}/benim`)
+      .then((b) => {
+        if (b) {
+          router.replace(`/varliklar/${kalemId}`);
+        } else {
+          setMevcutBasvuruKontrol(null);
+        }
+      })
+      .catch(() => setMevcutBasvuruKontrol(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kalemId]);
 
   async function submit(e: React.FormEvent) {
@@ -54,6 +76,14 @@ function BasvuruFormu({ kalemId }: { kalemId: string }) {
       setError(err instanceof Error ? err.message : 'Başvuru başarısız.');
       setSubmitting(false);
     }
+  }
+
+  if (mevcutBasvuruKontrol === undefined) {
+    return (
+      <div className="mx-auto max-w-2xl py-16">
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-[var(--renk,#2563eb)]" />
+      </div>
+    );
   }
 
   return (

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { apiFetch, downloadFile } from '../../../lib/api';
 import { RequireTenantAdmin } from '../../../components/require-tenant-admin';
-import { Card, CardContent, CardHeader, CardTitle, Badge, useToast } from '@belediyesinden/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, useToast } from '@belediyesinden/ui';
 
 interface Teminat {
   id: string;
@@ -14,6 +14,7 @@ interface Teminat {
   durum: string;
   dekont_dosya_adi: string | null;
   onaylayan: string | null;
+  red_gerekcesi: string | null;
   created_at: string;
 }
 
@@ -44,6 +45,8 @@ function AdminBasvurularIcerik() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [redModal, setRedModal] = useState<{ id: string; ilanBaslik: string } | null>(null);
+  const [redGerekce, setRedGerekce] = useState('');
 
   const yukle = useCallback(() => {
     apiFetch<Teminat[]>('/teminat')
@@ -56,7 +59,7 @@ function AdminBasvurularIcerik() {
     yukle();
   }, [yukle]);
 
-  async function aksiyon(id: string, islem: 'onayla' | 'reddet' | 'iade') {
+  async function aksiyon(id: string, islem: 'onayla' | 'iade') {
     setBusy(id + islem);
     setError(null);
     try {
@@ -64,6 +67,27 @@ function AdminBasvurularIcerik() {
       await yukle();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'İşlem başarısız.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function reddet() {
+    if (!redModal) return;
+    const gerekce = redGerekce.trim();
+    if (!gerekce) return;
+    setBusy(redModal.id + 'reddet');
+    setError(null);
+    try {
+      await apiFetch(`/teminat/${redModal.id}/reddet`, {
+        method: 'POST',
+        body: JSON.stringify({ gerekce }),
+      });
+      setRedModal(null);
+      setRedGerekce('');
+      await yukle();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'İşlem başarısız.');
     } finally {
       setBusy(null);
     }
@@ -105,6 +129,9 @@ function AdminBasvurularIcerik() {
                         <Badge variant={DURUM_RENK[t.durum] ?? 'default'}>
                           {DURUM_LABEL[t.durum] ?? t.durum}
                         </Badge>
+                        {t.durum === 'REDDEDILDI' && t.red_gerekcesi && (
+                          <p className="mt-1 max-w-[220px] text-xs text-gray-500">{t.red_gerekcesi}</p>
+                        )}
                       </td>
                       <td className="text-gray-600">
                         {t.dekont_dosya_adi ? (
@@ -140,7 +167,10 @@ function AdminBasvurularIcerik() {
                             <button
                               type="button"
                               disabled={busy === t.id + 'reddet'}
-                              onClick={() => aksiyon(t.id, 'reddet')}
+                              onClick={() => {
+                                setRedGerekce('');
+                                setRedModal({ id: t.id, ilanBaslik: t.ilan_baslik });
+                              }}
                               className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 disabled:opacity-50"
                             >
                               Reddet
@@ -166,6 +196,53 @@ function AdminBasvurularIcerik() {
           )}
         </CardContent>
       </Card>
+
+      {redModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-base">Teminatı Reddet</CardTitle>
+              <p className="text-sm text-gray-500">{redModal.ilanBaslik}</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Ret gerekçesi <span className="text-red-600">(zorunlu)</span>
+                </label>
+                <textarea
+                  value={redGerekce}
+                  onChange={(e) => setRedGerekce(e.target.value)}
+                  rows={3}
+                  placeholder="Örn. Dekont tutarı gereken teminatla uyuşmuyor."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Bu gerekçe vatandaşa gösterilecektir — boş veya sadece boşluk bırakılamaz.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRedModal(null);
+                    setRedGerekce('');
+                  }}
+                >
+                  Vazgeç
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={reddet}
+                  loading={busy === redModal.id + 'reddet'}
+                  disabled={!redGerekce.trim()}
+                >
+                  Reddet
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
