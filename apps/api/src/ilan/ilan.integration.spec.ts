@@ -10,6 +10,7 @@ import { VarlikService } from '../varlik/varlik.service';
 import { BasvuruService } from '../basvuru/basvuru.service';
 import { TeklifService } from '../teklif/teklif.service';
 import { TeminatService } from '../teminat/teminat.service';
+import { BildirimService } from '../bildirim/bildirim.service';
 import type { OpenSearchService } from '../search/opensearch.service';
 import type { TeminatIadeService } from '../teminat/teminat-iade.service';
 import type { AuctionGateway } from '../auction/auction-gateway';
@@ -57,13 +58,14 @@ async function runAsTenant<T>(rootDs: DataSource, slug: string, fn: () => Promis
 function services(rootDs: DataSource) {
   const varlik = new VarlikService(rootDs);
   const kalem = new IlanKalemiService(rootDs, varlik);
+  const bildirim = new BildirimService();
   return {
     ilan: new IlanService(fakeOpenSearch, rootDs, fakeIadeService, kalem),
     varlik,
     kalem,
-    basvuru: new BasvuruService(rootDs),
+    basvuru: new BasvuruService(rootDs, bildirim),
     teklif: new TeklifService(fakeGateway, rootDs),
-    teminat: new TeminatService(fakeMinio, rootDs),
+    teminat: new TeminatService(fakeMinio, bildirim, rootDs),
   };
 }
 

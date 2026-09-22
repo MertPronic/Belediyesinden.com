@@ -23,6 +23,7 @@ import { varlikDetayAlanlari, type VarlikDetayAlanTanimi } from '@belediyesinden
 import { VarlikTipi } from '@belediyesinden/shared';
 import { isPersonelViewer, serverApiFetch } from '../../../lib/api';
 import { BasvuruDurumu } from '../../../components/basvuru-durumu';
+import { AuthAwareLink } from '../../../components/auth-aware-link';
 import {
   Alert,
   Badge,
@@ -318,29 +319,25 @@ export default async function VarlikDetayPage({ params }: { params: Promise<{ ka
                 </div>
               ) : canBid ? (
                 <>
-                  <Alert variant="info" icon={<Gavel />}>
-                    Bu varlığın ihalesi şu anda canlı.
-                  </Alert>
-                  <Link
+                  <BasvuruDurumu kalemId={kalem.id} kalemDurum={kalem.durum} />
+                  <AuthAwareLink
                     href={`/teklif/${kalem.id}`}
                     className="flex h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
                     style={{ background: 'var(--renk)' }}
                   >
                     <Gavel className="h-4 w-4" />
                     Teklif Ver
-                  </Link>
+                  </AuthAwareLink>
                 </>
               ) : kalem.durum === 'BEKLIYOR' ? (
                 <>
                   <Alert variant="info" icon={<Info />}>
                     Bu varlığın ihalesi henüz başlamadı.
                   </Alert>
-                  <BasvuruDurumu kalemId={kalem.id} />
+                  <BasvuruDurumu kalemId={kalem.id} kalemDurum={kalem.durum} />
                 </>
               ) : (
-                <Alert variant="info" icon={<Info />}>
-                  Bu varlığın ihalesi sonuçlandırılmıştır.
-                </Alert>
+                <BasvuruDurumu kalemId={kalem.id} kalemDurum={kalem.durum} />
               )}
 
               <Link

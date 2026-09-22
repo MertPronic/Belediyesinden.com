@@ -17,6 +17,13 @@ const GECERLI_TIP = new Set<string>(Object.values(IhaleTipi));
 const GECERLI_ISLEM_TURU = new Set<string>(Object.values(IslemTuru));
 const GECERLI_DURUM = new Set<string>(Object.values(IlanDurumu));
 
+/** Arama sonuçlarında varsayılan sıra — canlı artırmalar en üstte (PO geri bildirimi, 2026-08-21). */
+const DURUM_ONCELIK: Record<string, number> = {
+  [IlanDurumu.CanliArtirma]: 0,
+  [IlanDurumu.Yayinda]: 1,
+  [IlanDurumu.Sonuclandi]: 2,
+};
+
 /** Tenant-scoped ilan servisi + durum makinesi. */
 @Injectable()
 export class IlanService {
@@ -49,6 +56,9 @@ export class IlanService {
       const kalemFiyatlari = kalemler.map((k) => Number(k.baslangic_fiyati));
       const fiyatMin = kalemFiyatlari.length ? Math.min(...kalemFiyatlari) : null;
       const fiyatMax = kalemFiyatlari.length ? Math.max(...kalemFiyatlari) : null;
+      // "Varlık Türü" filtresi ihale tipinin yerini aldı (PO geri bildirimi, 2026-08-21) —
+      // bir ilan birden çok kalem içerebildiği için tekilleştirilmiş tip listesi indekslenir.
+      const varlikTipleri = [...new Set(kalemler.map((k) => k.varlik_tip))];
       await this.os.indexIlan(tenant.slug, {
         id: ilan.id,
         baslik: ilan.baslik,
@@ -64,6 +74,9 @@ export class IlanService {
         ilce: ilan.ilce,
         tenant_ad: tenantRows[0]?.ad ?? null,
         kapak_gorsel_id: gorselRows[0]?.id ?? null,
+        kalem_sayisi: kalemler.length,
+        durum_oncelik: DURUM_ONCELIK[ilan.durum] ?? 9,
+        varlik_tipleri: varlikTipleri,
       });
     } catch {
       // Arama indeksleme dokümante edilmiş fire-and-forget yan etki — sessizce yutulur.
@@ -457,15 +470,29 @@ export class IlanService {
     kullaniciId: string,
     limit: number,
     offset: number,
-  ): Promise<(Ilan & { fiyat_min: string | null; fiyat_max: string | null; kapak_gorsel_id: string | null })[]> {
-    return rawQuery<Ilan & { fiyat_min: string | null; fiyat_max: string | null; kapak_gorsel_id: string | null }>(
+  ): Promise<
+    (Ilan & {
+      fiyat_min: string | null;
+      fiyat_max: string | null;
+      kapak_gorsel_id: string | null;
+      kalem_sayisi: string | null;
+    })[]
+  > {
+    return rawQuery<
+      Ilan & {
+        fiyat_min: string | null;
+        fiyat_max: string | null;
+        kapak_gorsel_id: string | null;
+        kalem_sayisi: string | null;
+      }
+    >(
       this.qr(),
-      `SELECT i.*, k.fiyat_min, k.fiyat_max,
+      `SELECT i.*, k.fiyat_min, k.fiyat_max, k.kalem_sayisi,
               (SELECT g.id FROM ilan_gorseller g WHERE g.ilan_id = i.id ORDER BY g.sira ASC, g.created_at ASC LIMIT 1) AS kapak_gorsel_id
        FROM ilan i
        JOIN ilan_favoriler f ON f.ilan_id = i.id
        LEFT JOIN LATERAL (
-         SELECT MIN(baslangic_fiyati) AS fiyat_min, MAX(baslangic_fiyati) AS fiyat_max
+         SELECT MIN(baslangic_fiyati) AS fiyat_min, MAX(baslangic_fiyati) AS fiyat_max, COUNT(*) AS kalem_sayisi
          FROM ilan_kalemi
          WHERE ilan_id = i.id AND deleted_at IS NULL
        ) k ON true

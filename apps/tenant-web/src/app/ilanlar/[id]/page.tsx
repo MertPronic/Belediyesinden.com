@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import {
   ArrowRight,
   Boxes,
+  Building2,
   CalendarClock,
   CalendarDays,
   ChevronRight,
@@ -12,13 +13,16 @@ import {
   Eye,
   FileText,
   Gavel,
+  Handshake,
   Hash,
   Home,
   Info,
   Layers,
   Lock,
   MapPin,
+  Megaphone,
   Minus,
+  Package,
   Share2,
   ShieldCheck,
   Tag,
@@ -74,6 +78,7 @@ interface Evrak {
 /** İlana eklenmiş bir varlık (kalem) — bkz. DECISIONS.md KK-25. */
 interface Kalem {
   id: string;
+  varlik_id: string;
   baslangic_fiyati: string;
   durum: string;
   varlik_ad: string;
@@ -81,11 +86,11 @@ interface Kalem {
   varlik_detay: { il?: string; ilce?: string };
 }
 
-const VARLIK_TIP_LABEL: Record<string, string> = {
-  TASINIR: 'Taşınır',
-  TASINMAZ: 'Taşınmaz',
-  ISLETME_HAKKI: 'İşletme Hakkı',
-  REKLAM_ALANI: 'Reklam Alanı',
+const VARLIK_TIP_BILGI: Record<string, { label: string; icon: typeof Package; renk: string; bg: string }> = {
+  TASINIR: { label: 'Taşınır', icon: Package, renk: 'text-blue-600', bg: 'bg-blue-50' },
+  TASINMAZ: { label: 'Taşınmaz', icon: Building2, renk: 'text-emerald-600', bg: 'bg-emerald-50' },
+  ISLETME_HAKKI: { label: 'İşletme Hakkı', icon: Handshake, renk: 'text-amber-600', bg: 'bg-amber-50' },
+  REKLAM_ALANI: { label: 'Reklam Alanı', icon: Megaphone, renk: 'text-purple-600', bg: 'bg-purple-50' },
 };
 
 const PUBLIC_DURUMLAR = ['YAYINDA', 'CANLI_ARTIRMA', 'SONUCLANDI'];
@@ -206,6 +211,22 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
   } catch {
     /* dummy fallback */
   }
+
+  // Her kalemin kendi varlık fotoğrafı var (ilan galerisinden bağımsız, KK-25) — yoksa
+  // varlık id'sinden tutarlı bir placeholder üretilir (dummyGorseller ile aynı desen).
+  const kalemKapakUrl = new Map<string, string>();
+  await Promise.all(
+    kalemler.map(async (k) => {
+      try {
+        const rows = await serverApiFetch<{ id: string }[]>(`/varlik/${k.varlik_id}/gorsel`, slug);
+        if (rows.length > 0) {
+          kalemKapakUrl.set(k.id, `${API_URL}/varlik/gorsel/${rows[0].id}?tenant=${slug}`);
+        }
+      } catch {
+        /* dummy fallback */
+      }
+    }),
+  );
 
   // Konum: yalnızca gerçekten girilmiş veri gösterilir — sahte varsayılan yok.
   const konumMetni = [ilan.il, ilan.ilce, ilan.mahalle].filter(Boolean).join(', ') || 'Konum belirtilmedi';
@@ -402,27 +423,45 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                 Katılmak (başvuru/teminat/teklif) için aşağıdaki varlıklardan birine tıklayın —
                 her varlığın kendi ihalesi vardır.
               </p>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {kalemler.map((k) => {
                   const kalemKonum = [k.varlik_detay?.ilce, k.varlik_detay?.il].filter(Boolean).join(', ');
+                  const tipBilgi = VARLIK_TIP_BILGI[k.varlik_tip] ?? {
+                    label: k.varlik_tip,
+                    icon: Package,
+                    renk: 'text-gray-500',
+                    bg: 'bg-gray-100',
+                  };
+                  const TipIcon = tipBilgi.icon;
+                  const kapak = kalemKapakUrl.get(k.id) ?? dummyGorseller(k.id, 1)[0];
                   return (
                     <Link key={k.id} href={`/varliklar/${k.id}`} className="block">
-                      <Card interactive>
-                        <CardContent className="space-y-2 p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="truncate font-medium text-gray-900">{k.varlik_ad}</p>
-                              <p className="text-xs text-gray-500">{VARLIK_TIP_LABEL[k.varlik_tip] ?? k.varlik_tip}</p>
-                            </div>
+                      <Card interactive className="group h-full overflow-hidden">
+                        <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- harici/proxy görsel, tenant başına değişken host */}
+                          <img
+                            src={kapak}
+                            alt=""
+                            loading="lazy"
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <span className="absolute right-2 top-2">
                             <DurumBadge durum={k.durum} />
-                          </div>
+                          </span>
+                        </div>
+                        <CardContent className="space-y-1.5 p-4">
+                          <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ${tipBilgi.renk} ${tipBilgi.bg}`}>
+                            <TipIcon className="h-3 w-3" />
+                            {tipBilgi.label}
+                          </span>
+                          <p className="truncate font-medium text-gray-900">{k.varlik_ad}</p>
                           {kalemKonum && (
                             <p className="flex items-center gap-1 text-xs text-gray-500">
                               <MapPin className="h-3.5 w-3.5 shrink-0" />
                               {kalemKonum}
                             </p>
                           )}
-                          <p className="text-lg font-bold tracking-tight text-gray-900">
+                          <p className="pt-0.5 text-lg font-bold tracking-tight text-gray-900">
                             {Number(k.baslangic_fiyati).toLocaleString('tr-TR')} ₺
                           </p>
                         </CardContent>
@@ -489,14 +528,14 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                 </div>
               ) : ilan.durum === 'CANLI_ARTIRMA' ? (
                 <Alert variant="info" icon={<Gavel />}>
-                  Bu ihale şu anda canlı. Katılmak için yukarıdaki varlıklardan birine tıklayın —
-                  onaylı başvurunuz varsa doğrudan teklif verebilirsiniz.
+                  Bu ihale şu anda canlı. Katılmak için "Bu İlandaki Varlıklar" bölümünden birine
+                  tıklayın — onaylı başvurunuz varsa doğrudan teklif verebilirsiniz.
                 </Alert>
               ) : ilan.durum === 'YAYINDA' ? (
                 <Alert variant="info" icon={<Info />}>
                   {bitis
-                    ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak. Başvurmak için yukarıdaki varlıklardan birine tıklayın.`
-                    : 'Bu ihale henüz başlamadı. Başvurmak için yukarıdaki varlıklardan birine tıklayın.'}
+                    ? `Bu ihale ${bitis.toLocaleDateString('tr-TR')} tarihinde başlayacak. Başvurmak için "Bu İlandaki Varlıklar" bölümünden birine tıklayın.`
+                    : 'Bu ihale henüz başlamadı. Başvurmak için "Bu İlandaki Varlıklar" bölümünden birine tıklayın.'}
                 </Alert>
               ) : (
                 <Alert variant="info" icon={<Info />}>

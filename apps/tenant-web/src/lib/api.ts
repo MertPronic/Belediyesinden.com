@@ -1,7 +1,7 @@
 import { getToken } from './keycloak';
 
 // Client-side (browser): NEXT_PUBLIC_API_URL (host erişimi, build-time inline).
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
+export const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';
 // Server-side (SSR, container içi): API_INTERNAL_URL (compose service adı, runtime).
 // Tanımsızsa client URL'ine fallback (tek-host dev).
 const SERVER_API_URL = process.env['API_INTERNAL_URL'] ?? API_URL;
