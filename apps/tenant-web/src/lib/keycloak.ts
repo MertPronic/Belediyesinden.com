@@ -4,6 +4,8 @@ import Keycloak from 'keycloak-js';
 const REALM = process.env['NEXT_PUBLIC_KEYCLOAK_REALM'] ?? 'belediyesinden';
 const CLIENT_ID = process.env['NEXT_PUBLIC_KEYCLOAK_CLIENT_ID'] ?? 'tenant-web';
 const URL = process.env['NEXT_PUBLIC_KEYCLOAK_URL'] ?? 'http://localhost:8080';
+/** Merkezi portal — bir belediye sayfasından çıkış yapınca buraya dönülür (Harun/PO). */
+const PORTAL_URL = process.env['NEXT_PUBLIC_PORTAL_URL'] ?? 'https://belediyesinden.com';
 
 let kc: Keycloak | null = null;
 let initPromise: Promise<Keycloak> | null = null;
@@ -52,10 +54,10 @@ export async function getToken(): Promise<string | undefined> {
   return undefined;
 }
 
-/** Çıkış. */
+/** Çıkış — belediyenin kendi sayfasında değil, merkezi portalda son bulur. */
 export async function logout(): Promise<void> {
   const k = getKeycloak();
-  await k.logout({ redirectUri: window.location.origin });
+  await k.logout({ redirectUri: PORTAL_URL });
 }
 
 /**
