@@ -78,6 +78,21 @@ html {
   animation: bid-drop-in 0.6s ease-out;
 }
 
+/* Giriş ekranı — içerik yumuşak yukarı kayarak belirir. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
 /* Pop-up login açıkken ana sayfayı hafif karartan perde (bkz. keycloak.ts loginPopup). */
 @keyframes giris-perdesi-in {
   from {

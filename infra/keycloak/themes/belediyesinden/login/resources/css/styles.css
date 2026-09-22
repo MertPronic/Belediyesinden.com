@@ -1,14 +1,38 @@
-/* Belediyesinden — Keycloak login tema (AGRESIF PatternFly v3 override) */
+/* Belediyesinden — Keycloak login teması.
+   Kaynak: docs/design_handoff_login (2. revizyon) — ana sayfanın görsel diliyle
+   hizalı açık tema: beyaz üst bar, gri sayfa zemini, tek kart içinde solda
+   noktalı desenli koyu tanıtım paneli, sağda form.
+   Şablon: template.ftl'de üstte .bld-topbar + ortalı .bld-shell/.bld-card
+   iskeletine sarıldı; bu dosya hem o iskeleti hem de Keycloak'ın kendi
+   PatternFly v3/v4 form/buton sınıflarını temalıyor.
+
+   Renkler: handoff'un kendi README'si "screenshot'tan okunan hex yerine
+   projede token varsa onu kullan" diyor. Ana sayfa gerçekte Plus Jakarta
+   Sans DEĞİL, sistem font stack'i kullanıyor (apps/tenant-web/global.css
+   --font-sans) — burada da o kullanılıyor. Marka rengi de tasarımın
+   screenshot'tan tahmin ettiği yeşilimsi #0f6b5f değil, bu temanın zaten
+   sabit tuttuğu proje tokenı #0891b2 (DB: tenants.renk, Talas varsayılanı). */
 
 :root {
-  /* Tenant temasıyla BİREBİR eşleşmeli (DB: tenants.renk = #0891b2 cyan-600).
-     Eski #0f766e teal-700 yeşilimsiydi; anasayfa mavi tonlu cyan.
-     Login ekranı tenant bilgisinden bağımsız olduğu için varsayılan tenant
-     (Talas) rengiyle sabitlenir. */
-  --bld-renk: #0891b2;
-  --bld-renk-koyu: #0e7490;
-  --bld-yazi: #0f172a;
-  --bld-border: #e2e8f0;
+  --bld-bg: #f6f8f8;
+  --bld-surface: #ffffff;
+  --bld-border: #eceeee;
+
+  --bld-text: #16241f;
+  --bld-text-2: #6b7b77;
+  --bld-label: #3d4d49;
+  --bld-header-link: #4a5a56;
+  --bld-muted-icon: #9aa8a5;
+  --bld-muted: #93a19d;
+
+  --bld-input-border: #dfe4e3;
+  --bld-input-border-hover: #b9c4c1;
+  --bld-divider: #e7eae9;
+
+  --bld-accent: #0891b2;
+  --bld-accent-hover: #0e7490;
+  --bld-accent-active: #155e75;
+
   --pf-global--primary-color--100: #0891b2 !important;
   --pf-global--primary-color--200: #0e7490 !important;
   --pf-global--active-color--100: #0891b2 !important;
@@ -17,146 +41,378 @@
 }
 
 html.login-pf, body {
-  background: linear-gradient(135deg, #ecfeff 0%, #ffffff 40%, #ecfeff 100%) !important;
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
+  background: var(--bld-bg) !important;
+  color: var(--bld-text) !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif !important;
+  min-height: 100vh;
+}
+::selection { background: rgba(8, 145, 178, 0.18); }
+
+/* === İSKELET (template.ftl) === */
+.bld-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* === SAYFA === */
-.login-pf-page {
-  max-width: 460px !important;
-  margin: 4vh auto !important;
-  padding: 0 1rem !important;
+.bld-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 40px;
+  background: var(--bld-surface);
+  border-bottom: 1px solid var(--bld-border);
+}
+.bld-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--bld-text) !important;
+  text-decoration: none !important;
+}
+.bld-topbar-mark {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--bld-accent);
+  color: #fff;
+}
+.bld-topbar-name {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.bld-topbar-link {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--bld-header-link) !important;
+  text-decoration: none !important;
+}
+.bld-topbar-link:hover { text-decoration: underline !important; }
+
+.bld-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.bld-shell {
+  width: 100%;
+  max-width: 1120px;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--bld-surface);
+  box-shadow: 0 1px 2px rgba(16, 40, 36, 0.04), 0 18px 48px rgba(16, 40, 36, 0.09);
+}
+
+/* — Sol panel: tanıtım (yalnızca dekoratif, aria-hidden) — */
+.bld-brand {
+  position: relative;
+  overflow: hidden;
+  padding: 52px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #fff;
+  background: linear-gradient(155deg, #0f4c5c 0%, #083344 100%);
+}
+.bld-brand-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
+.bld-brand-pill {
+  position: relative;
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 13px;
+  font-weight: 500;
+}
+.bld-brand-mid {
+  position: relative;
+  margin: 44px 0;
+  max-width: 400px;
+}
+.bld-brand-mid h1 {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+  color: #fff;
+}
+.bld-brand-mid p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+@media (max-width: 900px) {
+  .bld-topbar { padding: 16px 20px; }
+  .bld-topbar-link { display: none; }
+  .bld-body { padding: 20px; }
+  .bld-shell { grid-template-columns: 1fr; border-radius: 18px; }
+  .bld-brand { display: none; }
+}
+
+/* — Sağ panel: form (Keycloak'ın kendi .login-pf-page/.card-pf'i burada yaşar) — */
+.bld-form-panel.login-pf-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 52px 56px;
+  max-width: none !important;
+  margin: 0 !important;
   width: auto !important;
   float: none !important;
   background: transparent !important;
 }
+@media (max-width: 900px) {
+  .bld-form-panel.login-pf-page { padding: 36px 24px; }
+}
 
-/* === HEADER === */
+/* === HEADER — realm adı artık üst bar'da (marka tekrar etmesin diye gizli) === */
 #kc-header.login-pf-page-header {
-  background: linear-gradient(135deg, var(--bld-renk), var(--bld-renk-koyu)) !important;
-  border-radius: 16px 16px 0 0 !important;
-  padding: 1.75rem !important;
-  margin: 0 !important;
+  position: absolute;
+  width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
-#kc-header-wrapper {
-  color: #fff !important;
-  font-size: 1.4rem !important;
-  font-weight: 800 !important;
-  text-transform: capitalize !important;
-  text-align: center !important;
-  padding: 0 !important;
-}
-#kc-header-wrapper::before { content: "🏛 "; margin-right: 0.25rem; }
 
-/* === CARD === */
+/* === KART İÇİ (card-pf artık ayrı kutu değil, sağ panelin kendisi) === */
 .card-pf {
-  background: #fff !important;
-  border: 1px solid var(--bld-border) !important;
-  border-top: none !important;
-  border-radius: 0 0 16px 16px !important;
-  box-shadow: 0 4px 24px rgba(8, 145, 178, 0.1) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
   padding: 0 !important;
   margin: 0 !important;
 }
-.card-pf-body, #kc-form, #kc-form-login { padding: 2rem !important; }
+.card-pf-body, #kc-form, #kc-form-login { padding: 0 !important; }
 
-/* === FORM === */
-.form-group { margin-bottom: 1.25rem !important; }
-.form-group label {
-  color: var(--bld-yazi) !important;
-  font-weight: 500 !important;
-  font-size: 0.85rem !important;
+/* === BAŞLIK === */
+.login-pf-header {
   text-align: left !important;
+  padding: 0 !important;
+  margin-bottom: 8px;
 }
+#kc-page-title {
+  margin: 0 0 8px !important;
+  font-size: 27px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  color: var(--bld-text) !important;
+}
+/* Alt açıklama metni — login.ftl'de statik <p class="bld-subtitle"> olarak eklendi
+   (yalnızca login sayfasına özgü; template.ftl paylaşılan olduğu için oraya
+   eklenseydi register/OTP gibi diğer sayfalarda da yanlışlıkla görünürdü). */
+.bld-subtitle {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--bld-text-2);
+}
+
+/* === FORM — alanlar arası boşluk gap ile === */
+#kc-form-login {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+}
+.form-group { margin-bottom: 0 !important; }
+.form-group label {
+  color: var(--bld-label) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  text-align: left !important;
+  margin-bottom: 7px !important;
+}
+
+.login-pf-settings {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: space-between !important;
+  margin-top: -8px;
+}
+.login-pf-settings #kc-form-options:empty { display: none; }
+.login-pf-settings a { font-size: 13px !important; font-weight: 500 !important; }
 
 /* === INPUTS === */
 #username, #password, input[type="text"], input[type="password"] {
-  border: 1px solid var(--bld-border) !important;
-  border-radius: 8px !important;
-  padding: 0.65rem 0.9rem !important;
-  font-size: 0.95rem !important;
-  height: auto !important;
+  background: var(--bld-surface) !important;
+  border: 1px solid var(--bld-input-border) !important;
+  border-radius: 12px !important;
+  color: var(--bld-text) !important;
+  caret-color: var(--bld-accent);
+  padding: 0 14px !important;
+  font-size: 15px !important;
+  height: 50px !important;
   box-shadow: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
+#username::placeholder, #password::placeholder { color: var(--bld-muted-icon) !important; }
+#username:hover, #password:hover { border-color: var(--bld-input-border-hover) !important; }
 #username:focus, #password:focus, input:focus {
-  border-color: var(--bld-renk) !important;
+  border-color: var(--bld-accent) !important;
   box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12) !important;
   outline: none !important;
 }
 
-/* === ŞİFRE BUTONU === */
-.card-pf button:not([type="submit"]):not(#kc-login):not(.btn-primary) {
-  border-radius: 0 8px 8px 0 !important;
+/* Kullanıcı adı / şifre alanlarında ipucu ikonu. */
+#username {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%239aa8a5' stroke-width='1.8' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 20c0-4 3.5-7 8-7s8 3 8 7'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 14px center !important;
+  padding-left: 42px !important;
+}
+#password {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%239aa8a5' stroke-width='1.8' viewBox='0 0 24 24'%3E%3Crect x='5' y='11' width='14' height='9' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 14px center !important;
+  padding-left: 42px !important;
+  padding-right: 48px !important;
+}
+
+/* === ŞİFRE GÖRÜNÜRLÜK BUTONU ===
+   PatternFly v4'ün .pf-c-input-group'u flex + kendi ::after çerçevesiyle geliyor
+   (açık temaya göre boyanmış) — grubu düzleştirip butonu input'un içine, sağa
+   mutlak konumlandırıyoruz. */
+.pf-c-input-group {
+  position: relative !important;
+  display: block !important;
+  background: transparent !important;
+  width: 100% !important;
+}
+.pf-c-input-group #password { width: 100% !important; }
+.pf-c-input-group [data-password-toggle] {
+  position: absolute !important;
+  top: 50% !important;
+  right: 7px !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  margin: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--bld-muted-icon) !important;
+}
+.pf-c-input-group [data-password-toggle]::after { display: none !important; content: none !important; }
+.pf-c-input-group [data-password-toggle]:hover {
+  color: var(--bld-accent) !important;
+  background: rgba(8, 145, 178, 0.08) !important;
+}
+
+/* Beni hatırla — native checkbox, marka rengiyle.
+   PatternFly v3'ün .checkbox/.radio Bootstrap deseni input'u mutlak konumlayıp
+   (position:absolute; margin-left:-20px) label'a padding-left:20px veriyor;
+   flex+gap'le çakışıp checkbox'ı metnin üstüne bindiriyordu — ikisini de
+   sıfırlayıp input'u normal akışa alıyoruz. */
+#kc-form-options .checkbox {
+  display: flex;
+  align-items: center;
+}
+#kc-form-options .checkbox label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 0 !important;
+  min-height: 0 !important;
+  font-size: 14px;
+  color: var(--bld-label);
+  cursor: pointer;
+}
+#kc-form-options input[type="checkbox"] {
+  position: static !important;
+  width: 18px;
+  height: 18px;
+  margin: 0 !important;
+  flex-shrink: 0;
+  accent-color: var(--bld-accent);
+  cursor: pointer;
+}
+#kc-form-options input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--bld-accent);
+  outline-offset: 2px;
 }
 
 /* ====================================================================
-   AGRESIF TEAL OVERRIDE — PatternFly v3 hardcoded maviyi ezer
+   MARKA AKSANI — PatternFly v3/v4 hardcoded rengi ezer
    ==================================================================== */
 
-/* Tum linkler */
-a, a:link, a:visited, a:hover, a:active,
-.btn-link, a.btn, .login-pf a, .card-pf a {
-  color: var(--bld-renk) !important;
+a, a:link, a:visited, a:active, .login-pf a, .card-pf a {
+  color: var(--bld-accent) !important;
+  text-decoration: none !important;
+}
+a:hover, .login-pf a:hover, .card-pf a:hover {
+  color: var(--bld-accent-hover) !important;
+  text-decoration: underline !important;
 }
 
-/* Tum butonlar — primary HARIC radius */
-button { border-radius: 8px !important; }
-input-group button { border-radius: 0 8px 8px 0 !important; }
+button { border-radius: 12px !important; }
 
-/* Primary buton — TEAL (background-image gradient'i de ezer) */
-.btn-primary,
-#kc-login,
-button[type="submit"],
-.login-pf .btn-primary,
-.login-pf-page .btn-primary,
-.card-pf .btn-primary,
-form .btn-primary {
-  background: var(--bld-renk) !important;
-  background-color: var(--bld-renk) !important;
+/* Birincil buton — gerçek sınıf .pf-c-button.pf-m-primary'dir (theme.properties:
+   kcButtonPrimaryClass=pf-m-primary; submit elemanları <input type=submit>,
+   "button[type=submit]" onları tutmaz). Tasarım: dolgu marka rengi. */
+.pf-c-button.pf-m-primary {
+  background: var(--bld-accent) !important;
   background-image: none !important;
-  border: 1px solid var(--bld-renk) !important;
-  border-color: var(--bld-renk) !important;
+  background-color: var(--bld-accent) !important;
+  border: 0 !important;
   color: #fff !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   font-weight: 600 !important;
-  font-size: 0.95rem !important;
-  padding: 0.65rem 1.5rem !important;
+  font-size: 16px !important;
+  height: 52px !important;
+  padding: 0 1.5rem !important;
   width: 100% !important;
   text-shadow: none !important;
-  margin-top: 0.5rem !important;
+  margin-top: 4px !important;
+  transition: background-color 0.15s ease !important;
 }
-.btn-primary:hover, #kc-login:hover,
-.login-pf .btn-primary:hover, .card-pf .btn-primary:hover {
-  background: var(--bld-renk-koyu) !important;
-  background-color: var(--bld-renk-koyu) !important;
+.pf-c-button.pf-m-primary:hover {
+  background: var(--bld-accent-hover) !important;
+  background-color: var(--bld-accent-hover) !important;
   background-image: none !important;
-  border-color: var(--bld-renk-koyu) !important;
-  box-shadow: 0 3px 10px rgba(8, 145, 178, 0.25) !important;
+}
+.pf-c-button.pf-m-primary:active {
+  background: var(--bld-accent-active) !important;
+  background-color: var(--bld-accent-active) !important;
 }
 
-/* Focus outline (mavi yerine teal) */
-*:focus { outline-color: var(--bld-renk) !important; }
+*:focus { outline-color: var(--bld-accent) !important; }
 input:focus, button:focus, a:focus, .form-control:focus {
-  outline: 2px solid rgba(8, 145, 178, 0.3) !important;
-  border-color: var(--bld-renk) !important;
+  outline: 2px solid var(--bld-accent) !important;
+  outline-offset: 2px !important;
 }
 
-/* Checkbox */
-input[type="checkbox"] { accent-color: var(--bld-renk) !important; }
+.alert { border-radius: 12px !important; }
+.alert-error, .pf-m-danger {
+  background: #fdf1f0 !important;
+  border: 1px solid #f3c8c4 !important;
+  color: #7a2a20 !important;
+}
 
-/* Alert */
-.alert { border-radius: 8px !important; }
-
-/* Footer */
-#kc-info, .login-pf-footer {
-  color: #64748b !important;
-  font-size: 0.85rem !important;
+/* === KAYIT SATIRI === */
+#kc-info, .login-pf-signup {
+  color: var(--bld-text-2) !important;
+  font-size: 14px !important;
   text-align: center !important;
-  padding: 1rem !important;
+  padding: 30px 0 0 !important;
 }
-
-@media (max-width: 500px) {
-  .login-pf-page { margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
-  #kc-header { border-radius: 0 !important; }
-  .card-pf { border-radius: 0 !important; }
-}
+#kc-info a, .login-pf-signup a { font-weight: 600 !important; }

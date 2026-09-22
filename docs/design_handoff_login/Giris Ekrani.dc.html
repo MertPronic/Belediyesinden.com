@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { background: #f6f8f8; font-family: "Plus Jakarta Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  a { color: #0f6b5f; text-decoration: none; }
+  a:hover { color: #0b524a; text-decoration: underline; }
+  input::placeholder { color: #9aa8a5; }
+  input { font-family: inherit; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid #0f6b5f; outline-offset: 2px; }
+  ::selection { background: rgba(15,107,95,0.18); }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #f6f8f8; color: #16241f;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 18px 40px; background: #ffffff; border-bottom: 1px solid #eceeee;">
+    <a href="#" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none;" style-hover="text-decoration: none;">
+      <span style="width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: #157a63; color: #ffffff;">
+        <svg width="24" height="24" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208 32H96a16 16 0 0 0-16 16v40H48a16 16 0 0 0-16 16v112a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16Zm-96 16h96v160h-40v-32a8 8 0 0 0-8-8h-24a8 8 0 0 0-8 8v32h-16Zm-16 56v104H48V104Zm-32 24h16v16H64Zm0 40h16v16H64Zm64-80h16v16h-16Zm32 0h16v16h-16Zm-32 40h16v16h-16Zm32 0h16v16h-16Z"></path></svg>
+      </span>
+      <span style="font-size: 21px; font-weight: 700; letter-spacing: -0.02em;">Belediyesinden.com</span>
+    </a>
+    <a href="#" style="font-size: 15px; font-weight: 500; color: #4a5a56;">Tüm İlanlar</a>
+  </header>
+
+  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px;">
+    <div style="width: 100%; max-width: 1120px; display: grid; grid-template-columns: 1.05fr 1fr; border-radius: 22px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 2px rgba(16,40,36,0.04), 0 18px 48px rgba(16,40,36,0.09);">
+
+      <div style="position: relative; padding: 52px 48px; display: flex; flex-direction: column; justify-content: space-between; color: #ffffff; background: linear-gradient(155deg, #0d4e47 0%, #0a3b36 100%); overflow: hidden;">
+        <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.10) 1.2px, transparent 1.2px); background-size: 22px 22px; pointer-events: none;"></div>
+
+        <div style="position: relative;">
+          <span style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.14); font-size: 13px; font-weight: 500;">
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M197.6 76.5 168 88l-11.5 29.6a8 8 0 0 1-14.9 0L130 88l-29.6-11.5a8 8 0 0 1 0-14.9L130 50l11.5-29.6a8 8 0 0 1 14.9 0L168 50l29.6 11.5a8 8 0 0 1 0 15Zm-52 116-19.6-7.6-7.6-19.6a8 8 0 0 0-14.9 0l-7.6 19.6L75.3 192a8 8 0 0 0 0 15l19.6 7.6 7.6 19.6a8 8 0 0 0 14.9 0l7.6-19.6 19.6-7.6a8 8 0 0 0 0-15ZM232 152l-15.6-6-6-15.6a8 8 0 0 0-14.9 0l-6 15.6-15.6 6a8 8 0 0 0 0 15l15.6 6 6 15.6a8 8 0 0 0 14.9 0l6-15.6 15.6-6a8 8 0 0 0 0-15ZM61 61.4 32 72l-10.6 29a8 8 0 0 1-15 0L-4.2 72l-29-10.6a8 8 0 0 1 0-15L-4.2 35.8 6.4 6.8a8 8 0 0 1 15 0L32 35.8 61 46.4a8 8 0 0 1 0 15Z"></path></svg>
+            Türkiye'nin belediye ilan &amp; açık artırma portalı
+          </span>
+        </div>
+
+        <div style="position: relative; margin: 44px 0;">
+          <h1 style="margin: 0 0 16px; font-size: 38px; line-height: 1.15; font-weight: 700; letter-spacing: -0.025em;">Belediye ilanlarını tek yerden takip edin</h1>
+          <p style="margin: 0; font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.72); max-width: 400px;">Taşınmaz, taşınır, işletme hakkı ve reklam alanı ihalelerine göz atın; başvurunuzu ve teminatınızı elektronik olarak tamamlayın.</p>
+        </div>
+
+      </div>
+
+      <div style="padding: 52px 56px; display: flex; flex-direction: column; justify-content: center;">
+        <h2 style="margin: 0 0 8px; font-size: 27px; font-weight: 700; letter-spacing: -0.02em;">Hesabınıza giriş yapın</h2>
+        <p style="margin: 0 0 32px; font-size: 14px; color: #6b7b77;">Kullanıcı adınız veya e-posta adresinizle devam edin.</p>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label for="u" style="display: block; margin-bottom: 7px; font-size: 13px; font-weight: 500; color: #3d4d49;">Kullanıcı adı veya E-Posta</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 14px; display: grid; place-items: center; color: #9aa8a5; pointer-events: none;">
+                <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M230.9 212a120.6 120.6 0 0 0-67.1-54.5 68 68 0 1 0-71.6 0A120.6 120.6 0 0 0 25.1 212a8 8 0 0 0 13.8 8 104 104 0 0 1 178.2 0 8 8 0 0 0 13.8-8ZM76 96a52 52 0 1 1 52 52 52.1 52.1 0 0 1-52-52Z"></path></svg>
+              </span>
+              <input id="u" type="text" autocomplete="username" placeholder="ornek@belediyesinden.com" style="width: 100%; height: 50px; padding: 0 14px 0 42px; font-size: 15px; color: #16241f; background: #ffffff; border: 1px solid #dfe4e3; border-radius: 12px;" style-hover="border-color: #b9c4c1" style-focus="border-color: #0f6b5f; box-shadow: 0 0 0 3px rgba(15,107,95,0.12); outline: none;">
+            </div>
+          </div>
+
+          <div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px;">
+              <label for="p" style="font-size: 13px; font-weight: 500; color: #3d4d49;">Şifre</label>
+              <a href="#" style="font-size: 13px; font-weight: 500;">Parolanızı mı unuttunuz?</a>
+            </div>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 14px; display: grid; place-items: center; color: #9aa8a5; pointer-events: none;">
+                <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208 80h-32V56a48 48 0 0 0-96 0v24H48a16 16 0 0 0-16 16v112a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16V96a16 16 0 0 0-16-16ZM96 56a32 32 0 0 1 64 0v24H96Zm112 152H48V96h160Z"></path></svg>
+              </span>
+              <input id="p" type="{{ pwType }}" autocomplete="current-password" placeholder="••••••••" style="width: 100%; height: 50px; padding: 0 48px 0 42px; font-size: 15px; color: #16241f; background: #ffffff; border: 1px solid #dfe4e3; border-radius: 12px;" style-hover="border-color: #b9c4c1" style-focus="border-color: #0f6b5f; box-shadow: 0 0 0 3px rgba(15,107,95,0.12); outline: none;">
+              <button type="button" onClick="{{ toggle }}" aria-label="Şifreyi göster" style="position: absolute; right: 7px; width: 36px; height: 36px; display: grid; place-items: center; background: transparent; border: 0; border-radius: 9px; cursor: pointer; color: #7d8c88;" style-hover="color: #0f6b5f; background: rgba(15,107,95,0.08);">
+                <sc-if value="{{ pwVisible }}" hint-placeholder-val="{{ false }}">
+                  <svg width="19" height="19" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M53.9 34.6a8 8 0 0 0-11.8 10.8L59 64.2C34.6 82 17.8 106.6 9 129a8 8 0 0 0 0 5.9c.3.7 8.4 20.7 28.6 40.9 20.9 21 49.1 32.2 90.4 32.2a132 132 0 0 0 53.4-10.5l19 20.9a8 8 0 1 0 11.8-10.8Zm73.9 157.4c-37 0-62.3-9.9-80.6-28.1a109 109 0 0 1-22-32c8-16.6 24.4-40 51.7-55.6l20.5 22.5a40 40 0 0 0 53.2 58.5l16.6 18.3a115 115 0 0 1-39.4 6.4Zm119.2-57.1c-.4.8-9.4 23-31.6 43.8a8 8 0 1 1-11-11.6 122 122 0 0 0 26.4-35.2c-8-16.6-24.4-40-51.7-55.6a92 92 0 0 0-51.3-13.3 8 8 0 0 1 .4-16 108 108 0 0 1 60.4 15.4c20.2 20.2 28.3 40.2 28.6 40.9a8 8 0 0 1 0 5.8Z"></path></svg>
+                </sc-if>
+                <sc-if value="{{ pwHidden }}" hint-placeholder-val="{{ true }}">
+                  <svg width="19" height="19" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M247 127.1c-.3-.8-8.4-20.8-28.6-41C191.5 59.1 158 45.3 128 45.3S64.5 59.1 37.6 86.1C17.4 106.3 9.3 126.3 9 127.1a8 8 0 0 0 0 5.9c.3.7 8.4 20.7 28.6 40.9 26.9 27 60.4 40.8 90.4 40.8s63.5-13.8 90.4-40.8c20.2-20.2 28.3-40.2 28.6-40.9a8 8 0 0 0 0-5.9ZM128 198.7c-26.4 0-55.8-12.4-80.6-37.2A123 123 0 0 1 25.7 130 123 123 0 0 1 47.4 98.5C72.2 73.7 101.6 61.3 128 61.3s55.8 12.4 80.6 37.2a123 123 0 0 1 21.7 31.5c-6.6 12.5-35.8 68.7-102.3 68.7Zm0-113.4a44.7 44.7 0 1 0 44.7 44.7A44.8 44.8 0 0 0 128 85.3Zm0 73.4a28.7 28.7 0 1 1 28.7-28.7 28.8 28.8 0 0 1-28.7 28.7Z"></path></svg>
+                </sc-if>
+              </button>
+            </div>
+          </div>
+
+          <sc-if value="{{ showRemember }}" hint-placeholder-val="{{ true }}">
+            <label style="display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: #3d4d49; cursor: pointer;">
+              <input type="checkbox" defaultChecked="{{ true }}" style="width: 18px; height: 18px; accent-color: #0f6b5f; cursor: pointer;">
+              Beni hatırla
+            </label>
+          </sc-if>
+
+          <button type="button" style="width: 100%; height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 16px; font-weight: 600; color: #ffffff; background: #0f6b5f; border: 0; border-radius: 12px; cursor: pointer; margin-top: 4px;" style-hover="background: #0b544a;" style-active="background: #094239;">Oturum aç</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px; margin: 28px 0;">
+          <span style="flex: 1; height: 1px; background: #e7eae9;"></span>
+          <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; color: #93a19d;">VEYA</span>
+          <span style="flex: 1; height: 1px; background: #e7eae9;"></span>
+        </div>
+
+        <button type="button" style="width: 100%; height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-family: inherit; font-size: 15px; font-weight: 600; color: #16241f; background: #ffffff; border: 1px solid #dfe4e3; border-radius: 12px; cursor: pointer;" style-hover="background: #f4f7f6; border-color: #c9d2d0;">
+          <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128 24a104 104 0 1 0 104 104A104.1 104.1 0 0 0 128 24Zm0 192a88 88 0 1 1 88-88 88.1 88.1 0 0 1-88 88Zm44-96h-36V84a8 8 0 0 0-16 0v36H84a8 8 0 0 0 0 16h36v36a8 8 0 0 0 16 0v-36h36a8 8 0 0 0 0-16Z"></path></svg>
+          e-Devlet ile giriş yap
+        </button>
+
+        <p style="margin: 30px 0 0; text-align: center; font-size: 14px; color: #6b7b77;">
+          Yeni kullanıcı? <a href="#" style="margin-left: 4px; font-weight: 600;">Kayıt ol</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showRemember&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { show: false };
+  renderVals() {
+    return {
+      pwType: this.state.show ? "text" : "password",
+      pwVisible: this.state.show,
+      pwHidden: !this.state.show,
+      showRemember: this.props.showRemember ?? true,
+      toggle: () => this.setState(s => ({ show: !s.show })),
+    };
+  }
+}
+</script>
+</body>
+</html>
