@@ -9,6 +9,7 @@ export interface Teminat {
   onaylayan: string | null;
   onay_tarihi: Date | null;
   iade_tarihi: Date | null;
+  red_gerekcesi: string | null;
   created_at: Date;
   updated_at: Date;
 }

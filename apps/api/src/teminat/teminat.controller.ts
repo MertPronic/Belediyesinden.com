@@ -30,7 +30,17 @@ export class TeminatController {
     return this.service.list(limit, offset);
   }
 
-  /** E-dekont yükle → teminat kaydı (BEKLEMEDE). */
+  /** Kendi teminat kaydı (varsa) — dekont sayfasının düzenlenebilir/kilitli kararı için. */
+  @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
+  @Get('basvuru/:basvuruId/benim')
+  benim(@Param('basvuruId') basvuruId: string, @CurrentUser() user: AuthenticatedUser | null) {
+    if (!user) {
+      throw new Error('Kimlik doğrulanmış kullanıcı yok');
+    }
+    return this.service.findMyForBasvuru(basvuruId, user.sub);
+  }
+
+  /** E-dekont yükle → teminat kaydı (BEKLEMEDE). Var olan BEKLEMEDE/REDDEDILDI kayıt üzerine yazılır. */
   @Roller(KullaniciRolu.Vatandas, KullaniciRolu.Yatirimci)
   @Post('basvuru/:basvuruId')
   @UseInterceptors(FileInterceptor('file'))
@@ -70,11 +80,11 @@ export class TeminatController {
     return this.service.approve(id, user?.sub ?? 'unknown');
   }
 
-  /** Encümen: teminat reddet. */
+  /** Encümen: teminat reddet. Gerekçe zorunlu. */
   @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
   @Post(':id/reddet')
-  reject(@Param('id') id: string) {
-    return this.service.reject(id);
+  reject(@Param('id') id: string, @Body('gerekce') gerekce: string) {
+    return this.service.reject(id, gerekce);
   }
 
   /** Teminat iade et (BLOKE → IADE). */

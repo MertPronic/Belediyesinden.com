@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { EvrakModule } from '../evrak/evrak.module';
+import { BildirimModule } from '../bildirim/bildirim.module';
 import { TeminatController } from './teminat.controller';
 import { TeminatService } from './teminat.service';
 import { TeminatIadeService } from './teminat-iade.service';
 
 @Module({
-  imports: [EvrakModule],
+  imports: [EvrakModule, BildirimModule],
   controllers: [TeminatController],
   providers: [TeminatService, TeminatIadeService],
   exports: [TeminatIadeService],

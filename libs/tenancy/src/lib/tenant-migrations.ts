@@ -576,6 +576,18 @@ class CreateVarlikGorseller1740000022000 extends TenantMigration {
   }
 }
 
+class AddTeminatRedGerekcesi1740000023000 extends TenantMigration {
+  name = 'AddTeminatRedGerekcesi1740000023000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE teminat ADD COLUMN IF NOT EXISTS red_gerekcesi VARCHAR(500)`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE teminat DROP COLUMN IF EXISTS red_gerekcesi`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -599,4 +611,5 @@ export const tenantMigrations = [
   IlanTekVarlikAlanlariOpsiyonel1740000020000,
   AddIlanKalemiToBasvuruTeklif1740000021000,
   CreateVarlikGorseller1740000022000,
+  AddTeminatRedGerekcesi1740000023000,
 ];
