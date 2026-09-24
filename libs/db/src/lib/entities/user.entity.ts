@@ -29,4 +29,8 @@ export class User extends BaseEntity {
   /** Bağlı tenant (belediye personeli için); vatandaş için null. */
   @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
   tenantId!: string | null;
+
+  /** SMS bildirimleri için — kullanıcı Hesabım sayfasından kendisi girer. */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  telefon!: string | null;
 }

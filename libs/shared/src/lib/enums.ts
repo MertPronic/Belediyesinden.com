@@ -108,6 +108,8 @@ export enum BildirimTipi {
   YeniBasvuru = 'YENI_BASVURU',
   TeminatOnaylandi = 'TEMINAT_ONAYLANDI',
   TeminatReddedildi = 'TEMINAT_REDDEDILDI',
+  IhaleHatirlatma = 'IHALE_HATIRLATMA',
+  IhaleBasladi = 'IHALE_BASLADI',
 }
 
 /**

@@ -42,4 +42,6 @@ export interface Ilan {
   deleted_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  /** İhale başlamadan ~4 saat önce hatırlatma (bildirim/e-posta/SMS) gönderildi mi — idempotency. */
+  hatirlatma_gonderildi_at?: Date | null;
 }

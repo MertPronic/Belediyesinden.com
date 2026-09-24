@@ -109,9 +109,26 @@ class AuditTenantIdVarchar1740000003000 implements MigrationInterface {
   }
 }
 
+/**
+ * 0004 — kullanıcı telefon numarası. SMS bildirimleri (ihale hatırlatma) için;
+ * Hesabım sayfasından kullanıcının kendisi girer (Keycloak'ta/JWT'de telefon yok).
+ */
+class AddUserTelefon1740000004000 implements MigrationInterface {
+  name = 'AddUserTelefon1740000004000';
+
+  async up(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE shared.users ADD COLUMN IF NOT EXISTS telefon VARCHAR(20)`);
+  }
+
+  async down(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE shared.users DROP COLUMN IF EXISTS telefon`);
+  }
+}
+
 /** shared DataSource için migration listesi. */
 export const sharedMigrations = [
   InitShared1740000001000,
   AuditLog1740000002000,
   AuditTenantIdVarchar1740000003000,
+  AddUserTelefon1740000004000,
 ];

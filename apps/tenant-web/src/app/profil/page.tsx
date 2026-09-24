@@ -1,18 +1,28 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, Gavel, Heart, Inbox } from 'lucide-react';
+import { CheckCircle2, FileText, Gavel, Heart, Inbox, Phone } from 'lucide-react';
 import { RequireAuth } from '../../components/require-auth';
 import { apiFetch } from '../../lib/api';
 import {
   Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   EmptyState,
+  Field,
+  Input,
   Skeleton,
 } from '@belediyesinden/ui';
+
+interface KullaniciProfili {
+  email: string;
+  ad: string;
+  soyad: string;
+  telefon: string | null;
+}
 
 interface Basvuru {
   id: string;
@@ -41,6 +51,71 @@ const BASVURU_DURUM: Record<string, { label: string; variant: 'default' | 'succe
   IADE_EDILDI: { label: 'İade edildi', variant: 'default' },
   IPTAL_EDILDI: { label: 'İptal edildi', variant: 'default' },
 };
+
+/** İletişim bilgileri — şu an sadece telefon (ihale hatırlatma SMS'i için, Harun/PO). */
+function IletisimBilgileri() {
+  const [telefon, setTelefon] = useState('');
+  const [yukleniyor, setYukleniyor] = useState(true);
+  const [kaydediliyor, setKaydediliyor] = useState(false);
+  const [kaydedildi, setKaydedildi] = useState(false);
+
+  useEffect(() => {
+    apiFetch<KullaniciProfili>('/kullanici-profili/me')
+      .then((p) => setTelefon(p.telefon ?? ''))
+      .catch(() => {})
+      .finally(() => setYukleniyor(false));
+  }, []);
+
+  async function kaydet() {
+    setKaydediliyor(true);
+    setKaydedildi(false);
+    try {
+      await apiFetch('/kullanici-profili/me', { method: 'PATCH', body: JSON.stringify({ telefon }) });
+      setKaydedildi(true);
+    } catch {
+      /* sessizce yoksay — buton "Kaydet" halinde kalır, kullanıcı tekrar dener */
+    } finally {
+      setKaydediliyor(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Phone className="h-4 w-4 text-gray-400" />
+          İletişim Bilgileri
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-gray-500">
+          Katıldığınız ihalelerle ilgili SMS hatırlatması alabilmeniz için telefon numaranızı girin.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <Field className="mb-0 min-w-[200px] flex-1">
+            <label className="mb-1.5 block text-xs font-medium text-gray-500">Telefon</label>
+            <Input
+              type="tel"
+              placeholder="05xx xxx xx xx"
+              value={telefon}
+              onChange={(e) => setTelefon(e.target.value)}
+              disabled={yukleniyor}
+            />
+          </Field>
+          <Button onClick={kaydet} loading={kaydediliyor} disabled={yukleniyor}>
+            Kaydet
+          </Button>
+        </div>
+        {kaydedildi && (
+          <p className="flex items-center gap-1.5 text-xs text-green-600">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Kaydedildi
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function ProfilIcerik() {
   const [basvurular, setBasvurular] = useState<Basvuru[]>([]);
@@ -74,6 +149,8 @@ function ProfilIcerik() {
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Hesabım</h1>
         <p className="mt-1 text-sm text-gray-500">Başvuru ve teklifleriniz</p>
       </div>
+
+      <IletisimBilgileri />
 
       {/* Başvurularım */}
       <Card>

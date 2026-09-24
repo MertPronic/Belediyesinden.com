@@ -622,6 +622,22 @@ class CreateBildirim1740000024000 extends TenantMigration {
   }
 }
 
+/**
+ * 0025 — ihale hatırlatma idempotency. Bir ilan için 4-saat-öncesi hatırlatmanın
+ * (bildirim/e-posta/SMS) yalnızca bir kez gönderilmesini garantiler.
+ */
+class AddIlanHatirlatmaGonderildi1740000025000 extends TenantMigration {
+  name = 'AddIlanHatirlatmaGonderildi1740000025000';
+
+  protected async runUp(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan ADD COLUMN IF NOT EXISTS hatirlatma_gonderildi_at TIMESTAMPTZ`);
+  }
+
+  protected async runDown(qr: QueryRunner): Promise<void> {
+    await qr.query(`ALTER TABLE ilan DROP COLUMN IF EXISTS hatirlatma_gonderildi_at`);
+  }
+}
+
 /** Tüm tenant schema'larında koşacak migration listesi. */
 export const tenantMigrations = [
   InitTenant1740000000000,
@@ -647,4 +663,5 @@ export const tenantMigrations = [
   CreateVarlikGorseller1740000022000,
   AddTeminatRedGerekcesi1740000023000,
   CreateBildirim1740000024000,
+  AddIlanHatirlatmaGonderildi1740000025000,
 ];

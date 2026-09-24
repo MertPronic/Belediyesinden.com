@@ -12,6 +12,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TenantGuard } from './tenant.guard';
 import { RollerGuard } from './roller.guard';
+import { UserSyncInterceptor } from './user-sync.interceptor';
 import { DuyuruModule } from '../duyuru/duyuru.module';
 import { TenantThemeModule } from '../tenants/tenant-theme.module';
 import { TenantThrottlerGuard } from '../throttle/tenant-throttler.guard';
@@ -23,6 +24,8 @@ import { EvrakModule } from '../evrak/evrak.module';
 import { BasvuruModule } from '../basvuru/basvuru.module';
 import { TeminatModule } from '../teminat/teminat.module';
 import { BildirimModule } from '../bildirim/bildirim.module';
+import { KullaniciProfiliModule } from '../kullanici-profili/kullanici-profili.module';
+import { IhaleZamanlayiciModule } from '../ihale-zamanlayici/ihale-zamanlayici.module';
 import { TeklifModule } from '../teklif/teklif.module';
 import { AuctionGatewayModule } from '../auction/auction-gateway.module';
 import { RaporModule } from '../rapor/rapor.module';
@@ -76,6 +79,8 @@ import { SearchModule } from '../search/search.module';
     EvrakModule, // şartname/evrak (MinIO + tenant-scoped)
     SearchModule, // OpenSearch ilan arama (global)
     BildirimModule, // uygulama-içi bildirim (tenant-scoped)
+    KullaniciProfiliModule, // kullanıcının kendi profili (shared.users — telefon)
+    IhaleZamanlayiciModule, // ihale otomatik başlatma + 4 saat öncesi hatırlatma
     BasvuruModule, // başvuru + KVKK (tenant-scoped)
     TeminatModule, // teminat simülasyon (e-dekont + onay/iade)
     TeklifModule, // server-authoritative teklif + anti-snicking
@@ -102,6 +107,8 @@ import { SearchModule } from '../search/search.module';
     { provide: APP_GUARD, useClass: RollerGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_INTERCEPTOR, useClass: TenancyInterceptor },
+    // TenancyInterceptor'dan SONRA — tenant bağlamı (varsa) hazır olsun diye.
+    { provide: APP_INTERCEPTOR, useClass: UserSyncInterceptor },
     { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor }, // Prometheus metrik
   ],
 })

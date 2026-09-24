@@ -11,5 +11,6 @@ import { GorselService } from './gorsel.service';
   imports: [TeminatModule, EvrakModule, VarlikModule],
   controllers: [IlanController],
   providers: [IlanService, IlanKalemiService, GorselService],
+  exports: [IlanService], // ihale zamanlayıcı (cron) changeDurum'u dışarıdan çağırabilsin diye
 })
 export class IlanModule {}
