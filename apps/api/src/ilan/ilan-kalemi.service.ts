@@ -7,7 +7,7 @@ import { rawQuery } from '@belediyesinden/db';
 import { IlanDurumu } from '@belediyesinden/shared';
 import { ilanKalemiEklemeGecerliMi } from '@belediyesinden/ilan-core';
 import { VarlikService } from '../varlik/varlik.service';
-import type { IlanKalemi, IlanKalemiDetay, IlanKalemiOzet } from './ilan-kalemi.entity';
+import type { IlanKalemi, IlanKalemiDetay, IlanKalemiOzet, IlanKalemiYonetimSatiri } from './ilan-kalemi.entity';
 import type { Ilan } from './ilan.entity';
 
 /**
@@ -52,6 +52,44 @@ export class IlanKalemiService {
        ORDER BY k.created_at`,
       [ilanId],
     );
+  }
+
+  /**
+   * Yönetim > İhaleler — tenant genelinde TÜM ihale kalemleri (ilan bağlamıyla).
+   * `zaman`: 'gelecek' → BEKLIYOR/CANLI_ARTIRMA (ihale tarihine göre artan),
+   * 'gecmis' → SONUCLANDI/IPTAL (ihale tarihine göre azalan), yoksa hepsi.
+   */
+  async listTenantGenel(
+    zaman: 'gelecek' | 'gecmis' | undefined,
+    limit: number,
+    offset: number,
+  ): Promise<{ data: IlanKalemiYonetimSatiri[]; total: number }> {
+    const durumFiltre =
+      zaman === 'gecmis'
+        ? `k.durum IN ('SONUCLANDI', 'IPTAL')`
+        : zaman === 'gelecek'
+          ? `k.durum IN ('BEKLIYOR', 'CANLI_ARTIRMA')`
+          : 'TRUE';
+    const siraYonu = zaman === 'gecmis' ? 'DESC' : 'ASC';
+    const [data, totalRows] = await Promise.all([
+      rawQuery<IlanKalemiYonetimSatiri>(
+        this.qr(),
+        `SELECT k.*, v.ad AS varlik_ad, v.tip AS varlik_tip, i.baslik AS ilan_baslik
+         FROM ilan_kalemi k
+         JOIN varlik v ON v.id = k.varlik_id
+         JOIN ilan i ON i.id = k.ilan_id
+         WHERE k.deleted_at IS NULL AND i.deleted_at IS NULL AND ${durumFiltre}
+         ORDER BY k.bitis_tarihi ${siraYonu} NULLS LAST
+         LIMIT $1 OFFSET $2`,
+        [limit, offset],
+      ),
+      rawQuery<{ adet: string }>(
+        this.qr(),
+        `SELECT COUNT(*) AS adet FROM ilan_kalemi k JOIN ilan i ON i.id = k.ilan_id
+         WHERE k.deleted_at IS NULL AND i.deleted_at IS NULL AND ${durumFiltre}`,
+      ),
+    ]);
+    return { data, total: Number(totalRows[0]?.adet ?? 0) };
   }
 
   /** Yayınlama ön koşulu (≥1 kalem) için hafif sayım — bkz. IlanService.changeDurum. */

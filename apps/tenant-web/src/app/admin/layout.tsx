@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Box, ClipboardCheck, FileText, LayoutDashboard, Landmark, Settings, type LucideIcon } from 'lucide-react';
+import { Box, ClipboardCheck, FileText, Gavel, LayoutDashboard, Landmark, Settings, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { RequireAdmin } from '../../components/require-admin';
 import { useAuth } from '../../lib/use-auth';
@@ -10,6 +10,7 @@ const MENU: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/admin', label: 'Genel Bakış', icon: LayoutDashboard },
   { href: '/admin/varliklar', label: 'Varlıklar', icon: Box },
   { href: '/admin/ilanlar', label: 'İlanlar', icon: FileText },
+  { href: '/admin/ihaleler', label: 'İhaleler', icon: Gavel },
   { href: '/admin/basvurular', label: 'Başvurular', icon: ClipboardCheck },
 ];
 const TENANT_ADMIN_MENU = { href: '/admin/kurallar', label: 'İhale Kuralları', icon: Settings };

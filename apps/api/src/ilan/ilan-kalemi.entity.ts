@@ -38,3 +38,10 @@ export interface IlanKalemiDetay extends IlanKalemiOzet {
   ilan_durum: string;
   ilan_baslangic_tarihi: Date | null;
 }
+
+/** Yönetim > İhaleler listesi satırı — tenant genelinde, ilan bağlamıyla birlikte (Harun/PO, 2026-09-24). */
+export interface IlanKalemiYonetimSatiri extends IlanKalemi {
+  varlik_ad: string;
+  varlik_tip: string;
+  ilan_baslik: string;
+}

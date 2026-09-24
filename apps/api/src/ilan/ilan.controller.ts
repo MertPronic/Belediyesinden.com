@@ -176,6 +176,18 @@ export class IlanController {
     return kalem;
   }
 
+  /** Yönetim > İhaleler — tenant genelinde tüm ihale kalemleri. :id'den ÖNCE tanımlı. */
+  @Roller(KullaniciRolu.TenantAdmin, KullaniciRolu.Encumen)
+  @Get('kalem')
+  listKalemler(
+    @Query('zaman') zaman: 'gelecek' | 'gecmis' | undefined,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const { limit, offset } = sayfalamaCoz({ page, pageSize });
+    return this.kalemler.listTenantGenel(zaman, limit, offset);
+  }
+
   /** Görsel stream (galeri <img> proxy'si). :id'den ÖNCE tanımlı. */
   @Unprotected()
   @Get('gorsel/:gorselId')
