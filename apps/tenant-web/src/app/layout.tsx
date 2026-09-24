@@ -5,6 +5,7 @@ import { Landmark } from 'lucide-react';
 import { serverApiFetch } from '../lib/api';
 import { Footer, ToastProvider } from '@belediyesinden/ui';
 import { HeaderNav } from '../components/header-nav';
+import { TenantErisimKapisi } from '../components/tenant-erisim-kapisi';
 
 export const metadata: Metadata = {
   title: 'Belediyesinden',
@@ -56,22 +57,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         }
       >
         <ToastProvider>
-          <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur">
-            <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
-              <a href="/" className="flex items-center gap-2.5">
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg shadow-sm"
-                  style={{ background: renk }}
-                >
-                  <Landmark className="h-5 w-5 text-white" />
-                </span>
-                <span className="text-base font-bold tracking-tight text-gray-900">{siteName}</span>
-              </a>
-              <HeaderNav />
-            </div>
-          </header>
-          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-          <Footer brand={siteName} />
+          <TenantErisimKapisi tenantSlug={theme.slug} siteName={siteName}>
+            <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur">
+              <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
+                <a href="/" className="flex items-center gap-2.5">
+                  <span
+                    className="flex h-9 w-9 items-center justify-center rounded-lg shadow-sm"
+                    style={{ background: renk }}
+                  >
+                    <Landmark className="h-5 w-5 text-white" />
+                  </span>
+                  <span className="text-base font-bold tracking-tight text-gray-900">{siteName}</span>
+                </a>
+                <HeaderNav />
+              </div>
+            </header>
+            <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+            <Footer brand={siteName} />
+          </TenantErisimKapisi>
         </ToastProvider>
       </body>
     </html>

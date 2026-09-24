@@ -1,15 +1,21 @@
 'use client';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import { useAuth, kullaniciAdminMi } from '../lib/use-auth';
+import { getTenantSlug } from '../lib/api';
 import { UserMenu } from './user-menu';
 
 /** Header navigasyonu — masaüstünde inline, mobilde hamburger menü (a11y: aria). */
 export function HeaderNav() {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = kullaniciAdminMi(user, getTenantSlug());
 
+  // Admin/encümen personeline vatandaş "İlanlar" listesi gösterilmiyor — aynı liste
+  // zaten Yönetim > İlanlar altında var (Harun/PO, 2026-09-24).
   const links = [
     { href: '/', label: 'Ana Sayfa' },
-    { href: '/ilanlar', label: 'İlanlar' },
+    ...(isAdmin ? [] : [{ href: '/ilanlar', label: 'İlanlar' }]),
   ];
 
   return (

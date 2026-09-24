@@ -1,12 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { Gavel, LogOut, Shield, User } from 'lucide-react';
-import { useAuth, login, logout } from '../lib/use-auth';
+import { useAuth, login, logout, kullaniciAdminMi } from '../lib/use-auth';
 import { getTenantSlug } from '../lib/api';
 import { Avatar, Button } from '@belediyesinden/ui';
 import { BildirimZili } from './bildirim-zili';
-
-const ADMIN_ROLLER = ['TENANT_ADMIN', 'ENCUMEN', 'SUPERADMIN'];
 
 /** Header'daki auth-aware menü: login durumu + rol bazlı admin linki + çıkış. */
 export function UserMenu() {
@@ -20,9 +18,7 @@ export function UserMenu() {
     return <Button size="sm" onClick={login}>Giriş</Button>;
   }
 
-  const isSuperadmin = user?.roller?.includes('SUPERADMIN');
-  const tenantMismatch = !isSuperadmin && !!user?.tenantId && user.tenantId !== getTenantSlug();
-  const isAdmin = user?.roller?.some((r) => ADMIN_ROLLER.includes(r)) && !tenantMismatch;
+  const isAdmin = kullaniciAdminMi(user, getTenantSlug());
 
   return (
     <div className="flex items-center gap-3">

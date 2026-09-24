@@ -104,27 +104,45 @@ function decodeJwtPayload(token: string): { realm_access?: { roles?: string[] };
   }
 }
 
-/**
- * Tarayıcıda bu tenant için geçerli bir personel oturumu varsa (`kc_token`
- * httpOnly cookie, TAM OLARAK bu tenant'a ait ya da SUPERADMIN) token'ı döner;
- * aksi halde `null` (vatandaş/kimliksiz — sessizce, cross-tenant 403 riski yok).
- */
-async function getPersonelToken(tenantSlug: string): Promise<string | null> {
+interface PersonelBilgisi {
+  isPersonel: boolean;
+  isSuperadmin: boolean;
+  tokenTenant: string | null;
+}
+
+/** `kc_token` httpOnly cookie'sinden personel/tenant bilgisini çözer — yoksa `null`. */
+async function personelBilgisi(): Promise<PersonelBilgisi | null> {
   try {
     const { cookies } = await import('next/headers');
     const token = (await cookies()).get('kc_token')?.value;
     if (!token) return null;
     const payload = decodeJwtPayload(token);
     const roller = payload?.realm_access?.roles ?? [];
-    const isPersonel = roller.some((r) => PERSONEL_ROLLERI.includes(r));
-    const isSuperadmin = roller.includes('SUPERADMIN');
     const tenantGroup = (payload?.tenant_groups ?? []).find((g) => g.startsWith('tenant_'));
-    const tokenTenant = tenantGroup ? tenantGroup.slice('tenant_'.length) : null;
-    return isPersonel && (isSuperadmin || tokenTenant === tenantSlug) ? token : null;
+    return {
+      isPersonel: roller.some((r) => PERSONEL_ROLLERI.includes(r)),
+      isSuperadmin: roller.includes('SUPERADMIN'),
+      tokenTenant: tenantGroup ? tenantGroup.slice('tenant_'.length) : null,
+    };
   } catch {
     return null;
   }
 }
+
+/**
+ * Tarayıcıda bu tenant için geçerli bir personel oturumu varsa (`kc_token`
+ * httpOnly cookie, TAM OLARAK bu tenant'a ait ya da SUPERADMIN) token'ı döner;
+ * aksi halde `null` (vatandaş/kimliksiz — sessizce, cross-tenant 403 riski yok).
+ */
+async function getPersonelToken(tenantSlug: string): Promise<string | null> {
+  const bilgi = await personelBilgisi();
+  if (!bilgi || !bilgi.isPersonel || !(bilgi.isSuperadmin || bilgi.tokenTenant === tenantSlug)) {
+    return null;
+  }
+  const { cookies } = await import('next/headers');
+  return (await cookies()).get('kc_token')?.value ?? null;
+}
+
 
 /**
  * Bu isteği yapan, bu tenant'ın personeli mi (TenantAdmin/Encümen/Superadmin)?

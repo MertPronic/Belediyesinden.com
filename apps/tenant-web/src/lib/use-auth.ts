@@ -79,3 +79,31 @@ export async function logout(): Promise<void> {
   return kcLogout();
 }
 
+const ADMIN_ROLLER = ['TENANT_ADMIN', 'ENCUMEN', 'SUPERADMIN'];
+
+/**
+ * Kullanıcı bu tenant'ın (bulunduğu belediyenin) admin/encümen personeli mi?
+ * Başka bir belediyenin admini bu sitede gezinirken sıradan vatandaş gibi
+ * görünsün diye tenant uyuşmazlığı da kontrol edilir (KK-24 civarı davranış).
+ */
+export function kullaniciAdminMi(user: AuthState['user'], tenantSlug: string): boolean {
+  if (!user) return false;
+  const isSuperadmin = user.roller?.includes('SUPERADMIN');
+  const tenantMismatch = !isSuperadmin && !!user.tenantId && user.tenantId !== tenantSlug;
+  return !!user.roller?.some((r) => ADMIN_ROLLER.includes(r)) && !tenantMismatch;
+}
+
+/**
+ * Kullanıcı personel ama BAŞKA bir belediyeye ait mi? Öyleyse kendi belediyesinin
+ * slug'ını döner (yoksa `null`) — SUPERADMIN her zaman muaf. `useAuth()`'ın canlı
+ * durumundan türetilir (Harun/PO, 2026-09-24) — sunucu tarafında cookie'den okuyan
+ * ilk sürüm sayfa geçişlerinde tutarsız davranıyordu (Next.js router cache/zamanlama).
+ */
+export function digerTenantPersoneliMi(user: AuthState['user'], tenantSlug: string): string | null {
+  if (!user) return null;
+  if (user.roller?.includes('SUPERADMIN')) return null;
+  const isPersonel = user.roller?.some((r) => ADMIN_ROLLER.includes(r));
+  if (!isPersonel || !user.tenantId || user.tenantId === tenantSlug) return null;
+  return user.tenantId;
+}
+
