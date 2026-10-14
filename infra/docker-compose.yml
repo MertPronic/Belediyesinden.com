@@ -66,7 +66,9 @@ services:
         condition: service_healthy
 
   minio:
-    image: minio/minio:latest
+    # minio/minio Docker Hub'dan kaldırıldı (2026-09), quay.io anonim pull'u kapattı —
+    # Chainguard'ın güncel tutulan build'i (aynı binary, entrypoint /usr/bin/minio).
+    image: cgr.dev/chainguard/minio:latest
     container_name: bldys-minio
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
