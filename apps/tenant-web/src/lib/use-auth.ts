@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { initKeycloak, getKeycloak, loginPopup, logout as kcLogout, getUserInfo } from './keycloak';
+import { initKeycloak, getKeycloak, loginPopup, logout as kcLogout, getUserInfo } from '@belediyesinden/auth-client';
 
 export interface AuthState {
   ready: boolean;

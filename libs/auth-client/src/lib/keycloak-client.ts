@@ -1,6 +1,13 @@
 'use client';
 import Keycloak from 'keycloak-js';
 
+/**
+ * Ortak Keycloak client-side yardımcıları — `tenant-web` VE `portal` tarafından
+ * paylaşılır. `clientId`/`realm`/`url` env'den okunur, her uygulama kendi
+ * `.env`'inde kendi `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID`'sini set eder (tenant-web →
+ * 'tenant-web', portal → 'portal' — Keycloak realm'de ikisi de ayrı public client
+ * olarak tanımlı, bkz. infra/keycloak/realm-export.json).
+ */
 const REALM = process.env['NEXT_PUBLIC_KEYCLOAK_REALM'] ?? 'belediyesinden';
 const CLIENT_ID = process.env['NEXT_PUBLIC_KEYCLOAK_CLIENT_ID'] ?? 'tenant-web';
 const URL = process.env['NEXT_PUBLIC_KEYCLOAK_URL'] ?? 'http://localhost:8080';
@@ -130,7 +137,7 @@ export async function getToken(): Promise<string | undefined> {
   return undefined;
 }
 
-/** Çıkış — belediyenin kendi sayfasında değil, merkezi portalda son bulur. */
+/** Çıkış — belediyenin/portalın kendi sayfasında değil, merkezi portalda son bulur. */
 export async function logout(): Promise<void> {
   const k = getKeycloak();
   await k.logout({ redirectUri: PORTAL_URL });

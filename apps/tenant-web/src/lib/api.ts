@@ -1,4 +1,4 @@
-import { getToken } from './keycloak';
+import { getToken } from '@belediyesinden/auth-client';
 
 // Client-side (browser): NEXT_PUBLIC_API_URL (host erişimi, build-time inline).
 export const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3000/api';

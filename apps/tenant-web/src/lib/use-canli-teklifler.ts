@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, getTenantSlug } from './api';
-import { getToken } from './keycloak';
+import { getToken } from '@belediyesinden/auth-client';
 
 const WS_URL = process.env['NEXT_PUBLIC_WS_URL'] ?? 'ws://localhost:3000/ws';
 

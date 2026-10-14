@@ -27,6 +27,7 @@
       "@belediyesinden/tenancy": ["./libs/tenancy/src/index.ts"],
       "@belediyesinden/audit": ["./libs/audit/src/index.ts"],
       "@belediyesinden/auth": ["./libs/auth/src/index.ts"],
+      "@belediyesinden/auth-client": ["./libs/auth-client/src/index.ts"],
       "@belediyesinden/ui": ["./libs/ui/src/index.ts"],
       "@belediyesinden/rule-engine": ["./libs/rule-engine/src/index.ts"],
       "@belediyesinden/auction-core": ["./libs/auction-core/src/index.ts"],

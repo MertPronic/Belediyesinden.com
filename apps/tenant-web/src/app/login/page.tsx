@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { FileCheck2, Gavel, LogIn, ShieldCheck } from 'lucide-react';
 import { Alert, Button } from '@belediyesinden/ui';
-import { ensureAuth, getKeycloak } from '../../lib/keycloak';
+import { ensureAuth, getKeycloak } from '@belediyesinden/auth-client';
 
 const OZELLIKLER = [
   {
