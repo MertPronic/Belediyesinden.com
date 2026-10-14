@@ -98,6 +98,13 @@ export const PORTAL_COLUMNS: FooterColumn[] = [
   },
 ];
 
+/**
+ * Build anında gömülen sürüm bilgisi (test sunucusunda scripts/deploy-test.sh verir) —
+ * PO'nun hangi sürümü test ettiğini görmesi için. Tanımlı değilse hiç gösterilmez.
+ */
+const BUILD_SHA = process.env['NEXT_PUBLIC_BUILD_SHA'];
+const BUILD_TIME = process.env['NEXT_PUBLIC_BUILD_TIME'];
+
 /** Sahibinden tarzı kurumsal footer — sütunlu link bloğu + telif. */
 export function Footer({
   brand,
@@ -155,6 +162,12 @@ export function Footer({
             2886 sayılı Devlet İhale Kanunu kapsamında elektronik ihale platformu.
           </p>
         </div>
+        {BUILD_SHA && (
+          <p className="mt-3 text-center text-[11px] text-gray-300 sm:text-right">
+            Sürüm {BUILD_SHA}
+            {BUILD_TIME && ` · ${BUILD_TIME}`}
+          </p>
+        )}
       </div>
     </footer>
   );

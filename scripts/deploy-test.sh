@@ -18,6 +18,10 @@ pnpm install --frozen-lockfile
 echo ">> nx build api"
 pnpm nx build api
 
+# Footer'daki sürüm bilgisi (NEXT_PUBLIC_BUILD_* build arg'ları).
+export BUILD_SHA=$(git rev-parse --short HEAD)
+export BUILD_TIME=$(TZ=Europe/Istanbul date '+%d.%m.%Y %H:%M')
+
 echo ">> docker compose up ($SERVISLER)"
 cd infra
 docker compose up -d --build $SERVISLER

@@ -169,6 +169,8 @@ services:
         NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: tenant-web
         NEXT_PUBLIC_TENANT_SLUG: ${DEFAULT_TENANT_SLUG:-talas}
         NEXT_PUBLIC_PORTAL_URL: ${PORTAL_PUBLIC_URL:-http://localhost:4201}
+        NEXT_PUBLIC_BUILD_SHA: ${BUILD_SHA:-}
+        NEXT_PUBLIC_BUILD_TIME: ${BUILD_TIME:-}
     container_name: bldys-tenant-web
     restart: unless-stopped
     environment:
@@ -191,6 +193,8 @@ services:
         NEXT_PUBLIC_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-belediyesinden}
         NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: portal
         NEXT_PUBLIC_PORTAL_URL: ${PORTAL_PUBLIC_URL:-http://localhost:4201}
+        NEXT_PUBLIC_BUILD_SHA: ${BUILD_SHA:-}
+        NEXT_PUBLIC_BUILD_TIME: ${BUILD_TIME:-}
     container_name: bldys-portal
     restart: unless-stopped
     environment:

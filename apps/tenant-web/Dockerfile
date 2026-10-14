@@ -24,6 +24,12 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_TENANT_SLUG=$NEXT_PUBLIC_TENANT_SLUG \
     NEXT_PUBLIC_PORTAL_URL=$NEXT_PUBLIC_PORTAL_URL
 RUN pnpm install --frozen-lockfile
+# Sürüm bilgisi (footer) — install'dan SONRA: her deploy'da değişir, bağımlılık
+# katmanının cache'ini bozmasın.
+ARG NEXT_PUBLIC_BUILD_SHA=
+ARG NEXT_PUBLIC_BUILD_TIME=
+ENV NEXT_PUBLIC_BUILD_SHA=$NEXT_PUBLIC_BUILD_SHA \
+    NEXT_PUBLIC_BUILD_TIME=$NEXT_PUBLIC_BUILD_TIME
 RUN npx nx build tenant-web
 
 # ---- runner (standalone lean) ----
