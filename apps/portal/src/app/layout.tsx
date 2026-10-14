@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Building2 } from 'lucide-react';
 import { Footer, PORTAL_COLUMNS } from '@belediyesinden/ui';
+import { GirisDurumu } from './giris-durumu';
 
 export const metadata: Metadata = {
   title: 'Belediyesinden.com — Belediye İlan Portalı',
@@ -25,12 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <span className="text-base font-bold tracking-tight text-gray-900">Belediyesinden.com</span>
             </a>
             <nav className="flex items-center gap-1 text-sm font-medium">
-              <a
-                href="/"
-                className="rounded-md px-3 py-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-              >
-                Tüm İlanlar
-              </a>
+              <GirisDurumu />
             </nav>
           </div>
         </header>

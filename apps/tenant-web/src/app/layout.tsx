@@ -30,7 +30,8 @@ async function getTheme(): Promise<TenantTheme> {
   if (!slug) {
     const host = h.get('host') ?? '';
     const first = host.split(':')[0].split('.')[0]?.toLowerCase();
-    if (first && !['localhost', 'www', 'belediyesinden'].includes(first)) {
+    // 'admin' ayrılmış — süper admin nötr panel (bkz. api.ts getTenantSlug()).
+    if (first && !['localhost', 'www', 'belediyesinden', 'admin'].includes(first)) {
       slug = first;
     }
   }

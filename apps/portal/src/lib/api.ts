@@ -45,6 +45,17 @@ export function tenantUrl(tenantSlug: string, path: string): string {
 }
 
 /**
+ * `tenant-web`'in NÖTR (hiçbir belediye alt alan adına bağlı olmayan) hedefi —
+ * SÜPER ADMIN portaldan giriş yapınca buraya düşer (`admin` ayrılmış alt alan
+ * adı, bkz. tenant-web `getTenantSlug()`). Herhangi bir belediye teması taşımaz.
+ */
+export function tenantWebUrl(path: string): string {
+  const base = process.env['NEXT_PUBLIC_TENANT_BASE_DOMAIN'] ?? 'belediyesinden.com';
+  const protocol = base.startsWith('localhost') ? 'http' : 'https';
+  return `${protocol}://admin.${base}${path}`;
+}
+
+/**
  * İlan kapak görseli URL'i — tarayıcı `<img>` isteği, `x-tenant-slug` header'ı
  * taşıyamadığı için `?tenant=` query fallback kullanır (bkz. WS bağlantısındaki
  * aynı desen, ILERLEME.md Adım 6). Bu yüzden `NEXT_PUBLIC_API_URL` (tarayıcıdan

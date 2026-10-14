@@ -26,11 +26,17 @@ async function apiHataMesaji(res: Response): Promise<string> {
   return `İstek başarısız (HTTP ${res.status})`;
 }
 
-/** Tenant slug (subdomain'den veya env). */
+/**
+ * Tenant slug (subdomain'den veya env). `admin` alt alan adı ayrılmıştır — SÜPER
+ * ADMIN'in hiçbir belediye temasına bağlı olmayan, nötr bir panelden giriş
+ * yapabilmesi için (portal'daki "Giriş" akışı, Harun/PO 2026-09-26); orada boş
+ * döner ki `apiFetch` `x-tenant-slug` header'ı hiç göndermesin.
+ */
 export function getTenantSlug(): string {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     const first = host.split('.')[0]?.toLowerCase();
+    if (first === 'admin') return '';
     if (first && !['localhost', 'www', 'belediyesinden'].includes(first)) {
       return first;
     }
@@ -54,8 +60,9 @@ export async function apiFetch<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = await getToken();
+  const slug = getTenantSlug();
   const headers: Record<string, string> = {
-    'x-tenant-slug': getTenantSlug(),
+    ...(slug ? { 'x-tenant-slug': slug } : {}),
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...(options.headers as Record<string, string>),
   };
@@ -74,9 +81,10 @@ export async function apiFetch<T>(
 /** Authenticated dosya indirme (blob → tarayıcı indirisi). */
 export async function downloadFile(path: string, filename: string): Promise<void> {
   const token = await getToken();
+  const slug = getTenantSlug();
   const res = await fetch(`${API_URL}${path}`, {
     headers: {
-      'x-tenant-slug': getTenantSlug(),
+      ...(slug ? { 'x-tenant-slug': slug } : {}),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
   });
