@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Box,
+  CalendarClock,
   CheckCircle2,
   FileText,
   Gavel,
@@ -31,11 +32,14 @@ import {
 
 interface RaporOzet {
   ilanlar: Record<string, number>;
+  ihaleKalemleri: Record<string, number>;
   teklifSayisi: number;
   basvurular: Record<string, number>;
   varliklar: Record<string, number>;
   katilimciSayisi: number;
   gelir: number;
+  teminatToplam: number;
+  yaklasanIhaleSayisi: number;
 }
 interface Ilan {
   id: string;
@@ -46,10 +50,18 @@ interface Ilan {
 
 const ILAN_DURUM_LABEL: Record<string, string> = {
   TASLAK: 'Taslak',
+  BEKLIYOR: 'Bekliyor',
   YAYINDA: 'Yayında',
   CANLI_ARTIRMA: 'Canlı Artırma',
   SONUCLANDI: 'Sonuçlandı',
   IPTAL: 'İptal',
+};
+
+const VARLIK_TIP_LABEL: Record<string, string> = {
+  TASINIR: 'Taşınır',
+  TASINMAZ: 'Taşınmaz',
+  ISLETME_HAKKI: 'İşletme Hakkı',
+  REKLAM_ALANI: 'Reklam Alanı',
 };
 
 function StatCard({
@@ -138,21 +150,30 @@ function AdminDashboardIcerik() {
   const yayinda = (ozet?.ilanlar['YAYINDA'] ?? 0) + (ozet?.ilanlar['CANLI_ARTIRMA'] ?? 0);
   const varlikToplam = ozet ? Object.values(ozet.varliklar).reduce((a, b) => a + b, 0) : 0;
   const maxDurum = ozet ? Math.max(1, ...Object.values(ozet.ilanlar)) : 1;
+  const maxKalemDurum = ozet ? Math.max(1, ...Object.values(ozet.ihaleKalemleri)) : 1;
+  const maxVarlikTip = ozet ? Math.max(1, ...Object.values(ozet.varliklar)) : 1;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Genel Bakış</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">İstatistikler</h1>
         <p className="mt-1 text-sm text-gray-500">Belediye ihale performans özeti</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard icon={FileText} label="Toplam İlan" value={ilanToplam} />
         <StatCard icon={TrendingUp} label="Yayında" value={yayinda} />
         <StatCard icon={Gavel} label="Teklif" value={ozet?.teklifSayisi ?? 0} />
         <StatCard icon={Users} label="Katılımcı" value={ozet?.katilimciSayisi ?? 0} />
         <StatCard icon={Wallet} label="Gelir" value={(ozet?.gelir ?? 0).toLocaleString('tr-TR')} suffix="₺" />
         <StatCard icon={Box} label="Varlık" value={varlikToplam} />
+        <StatCard icon={CalendarClock} label="Yaklaşan İhale (7 gün)" value={ozet?.yaklasanIhaleSayisi ?? 0} />
+        <StatCard
+          icon={CheckCircle2}
+          label="Onaylı Teminat"
+          value={(ozet?.teminatToplam ?? 0).toLocaleString('tr-TR')}
+          suffix="₺"
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -164,6 +185,21 @@ function AdminDashboardIcerik() {
             {ozet && Object.keys(ozet.ilanlar).length > 0 ? (
               Object.entries(ozet.ilanlar).map(([durum, n]) => (
                 <BarRow key={durum} label={ILAN_DURUM_LABEL[durum] ?? durum} count={n} max={maxDurum} />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">Veri yok.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">İhale Kalemi Durum Dağılımı</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {ozet && Object.keys(ozet.ihaleKalemleri).length > 0 ? (
+              Object.entries(ozet.ihaleKalemleri).map(([durum, n]) => (
+                <BarRow key={durum} label={ILAN_DURUM_LABEL[durum] ?? durum} count={n} max={maxKalemDurum} />
               ))
             ) : (
               <p className="text-sm text-gray-500">Veri yok.</p>
@@ -185,6 +221,21 @@ function AdminDashboardIcerik() {
               })
             ) : (
               <p className="text-sm text-gray-500">Başvuru yok.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Varlık Türü Dağılımı</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {ozet && Object.keys(ozet.varliklar).length > 0 ? (
+              Object.entries(ozet.varliklar).map(([tip, n]) => (
+                <BarRow key={tip} label={VARLIK_TIP_LABEL[tip] ?? tip} count={n} max={maxVarlikTip} />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">Varlık yok.</p>
             )}
           </CardContent>
         </Card>
