@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Test sunucusuna deploy: main'i çek → API'yi host'ta build et → stack'i güncelle.
+# Sunucuda repo kökünden çalıştırılır: ./scripts/deploy-test.sh
+#
+# Prometheus/Grafana bilerek dahil DEĞİL — sunucu RAM'i (≈4 GB) tam stack'e yetmiyor.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+SERVISLER="postgres redis keycloak minio opensearch api tenant-web portal"
+
+echo ">> git pull"
+git pull --ff-only
+
+echo ">> pnpm install"
+pnpm install --frozen-lockfile
+
+# API Dockerfile container içinde build etmiyor, host'taki dist'i kopyalıyor (infra/DEPLOY.md).
+echo ">> nx build api"
+pnpm nx build api
+
+echo ">> docker compose up ($SERVISLER)"
+cd infra
+docker compose up -d --build $SERVISLER
+
+echo ">> API sağlık kontrolü"
+for i in $(seq 1 30); do
+  if curl -fs http://localhost:3000/api/health >/dev/null 2>&1; then
+    echo "API ayakta ($(git rev-parse --short HEAD))"
+    exit 0
+  fi
+  sleep 5
+done
+echo "API 150 sn içinde ayağa kalkmadı — 'docker compose logs api' ile bakın" >&2
+exit 1
