@@ -36,12 +36,21 @@ export async function portalFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/**
+ * Tenant alt-alanlarının protokolü. `NEXT_PUBLIC_TENANT_PROTOCOL` verilmişse o
+ * (örn. TLS'siz test sunucusu: `http`); yoksa lokal geliştirmede (base
+ * 'localhost:<port>') http, diğer her yerde https.
+ */
+function tenantProtocol(base: string): string {
+  const env = process.env['NEXT_PUBLIC_TENANT_PROTOCOL'];
+  if (env) return env;
+  return base.startsWith('localhost') ? 'http' : 'https';
+}
+
 /** Tenant alt-alan URL'i (ilan detayında başvuru/teklif için yönlendirme). */
 export function tenantUrl(tenantSlug: string, path: string): string {
   const base = process.env['NEXT_PUBLIC_TENANT_BASE_DOMAIN'] ?? 'belediyesinden.com';
-  // Lokal geliştirmede base 'localhost:<port>' olur — TLS yok, http kullanılmalı.
-  const protocol = base.startsWith('localhost') ? 'http' : 'https';
-  return `${protocol}://${tenantSlug}.${base}${path}`;
+  return `${tenantProtocol(base)}://${tenantSlug}.${base}${path}`;
 }
 
 /**
@@ -51,8 +60,7 @@ export function tenantUrl(tenantSlug: string, path: string): string {
  */
 export function tenantWebUrl(path: string): string {
   const base = process.env['NEXT_PUBLIC_TENANT_BASE_DOMAIN'] ?? 'belediyesinden.com';
-  const protocol = base.startsWith('localhost') ? 'http' : 'https';
-  return `${protocol}://admin.${base}${path}`;
+  return `${tenantProtocol(base)}://admin.${base}${path}`;
 }
 
 /**
