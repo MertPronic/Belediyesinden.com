@@ -1,0 +1,54 @@
+name: 🐞 Hata bildirimi
+description: Test ortamında çalışmayan ya da yanlış çalışan bir şey
+title: "[Hata] "
+labels: ["hata"]
+body:
+  - type: input
+    id: adres
+    attributes:
+      label: Hangi sayfada?
+      description: Tarayıcının adres çubuğundaki adres
+      placeholder: http://melikgazi.192.168.1.158.nip.io:4200/ilanlar/...
+    validations:
+      required: true
+  - type: dropdown
+    id: rol
+    attributes:
+      label: Hangi kullanıcıyla giriş yapmıştınız?
+      options:
+        - Giriş yapmadan (ziyaretçi)
+        - Vatandaş / Yatırımcı
+        - Belediye admini (TENANT_ADMIN)
+        - Encümen
+        - Süper admin
+    validations:
+      required: true
+  - type: textarea
+    id: adimlar
+    attributes:
+      label: Ne yaptınız?
+      description: Adım adım — tekrar edebilmemiz için
+      placeholder: |
+        1. İlana girdim
+        2. "Teklif ver"e bastım
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: beklenen
+    attributes:
+      label: Ne olmasını bekliyordunuz?
+    validations:
+      required: true
+  - type: textarea
+    id: gerceklesen
+    attributes:
+      label: Ne oldu?
+      description: Ekran görüntüsünü buraya sürükleyip bırakabilirsiniz
+    validations:
+      required: true
+  - type: input
+    id: surum
+    attributes:
+      label: Sürüm (biliyorsanız)
+      description: Ekranın köşesindeki sürüm kodu
