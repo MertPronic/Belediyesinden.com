@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, Check } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { useAuth } from '../lib/use-auth';
 
 export interface BildirimItem {
   id: string;
@@ -20,9 +21,18 @@ const POLL_MS = 30_000;
  * Header'daki bildirim zili — hem vatandaş hem personel için ortak (kök layout
  * her rotayı sarmaladığından /admin/* dahil her yerde görünür, bkz. plan notu).
  * Sadece `authenticated` dalında (UserMenu içinde) render edilir.
+ *
+ * SÜPERADMIN'in kendi tenant'ı yok, bu yüzden tenant-scoped `/bildirim`
+ * uçlarını kullanamıyor — onun için ayrı, paralel yapıdaki `/destek/bildirim`
+ * uçlarına (süper admin bildirimleri: yeni destek talebi vb.) geçiliyor
+ * (Harun/PO, 2026-09-26).
  */
 export function BildirimZili() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isSuperadmin = user?.roller?.includes('SUPERADMIN');
+  const baz = isSuperadmin ? '/destek/bildirim' : '/bildirim';
+
   const [sayac, setSayac] = useState(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<BildirimItem[] | null>(null);
@@ -32,7 +42,7 @@ export function BildirimZili() {
   useEffect(() => {
     let active = true;
     function sayaciGetir() {
-      apiFetch<{ adet: number }>('/bildirim/sayac')
+      apiFetch<{ adet: number }>(`${baz}/sayac`)
         .then((r) => {
           if (active) setSayac(r.adet);
         })
@@ -44,7 +54,8 @@ export function BildirimZili() {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baz]);
 
   useEffect(() => {
     function disariTiklama(e: MouseEvent) {
@@ -61,7 +72,7 @@ export function BildirimZili() {
     setOpen(yeniAcik);
     if (yeniAcik && items === null) {
       setYukleniyor(true);
-      apiFetch<BildirimItem[]>('/bildirim?pageSize=20')
+      apiFetch<BildirimItem[]>(`${baz}?pageSize=20`)
         .then(setItems)
         .catch(() => setItems([]))
         .finally(() => setYukleniyor(false));
@@ -70,7 +81,7 @@ export function BildirimZili() {
 
   function tikla(item: BildirimItem) {
     if (!item.okundu) {
-      apiFetch(`/bildirim/${item.id}/okundu`, { method: 'POST' }).catch(() => {});
+      apiFetch(`${baz}/${item.id}/okundu`, { method: 'POST' }).catch(() => {});
       setItems((prev) => prev?.map((b) => (b.id === item.id ? { ...b, okundu: true } : b)) ?? prev);
       setSayac((n) => Math.max(0, n - 1));
     }
@@ -79,7 +90,7 @@ export function BildirimZili() {
   }
 
   function hepsiniOkunduIsaretle() {
-    apiFetch('/bildirim/okundu-hepsi', { method: 'POST' }).catch(() => {});
+    apiFetch(`${baz}/okundu-hepsi`, { method: 'POST' }).catch(() => {});
     setItems((prev) => prev?.map((b) => ({ ...b, okundu: true })) ?? prev);
     setSayac(0);
   }

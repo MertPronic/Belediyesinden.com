@@ -125,10 +125,60 @@ class AddUserTelefon1740000004000 implements MigrationInterface {
   }
 }
 
+/**
+ * 0005 — destek talebi (Muhasebe/Teknik/Diğer) + süper admin bildirimi. Tenant
+ * personeli talep açar, süper admin TÜM belediyelerin taleplerini tek yerde
+ * görür — bu yüzden tenant şeması değil, `shared` (Harun/PO, 2026-09-26).
+ */
+class CreateDestekTalebi1740000005000 implements MigrationInterface {
+  name = 'CreateDestekTalebi1740000005000';
+
+  async up(qr: QueryRunner): Promise<void> {
+    await qr.query(`
+      CREATE TABLE shared.destek_talebi (
+        id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_slug       VARCHAR(60)  NOT NULL,
+        tenant_ad         VARCHAR(120),
+        acan_kullanici_id VARCHAR(100) NOT NULL,
+        konu              VARCHAR(20)  NOT NULL,
+        baslik            VARCHAR(200) NOT NULL,
+        mesaj             TEXT         NOT NULL,
+        durum             VARCHAR(20)  NOT NULL DEFAULT 'ACIK',
+        cevap             TEXT,
+        cevaplayan_id     VARCHAR(100),
+        cevap_tarihi      TIMESTAMPTZ,
+        created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_destek_talebi_tenant_slug ON shared.destek_talebi (tenant_slug)`);
+    await qr.query(`CREATE INDEX ix_destek_talebi_durum ON shared.destek_talebi (durum, created_at DESC)`);
+
+    await qr.query(`
+      CREATE TABLE shared.superadmin_bildirim (
+        id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        tip        VARCHAR(40)  NOT NULL,
+        baslik     VARCHAR(200) NOT NULL,
+        mesaj      TEXT,
+        link       VARCHAR(300),
+        okundu     BOOLEAN      NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )
+    `);
+    await qr.query(`CREATE INDEX ix_superadmin_bildirim_okundu ON shared.superadmin_bildirim (okundu, created_at DESC)`);
+  }
+
+  async down(qr: QueryRunner): Promise<void> {
+    await qr.query(`DROP TABLE IF EXISTS shared.superadmin_bildirim`);
+    await qr.query(`DROP TABLE IF EXISTS shared.destek_talebi`);
+  }
+}
+
 /** shared DataSource için migration listesi. */
 export const sharedMigrations = [
   InitShared1740000001000,
   AuditLog1740000002000,
   AuditTenantIdVarchar1740000003000,
   AddUserTelefon1740000004000,
+  CreateDestekTalebi1740000005000,
 ];

@@ -26,6 +26,7 @@ import { TeminatModule } from '../teminat/teminat.module';
 import { BildirimModule } from '../bildirim/bildirim.module';
 import { KullaniciProfiliModule } from '../kullanici-profili/kullanici-profili.module';
 import { IhaleZamanlayiciModule } from '../ihale-zamanlayici/ihale-zamanlayici.module';
+import { DestekModule } from '../destek/destek.module';
 import { TeklifModule } from '../teklif/teklif.module';
 import { AuctionGatewayModule } from '../auction/auction-gateway.module';
 import { RaporModule } from '../rapor/rapor.module';
@@ -81,6 +82,7 @@ import { SearchModule } from '../search/search.module';
     BildirimModule, // uygulama-içi bildirim (tenant-scoped)
     KullaniciProfiliModule, // kullanıcının kendi profili (shared.users — telefon)
     IhaleZamanlayiciModule, // ihale otomatik başlatma + 4 saat öncesi hatırlatma
+    DestekModule, // destek talebi (Muhasebe/Teknik/Diğer) + süper admin bildirimi
     BasvuruModule, // başvuru + KVKK (tenant-scoped)
     TeminatModule, // teminat simülasyon (e-dekont + onay/iade)
     TeklifModule, // server-authoritative teklif + anti-snicking

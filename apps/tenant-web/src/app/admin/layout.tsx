@@ -1,20 +1,24 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Box, ClipboardCheck, FileText, Gavel, LayoutDashboard, Landmark, Settings, type LucideIcon } from 'lucide-react';
+import { BarChart3, Box, ClipboardCheck, FileText, Gavel, Landmark, LifeBuoy, Settings, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { RequireAdmin } from '../../components/require-admin';
 import { useAuth } from '../../lib/use-auth';
 
 const MENU: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: '/admin', label: 'Genel Bakış', icon: LayoutDashboard },
+  { href: '/admin', label: 'İstatistikler', icon: BarChart3 },
   { href: '/admin/varliklar', label: 'Varlıklar', icon: Box },
   { href: '/admin/ilanlar', label: 'İlanlar', icon: FileText },
   { href: '/admin/ihaleler', label: 'İhaleler', icon: Gavel },
   { href: '/admin/basvurular', label: 'Başvurular', icon: ClipboardCheck },
+  { href: '/admin/destek', label: 'Destek', icon: LifeBuoy },
 ];
 const TENANT_ADMIN_MENU = { href: '/admin/kurallar', label: 'İhale Kuralları', icon: Settings };
-const SUPERADMIN_MENU = { href: '/admin/tenantlar', label: 'Belediyeler', icon: Landmark };
+const SUPERADMIN_MENU_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/admin/tenantlar', label: 'Belediyeler', icon: Landmark },
+  { href: '/admin/destek', label: 'Destek', icon: LifeBuoy },
+];
 const TENANT_OPS_ROLLER = ['TENANT_ADMIN', 'ENCUMEN'];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -26,7 +30,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const menu = [
     ...(hasTenantOpsRole ? MENU : []),
     ...(isTenantAdmin ? [TENANT_ADMIN_MENU] : []),
-    ...(isSuperadmin ? [SUPERADMIN_MENU] : []),
+    ...(isSuperadmin ? SUPERADMIN_MENU_ITEMS : []),
   ];
   return (
     <RequireAdmin>

@@ -110,6 +110,22 @@ export enum BildirimTipi {
   TeminatReddedildi = 'TEMINAT_REDDEDILDI',
   IhaleHatirlatma = 'IHALE_HATIRLATMA',
   IhaleBasladi = 'IHALE_BASLADI',
+  YeniDestekTalebi = 'YENI_DESTEK_TALEBI',
+  DestekTalebiCevaplandi = 'DESTEK_TALEBI_CEVAPLANDI',
+}
+
+/** Destek talebi konusu. */
+export enum DestekKonusu {
+  Muhasebe = 'MUHASEBE',
+  Teknik = 'TEKNIK',
+  Diger = 'DIGER',
+}
+
+/** Destek talebi durumu. */
+export enum DestekDurumu {
+  Acik = 'ACIK',
+  Cevaplandi = 'CEVAPLANDI',
+  Kapali = 'KAPALI',
 }
 
 /**

@@ -1,10 +1,10 @@
 import { DataSource } from 'typeorm';
 import type { PostgresDataSourceOptions } from 'typeorm/driver/postgres/PostgresDataSourceOptions';
-import { AuditLog, Tenant, User } from './entities';
+import { AuditLog, DestekTalebi, SuperadminBildirim, Tenant, User } from './entities';
 import { sharedMigrations } from './migrations/shared-migrations';
 
 /** `shared` şemasındaki tüm entity'ler (migration ve CLI için). */
-export const sharedEntities = [Tenant, User, AuditLog];
+export const sharedEntities = [Tenant, User, AuditLog, DestekTalebi, SuperadminBildirim];
 
 /**
  * `shared` şemasına bağlı DataSource seçenekleri (merkezi kayıtlar).
