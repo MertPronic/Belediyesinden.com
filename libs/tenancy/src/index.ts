@@ -4,3 +4,4 @@ export * from './lib/tenancy.interceptor';
 export * from './lib/tenancy.module';
 export * from './lib/tenant-migration-runner';
 export * from './lib/tenant-migrations';
+export * from './lib/run-in-tenant';

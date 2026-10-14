@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } f
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Tenant } from '@belediyesinden/db';
-import { getCurrentTenant, tenantContext, tenantSchema } from '@belediyesinden/tenancy';
+import { getCurrentTenant, runInTenant, tenantSchema } from '@belediyesinden/tenancy';
 import { BasvuruDurumu, BildirimTipi, IlanDurumu, TenantDurumu } from '@belediyesinden/shared';
 import { IlanService } from '../ilan/ilan.service';
 import { BildirimService, TENANT_OPS_HEDEF_ROL } from '../bildirim/bildirim.service';
@@ -63,27 +63,6 @@ export class IhaleZamanlayiciService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * `TenancyInterceptor`'ın normalde HTTP isteğinde yaptığı bağlam kurulumunu (transaction +
-   * `SET LOCAL search_path` + ALS) elle tekrarlar — böylece `fn` içinde tenant-scoped
-   * servisler (`IlanService`, `BildirimService`) normal haliyle, değişmeden çalışabilir.
-   */
-  private async tenantBaglaminda(tenant: Tenant, schema: string, fn: () => Promise<void>): Promise<void> {
-    const queryRunner = this.ds.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    await queryRunner.query(`SET LOCAL search_path TO ${schema}, shared`);
-    try {
-      await tenantContext.run({ slug: tenant.slug, schema, queryRunner }, fn);
-      await queryRunner.commitTransaction();
-    } catch (e) {
-      await queryRunner.rollbackTransaction();
-      throw e;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
   /** İhale tarihi gelmiş (YAYINDA) ilanları bulur, her birini `IlanService.changeDurum` ile başlatır. */
   private async otoBaslat(tenant: Tenant, schema: string): Promise<void> {
     const adaylar: { id: string }[] = await this.ds.query(
@@ -92,7 +71,7 @@ export class IhaleZamanlayiciService implements OnModuleInit, OnModuleDestroy {
     );
     for (const { id } of adaylar) {
       try {
-        await this.tenantBaglaminda(tenant, schema, async () => {
+        await runInTenant(this.ds, tenant.slug, async () => {
           await this.ilanService.changeDurum(id, IlanDurumu.CanliArtirma);
           this.bildirim
             .olustur({
@@ -122,7 +101,7 @@ export class IhaleZamanlayiciService implements OnModuleInit, OnModuleDestroy {
     );
     for (const ilan of adaylar) {
       try {
-        await this.tenantBaglaminda(tenant, schema, () => this.hatirlatmaTekIlan(tenant, ilan));
+        await runInTenant(this.ds, tenant.slug, () => this.hatirlatmaTekIlan(tenant, ilan));
         this.logger.log(`${tenant.slug}: ilan ${ilan.id} için hatırlatma gönderildi`);
       } catch (e) {
         this.logger.error(`${tenant.slug}: ilan ${ilan.id} hatırlatma hatası: ${e instanceof Error ? e.message : e}`);
