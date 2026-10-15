@@ -3,8 +3,8 @@
 # (realm-export.json sadece localhost içerir; dosyaya dokunmadan, çalışan Keycloak'a
 # kcadm ile yazılır). İdempotent — tekrar çalıştırmak zararsız.
 #
-# Eklenenler: portal kök adresi, admin.<base> (süper admin paneli) ve shared.tenants'taki
-# her belediye için <slug>.<base>. Yeni açılan belediyeler zaten
+# Adresler .env'den türetilir: PORTAL_PUBLIC_URL ve TENANT_WEB_REDIRECT_TEMPLATE
+# ({slug} → admin + shared.tenants'taki her belediye). Yeni açılan belediyeler zaten
 # TENANT_WEB_REDIRECT_TEMPLATE ile otomatik eklenir; bu script mevcutları kapsar.
 #
 # Kullanım (infra/ dizininde, stack ayaktayken): ./scripts/keycloak-test-adresleri.sh
@@ -12,7 +12,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 
-BASE="${TENANT_BASE_DOMAIN:?TENANT_BASE_DOMAIN tanımlı değil}"
+PORTAL="${PORTAL_PUBLIC_URL:?PORTAL_PUBLIC_URL tanımlı değil}"
+SABLON="${TENANT_WEB_REDIRECT_TEMPLATE:?TENANT_WEB_REDIRECT_TEMPLATE tanımlı değil}"
 REALM="${KEYCLOAK_REALM:-belediyesinden}"
 KC="docker exec bldys-keycloak /opt/keycloak/bin/kcadm.sh"
 
@@ -22,17 +23,15 @@ $KC config credentials --server http://localhost:8080 --realm master \
 SLUGS=$(docker exec bldys-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
   "SELECT slug FROM shared.tenants" | tr '\n' ' ')
 
-PORTAL_URIS="http://${BASE}:4201/*"
-TENANT_URIS="http://admin.${BASE}:4200/* http://${BASE}:4201/*"
-for s in $SLUGS; do TENANT_URIS="$TENANT_URIS http://${s}.${BASE}:4200/*"; done
+PORTAL_URIS="${PORTAL}/*"
+TENANT_URIS="${PORTAL}/* ${SABLON//\{slug\}/admin}"
+for s in $SLUGS; do TENANT_URIS="$TENANT_URIS ${SABLON//\{slug\}/$s}"; done
 
 ekle() { # $1 = clientId, $2.. = eklenecek URI'ler
   local client="$1"; shift
-  local id
+  local id mevcut yeni
   id=$($KC get clients -r "$REALM" -q clientId="$client" --fields id --format csv --noquotes)
-  local mevcut
   mevcut=$($KC get "clients/$id" -r "$REALM" --fields redirectUris)
-  local yeni
   yeni=$(python3 -c '
 import json, sys
 m = json.loads(sys.argv[1]).get("redirectUris", [])

@@ -1,0 +1,34 @@
+# Test sunucusu eki — docker-compose.yml'nin ÜSTÜNE uygulanır. Sunucudaki infra/.env'de
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.test.yml
+# olduğu için `docker compose ...` komutları iki dosyayı da otomatik okur.
+# Yerel geliştirme bu dosyayı hiç görmez.
+services:
+  caddy:
+    image: caddy:2
+    container_name: bldys-caddy
+    restart: unless-stopped
+    environment:
+      TEST_HOST: ${TENANT_BASE_DOMAIN:?TENANT_BASE_DOMAIN gerekli}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  keycloak:
+    environment:
+      # Caddy'nin X-Forwarded-* başlıklarına güven (https şeması + host).
+      KC_PROXY_HEADERS: xforwarded
+
+  api:
+    environment:
+      # API Keycloak'a public (https, Caddy yerel CA'lı) adresten gider — o CA'ya güvensin.
+      NODE_EXTRA_CA_CERTS: /caddy-data/caddy/pki/authorities/local/root.crt
+    volumes:
+      - caddy_data:/caddy-data:ro
+
+volumes:
+  caddy_data:
+  caddy_config:

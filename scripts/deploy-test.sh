@@ -22,8 +22,21 @@ pnpm nx build api
 export BUILD_SHA=$(git rev-parse --short HEAD)
 export BUILD_TIME=$(TZ=Europe/Istanbul date '+%d.%m.%Y %H:%M')
 
-echo ">> docker compose up ($SERVISLER)"
 cd infra
+
+# Caddy (HTTPS, infra/docker-compose.test.yml) varsa önce o: API, Caddy'nin yerel CA kök
+# sertifikasına (NODE_EXTRA_CA_CERTS) açılışta ihtiyaç duyuyor — ilk kurulumda henüz yok.
+if docker compose config --services | grep -qx caddy; then
+  SERVISLER="$SERVISLER caddy"
+  echo ">> caddy"
+  docker compose up -d caddy
+  for i in $(seq 1 30); do
+    docker compose exec -T caddy test -f /data/caddy/pki/authorities/local/root.crt && break
+    sleep 2
+  done
+fi
+
+echo ">> docker compose up ($SERVISLER)"
 docker compose up -d --build $SERVISLER
 
 echo ">> API sağlık kontrolü"

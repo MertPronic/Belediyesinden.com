@@ -1,0 +1,54 @@
+# Test sunucusu reverse proxy (infra/docker-compose.test.yml). HTTPS zorunlu: keycloak-js
+# Web Crypto kullanıyor, tarayıcılar onu sadece güvenli bağlamda (HTTPS/localhost) açıyor.
+#
+# Sertifikalar Caddy'nin kendi yerel CA'sından (tls internal). Tarayıcıların güvenmesi için
+# kök sertifika bir kez yüklenir: http://{$TEST_HOST}/kok-sertifika.crt
+# Gerçek DNS gelince: TEST_HOST değişir, `tls internal` yerine Let's Encrypt (DNS-01).
+{
+	local_certs
+}
+
+(ortak) {
+	tls internal
+	encode gzip
+}
+
+# Kök sertifika indirme — bilerek düz HTTP (henüz güvenilmeyen HTTPS'ten indirilemez).
+http://{$TEST_HOST} {
+	handle /kok-sertifika.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		header Content-Disposition "attachment; filename=belediyesinden-test-kok.crt"
+		file_server
+	}
+	handle {
+		redir https://{host}{uri}
+	}
+}
+
+# Portal + API. API kendi alt alan adında DEĞİL: tenant-resolver Host'un ilk etiketini
+# slug sayar (`api.` → tenant "api") ve ?tenant= fallback'ini gölgelerdi.
+{$TEST_HOST} {
+	import ortak
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle /ws* {
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy portal:4201
+	}
+}
+
+auth.{$TEST_HOST} {
+	import ortak
+	reverse_proxy keycloak:8080
+}
+
+# Belediye siteleri + süper admin paneli (admin.) — tenant-web alt alan adından çözer.
+*.{$TEST_HOST} {
+	import ortak
+	reverse_proxy tenant-web:4200
+}
