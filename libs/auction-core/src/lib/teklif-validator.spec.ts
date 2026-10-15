@@ -41,6 +41,16 @@ describe('teklifDogrula', () => {
     expect(sonuc.hata).toContain('süre');
   });
 
+  it('bitiş yoksa (süresiz, KK-26) zaman kontrolü yapılmaz', () => {
+    const sonuc = teklifDogrula(1100, ctx({ bitisTarihi: null }));
+    expect(sonuc.gecerli).toBe(true);
+  });
+
+  it('bitiş yoksa tutar kuralları yine uygulanır', () => {
+    const sonuc = teklifDogrula(1050, ctx({ bitisTarihi: null }));
+    expect(sonuc.gecerli).toBe(false);
+  });
+
   it('tam min artırma border geçerli', () => {
     const sonuc = teklifDogrula(1100, ctx({ mevcutEnYuksekTeklif: 1000, minArtirmaAdimi: 100 }));
     expect(sonuc.gecerli).toBe(true);

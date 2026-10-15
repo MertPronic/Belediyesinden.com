@@ -2,13 +2,15 @@
  * Teklif doğrulama — sunucu-otoriter (server-authoritative).
  * Açık artırmada: teklif > mevcut en yüksek + min artırma adımı.
  * Açık/kapalı teklif usulünde: teklif >= başlangıç fiyatı.
- * İhale süresi dolduysa reddeder.
+ * Bitiş zamanı verilmişse ve geçmişse reddeder. Verilmezse (null) zaman kontrolü
+ * yapılmaz — canlı artırma personel sonuçlandırana kadar açık kalır (KK-26).
  */
 export interface TeklifKontekst {
   mevcutEnYuksekTeklif: number;
   minArtirmaAdimi: number;
   baslangicFiyati: number;
-  bitisTarihi: Date;
+  /** İhalenin kapanış zamanı; null → süresiz (KK-26). */
+  bitisTarihi: Date | null;
   ihaleTipi: string;
 }
 
@@ -19,7 +21,7 @@ export interface TeklifSonuc {
 }
 
 export function teklifDogrula(teklifTutari: number, ctx: TeklifKontekst): TeklifSonuc {
-  if (new Date() > ctx.bitisTarihi) {
+  if (ctx.bitisTarihi && new Date() > ctx.bitisTarihi) {
     return { gecerli: false, hata: 'İhale süresi doldu', yeniEnYuksek: ctx.mevcutEnYuksekTeklif };
   }
   const esik = Math.max(ctx.mevcutEnYuksekTeklif, ctx.baslangicFiyati);

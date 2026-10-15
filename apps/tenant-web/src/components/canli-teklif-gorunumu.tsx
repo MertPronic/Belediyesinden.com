@@ -57,6 +57,7 @@ export interface CanliTeklifGorunumuProps {
   connected: boolean;
   baslangicFiyati: number;
   minArtirmaAdimi: number;
+  /** İhalenin kapanış zamanı; null → süresiz, personel sonuçlandırana kadar açık (KK-26). */
   bitisTarihi: string | null;
   ihaleTipi: string;
   /** Verilirse, bu kullanıcının teklif satırı "Siz" etiketiyle vurgulanır (vatandaş görünümü). Admin izlerken boş bırakılır. */
@@ -102,7 +103,11 @@ export function CanliTeklifGorunumu({
       <div className="grid grid-cols-3 gap-3">
         <StatCell icon={TrendingUp} label="En Yüksek Teklif" value={`${fmt(enYuksek)} ₺`} highlight pulse={enYuksekPulse} />
         <StatCell icon={Minus} label="Min. Artırma" value={`${fmt(minArtirmaAdimi)} ₺`} />
-        <StatCell icon={Clock} label="Kalan Süre" value={kalanSure ?? '—'} />
+        {kalanSure ? (
+          <StatCell icon={Clock} label="Kalan Süre" value={kalanSure} />
+        ) : (
+          <StatCell icon={Clock} label="Durum" value="Açık" />
+        )}
       </div>
 
       <div className="flex items-center gap-2 text-xs text-gray-500">

@@ -294,7 +294,7 @@ export default async function VarlikDetayPage({ params }: { params: Promise<{ ka
                 {bitis && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-1.5 text-gray-500">
-                      <CalendarClock className="h-3.5 w-3.5" /> İhale bitişi
+                      <CalendarClock className="h-3.5 w-3.5" /> İhale tarihi
                     </span>
                     <span className="font-medium text-gray-900">{bitis.toLocaleDateString('tr-TR')}</span>
                   </div>

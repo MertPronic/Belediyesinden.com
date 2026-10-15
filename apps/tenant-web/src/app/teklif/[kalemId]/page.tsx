@@ -141,7 +141,7 @@ function TeklifEkrani({ kalemId }: { kalemId: string }) {
               connected={connected}
               baslangicFiyati={Number(kalem.baslangic_fiyati)}
               minArtirmaAdimi={minAdim}
-              bitisTarihi={kalem.bitis_tarihi}
+              bitisTarihi={null /* süresiz — kalem.bitis_tarihi ihale BAŞLANGICI (KK-26) */}
               ihaleTipi={kalem.ihale_tipi}
               currentUserId={user?.sub}
             />

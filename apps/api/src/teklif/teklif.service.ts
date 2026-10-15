@@ -6,7 +6,7 @@ import { getCurrentTenant } from '@belediyesinden/tenancy';
 import { BasvuruDurumu, IhaleTipi } from '@belediyesinden/shared';
 import { getIlanKurallari } from '@belediyesinden/rule-engine';
 import { rawQuery } from '@belediyesinden/db';
-import { sureUzat, sureUzatmaGerekirMi, teklifDogrula } from '@belediyesinden/auction-core';
+import { teklifDogrula } from '@belediyesinden/auction-core';
 import { AuctionGateway } from '../auction/auction-gateway';
 import type { IlanKalemi } from '../ilan/ilan-kalemi.entity';
 import type { Teklif } from './teklif.entity';
@@ -14,7 +14,8 @@ import type { Teklif } from './teklif.entity';
 /**
  * Teklif servisi — server-authoritative teklif işleme.
  * Akış: kalem doğrula → mevcut en yüksek teklif → kural çek → teklifDogrula →
- * DB'ye yaz → anti-snipping süre uzatma kontrolü. KK-25: birim `ilan` değil
+ * DB'ye yaz. Süre yok: canlı artırma personel sonuçlandırana kadar açık kalır,
+ * anti-snipping de bu yüzden devre dışı (KK-26). KK-25: birim `ilan` değil
  * `ilan_kalemi` (tek bir varlığın ihalesi) — bir ilandaki her varlık bağımsız.
  */
 @Injectable()
@@ -117,13 +118,14 @@ export class TeklifService {
     // Kural motoru.
     const kurallar = await getIlanKurallari(qr, kalem.ihale_tipi as IhaleTipi);
 
-    // Teklif doğrulama (server-authoritative).
-    const bitis = new Date(kalem.bitis_tarihi ?? Date.now());
+    // Teklif doğrulama (server-authoritative). bitisTarihi: null — kalem.bitis_tarihi
+    // KK-20'den beri ihalenin BAŞLANGICI (ihale tarihi), bitişi değil; ihale
+    // personel sonuçlandırana kadar açık (KK-26).
     const sonuc = teklifDogrula(tutar, {
       mevcutEnYuksekTeklif: mevcutEnYuksek,
       minArtirmaAdimi: kurallar.minArtirmaAdimi,
       baslangicFiyati: Number(kalem.baslangic_fiyati),
-      bitisTarihi: bitis,
+      bitisTarihi: null,
       ihaleTipi: kalem.ihale_tipi,
     });
     if (!sonuc.gecerli) {
@@ -157,12 +159,6 @@ export class TeklifService {
       entityId: kalemId,
       payload: { tutar },
     }).catch(() => {});
-
-    // Anti-snipping: bitişe yakınsa süreyi uzat (yalnızca bu kalem — diğer kalemler etkilenmez).
-    if (sureUzatmaGerekirMi(bitis, kurallar.sureUzatmaDakika)) {
-      const yeniBitis = sureUzat(bitis, kurallar.sureUzatmaDakika);
-      await qr.query('UPDATE ilan_kalemi SET bitis_tarihi = $1 WHERE id = $2', [yeniBitis, kalemId]);
-    }
 
     return teklif;
   }

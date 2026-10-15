@@ -9,9 +9,7 @@
  *
  * Tek sapma: tarihler. Kurallar (yayın ≥10 gün sonra, ihale ≥10 gün daha sonra)
  * bugün oluşturulan bir ilanı 20 gün test edilemez kılar; bu yüzden ilanlar geçerli
- * tarihlerle oluşturulup yayınlandıktan SONRA tarihleri geriye çekilir. Canlı
- * artırmadaki kalemlerin bitişi ileri alınır (kalem bitişi = ihale tarihi olarak
- * doğduğu için aksi halde teklifler "İhale süresi doldu" ile reddedilir).
+ * tarihlerle oluşturulup yayınlandıktan SONRA tarihleri geriye çekilir.
  *
  * İdempotent: aynı başlıklı ilan varsa o ilan atlanır.
  * Bağımsız çalışır (@swc-node/register — Nest DI için decorator metadata gerekir).
@@ -75,8 +73,6 @@ interface IlanTanim {
   ilanTarihi?: number;
   /** Yayına alındıktan sonra ihale tarihi. */
   ihaleTarihi?: number;
-  /** Kalem bitişi (canlı artırmanın kapanışı). */
-  kalemBitis?: number;
 }
 
 const ORTAK_SARTLAR = [
@@ -144,7 +140,6 @@ const ILANLAR: IlanTanim[] = [
     ilanTarihi: -12 * GUN,
     // İhale zamanlayıcısı (60 sn'de bir) bu saatte ilanı kendiliğinden canlı artırmaya alır.
     ihaleTarihi: 1 * SAAT,
-    kalemBitis: 1 * SAAT + 3 * GUN,
     varliklar: [
       {
         tip: VarlikTipi.IsletmeHakki,
@@ -165,7 +160,6 @@ const ILANLAR: IlanTanim[] = [
     hedef: 'CANLI_ARTIRMA',
     ilanTarihi: -15 * GUN,
     ihaleTarihi: -1 * SAAT,
-    kalemBitis: 2 * GUN,
     varliklar: [
       {
         tip: VarlikTipi.Tasinir,
@@ -270,7 +264,7 @@ async function main(): Promise<void> {
           ilan.id,
         ]);
         await rawQuery(qr, 'UPDATE ilan_kalemi SET bitis_tarihi = $1 WHERE ilan_id = $2', [
-          iso(t.kalemBitis ?? t.ihaleTarihi!),
+          iso(t.ihaleTarihi!),
           ilan.id,
         ]);
 

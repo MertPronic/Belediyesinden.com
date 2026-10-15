@@ -307,7 +307,7 @@ function KalemSatiri({
             connected={connected}
             baslangicFiyati={Number(kalem.baslangic_fiyati)}
             minArtirmaAdimi={minArtirmaAdimi}
-            bitisTarihi={kalem.bitis_tarihi}
+            bitisTarihi={null /* süresiz — kalem.bitis_tarihi ihale BAŞLANGICI (KK-26) */}
             ihaleTipi={ihaleTipi}
           />
         </div>
